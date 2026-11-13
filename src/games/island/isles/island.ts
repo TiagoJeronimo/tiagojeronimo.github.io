@@ -1,4 +1,4 @@
-import { thump } from '../../sound.ts'
+import { thump } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
 import { BARK, GROUND, NEAR, RING, STONE, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'

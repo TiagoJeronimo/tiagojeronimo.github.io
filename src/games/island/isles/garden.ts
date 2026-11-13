@@ -1,4 +1,4 @@
-import { note } from '../../sound.ts'
+import { note } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
 import { BARK, GROUND, NEAR, W, any, drawn, step, tileAt, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'

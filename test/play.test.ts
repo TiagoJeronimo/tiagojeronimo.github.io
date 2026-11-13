@@ -13,9 +13,9 @@ Object.assign(globalThis, {
   removeEventListener() {},
   document: { documentElement: { style: { setProperty() {}, removeProperty() {} } }, body: { style: {} }, querySelector: () => null },
 })
-const { ISLES, Island, framed, held, LINGER } = await import('../src/game/Island.ts')
-const { headOf, shapeOf } = await import('../src/game/critters.ts')
-const { D, W, drawn, step, tileAt, tx, tz } = await import('../src/game/grid.ts')
+const { ISLES, Island, framed, held, LINGER } = await import('../src/games/island/Island.ts')
+const { headOf, shapeOf } = await import('../src/games/island/critters.ts')
+const { D, W, drawn, step, tileAt, tx, tz } = await import('../src/games/island/grid.ts')
 
 // What the test reaches into: mostly things the game keeps to itself.
 interface Thing { tile: number; cubes: number[]; grown?: number[]; hits?: number; tip?: string; tap?: () => void; play?: () => void; todo?: boolean; up?: boolean; key?: string; extra?: number[] }

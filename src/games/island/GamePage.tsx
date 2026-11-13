@@ -4,7 +4,7 @@ import { Bloom, EffectComposer, N8AO, TiltShift, ToneMapping } from '@react-thre
 import { BlendFunction, KernelSize, ToneMappingMode, type TiltShiftEffect } from 'postprocessing'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
 import { FINGERS, HINTS } from '../hints.ts'
-import { setSound, toggleSound } from '../sound.ts'
+import { setSound, toggleSound } from '../../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
 import type { Friend } from './wishes.ts'

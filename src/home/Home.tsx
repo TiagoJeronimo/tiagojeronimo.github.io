@@ -216,7 +216,7 @@ function Raccoon({ leave }: { leave: () => void }) {
 const named = () => decodeURIComponent(location.hash.slice(1))
 
 /** The two games are made for a mouse and a keyboard. Whoever asks for one on a phone is told so first: see `play`. */
-const GAMES = ['/game/', '/castle/']
+const GAMES = ['/games/island/', '/games/castle/']
 const PHONE = '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 500px)' // held upright, or on its side
 
 export default function Home() {
@@ -332,7 +332,9 @@ export default function Home() {
   const shown = cards.filter((project) => kind === 'all' || project.kind === kind)
   const card = (project: Project, n: number) => {
     const poster = project.wide && kind === 'all'
-    const game = !poster && GAMES.includes(project.links[0].href) // one of my two games, on a card of the ordinary shape
+    // One of my two games, on a card of the ordinary shape. (Its own card: not another that happens to lead to it, as
+    // the old islands of cubes do.)
+    const game = !poster && project.kind === 'games' && GAMES.includes(project.links[0].href)
     return (
       <li key={project.slug} data-slug={project.slug} className={[poster && 'wide', game && 'game', seen.includes(project.slug) && 'seen'].filter(Boolean).join(' ') || undefined} style={{ ...colours(project), '--n': n, viewTransitionName: `card-${project.slug}` } as CSSProperties}>
         {project.slug === BEHIND && <Snail id="a" found={found} find={find} />}

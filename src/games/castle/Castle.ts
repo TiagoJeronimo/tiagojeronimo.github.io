@@ -1,4 +1,4 @@
-// A castle on a hill, in the cubes of the island game (`../game/cubes.ts`): a floor, flat ground lying on it, the hill
+// A castle on a hill, in the cubes of the island game (`../island/cubes.ts`): a floor, flat ground lying on it, the hill
 // that stands on that, the castle on top, a stream that comes down one side, and soldiers that drop where they are put
 // and then fight. One that lands on the hill or the castle is the castle's; one that lands anywhere else, on the flat
 // ground or on the floor round it, is against it. The page (`CastlePage.tsx`) draws it and hands it the clicks; the
@@ -25,9 +25,9 @@
 // Besides: sheep that graze, and are patted by whoever passes; ducks on the pond; and soldiers with nothing to do, who
 // sit down, or fish, or sleep under a tree.
 import { CircleGeometry, DirectionalLight, DynamicDrawUsage, Group, HemisphereLight, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Quaternion, ShadowMaterial, Vector3 } from 'three'
-import { Bits, Cubes, unit } from '../game/cubes.ts'
-import { BARK, LEAF, NEAR, NEVER, RING, STONE, WOOD, any, rnd } from '../game/grid.ts'
-import { thump } from '../sound.ts'
+import { Bits, Cubes, unit } from '../island/cubes.ts'
+import { BARK, LEAF, NEAR, NEVER, RING, STONE, WOOD, any, rnd } from '../island/grid.ts'
+import { thump } from '../../sound.ts'
 
 export type Kind = 'archer' | 'sword'
 /** What can be let go over the land: a soldier of either kind, or a picnic. */

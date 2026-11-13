@@ -2,8 +2,8 @@
 // the side they should; they fight as they are meant to; and the camera, asked to go in on the keep, goes to the keep.
 import assert from 'node:assert/strict'
 import { PerspectiveCamera, Raycaster, Vector2 } from 'three'
-import { Castle, REACH, type Kind } from '../src/castle/Castle.ts'
-import { View } from '../src/castle/View.ts'
+import { Castle, REACH, type Kind } from '../src/games/castle/Castle.ts'
+import { View } from '../src/games/castle/View.ts'
 
 type Drop = [kind: Kind, x: number, z: number]
 /** A new castle, soldiers let go over it, and `seconds` gone by; `each` is asked after every step of them. */

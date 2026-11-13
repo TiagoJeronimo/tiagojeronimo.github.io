@@ -1,4 +1,4 @@
-import { audio } from '../sound.ts'
+import { audio } from '../../sound.ts'
 
 // A small tune that grows with the world: one more voice for every isle that has come up, and brighter
 // the more of the land is awake. All of it is made here; there are no sound files. It keeps to the same

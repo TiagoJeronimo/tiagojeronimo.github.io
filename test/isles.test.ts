@@ -1,15 +1,15 @@
 // The maps of the game's isles: every one fits the grid, none overlap, and there is sea between them.
 // Run with: node test/isles.test.ts
 import assert from 'node:assert/strict'
-import { D, W, deal, drawn } from '../src/game/grid.ts'
-import { beach, islet } from '../src/game/isles/beach.ts'
-import { garden } from '../src/game/isles/garden.ts'
-import { island } from '../src/game/isles/island.ts'
-import { meadow } from '../src/game/isles/meadow.ts'
-import { mountain } from '../src/game/isles/mountain.ts'
-import { snow } from '../src/game/isles/snow.ts'
-import { swamp } from '../src/game/isles/swamp.ts'
-import { newland, volcano } from '../src/game/isles/volcano.ts'
+import { D, W, deal, drawn } from '../src/games/island/grid.ts'
+import { beach, islet } from '../src/games/island/isles/beach.ts'
+import { garden } from '../src/games/island/isles/garden.ts'
+import { island } from '../src/games/island/isles/island.ts'
+import { meadow } from '../src/games/island/isles/meadow.ts'
+import { mountain } from '../src/games/island/isles/mountain.ts'
+import { snow } from '../src/games/island/isles/snow.ts'
+import { swamp } from '../src/games/island/isles/swamp.ts'
+import { newland, volcano } from '../src/games/island/isles/volcano.ts'
 
 const isles = [island, meadow, snow, mountain, swamp, beach, volcano, newland, garden, islet]
 const owner = new Map<number, string>()
