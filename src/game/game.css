@@ -108,6 +108,60 @@ body {
   background: #f0719a;
   box-shadow: 0 0 0 2px var(--bg);
 }
+/* Under the sound's button, until it has been pressed once: a small label that asks, with a point on it towards the
+   button. It comes up a moment after the island has, nods for a while, and then leaves by itself. Not while the journal
+   or the cog's sheet is open: it would lie on top of them. (Hidden, not taken away: its time goes on running.) */
+.ask {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 50%;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: #f0719a;
+  color: #fff;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+  translate: -50% 0;
+  animation:
+    ask-in 0.5s 2.5s both,
+    ask-nod 1.5s 3s ease-in-out 11,
+    ask-out 0.5s 20s forwards;
+}
+.ask::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: inherit;
+  rotate: 45deg;
+  translate: -50% 0;
+}
+.top:has([aria-expanded='true']) .ask {
+  visibility: hidden;
+}
+@keyframes ask-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes ask-nod {
+  50% {
+    translate: -50% 3px;
+  }
+}
+@keyframes ask-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
 .tabs button {
   position: relative;
 }
@@ -767,9 +821,18 @@ button.key {
   opacity: 1;
   animation: speech 0.5s ease-out;
 }
-/* The small mark at the end of a line that has another waiting behind it. */
+/* The small mark that says another line is waiting behind this one: in the corner of the patch, clear of the words, so
+   that nothing in the line shifts when it comes or goes. */
 .speech small {
-  font-size: 0.8em;
+  position: absolute;
+  right: 0.4em;
+  bottom: 0.35em;
+  font-size: 0.7em;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.speech small[data-more='true'] {
   opacity: 0.5;
 }
 @keyframes speech {
@@ -780,16 +843,18 @@ button.key {
 }
 
 /* The ending: the last words roll up over the island like the credits of a film, down the middle of the picture, and
-   fade out towards its top and bottom. Clicks pass through to the world: the balloon is there to be clicked. */
+   fade out towards its top and bottom. Every line stands on a card of the page's colour, like the line across the
+   bottom does: that is what makes it easy to read over land and water alike. Clicks pass through to the world: the
+   balloon is there to be clicked. */
 .credits {
   position: fixed;
   inset: 0;
   z-index: 2;
   overflow: hidden;
   pointer-events: none;
-  /* A thin veil of the page's colour over the picture, so that the words win; it thins out with them, top and bottom. */
-  background: color-mix(in srgb, var(--bg) 34%, transparent);
-  mask-image: linear-gradient(transparent 5%, #000 24%, #000 76%, transparent 95%);
+  /* A very thin veil of the page's colour over the picture, no more: the cards do the work, and the fireworks show. */
+  background: color-mix(in srgb, var(--bg) 14%, transparent);
+  mask-image: linear-gradient(transparent 3%, #000 16%, #000 84%, transparent 97%);
   animation: veil 1.2s both;
 }
 @keyframes veil {
@@ -799,31 +864,31 @@ button.key {
 }
 .credits > div {
   position: absolute;
-  top: 100%;
+  top: 70%; /* the first line is in the picture from the start: nobody waits for it to come up over the edge */
   left: 50%;
-  width: min(30rem, calc(100vw - 48px));
+  width: min(30rem, calc(100vw - 40px));
   translate: -50% 0;
   animation: credits linear both;
   color: var(--ink);
-  font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.4;
   text-align: center;
-  /* To be read over land and water alike: a soft edge of the page's colour round every letter. */
-  text-shadow:
-    0 0 2px var(--bg),
-    0 0 5px var(--bg),
-    0 0 10px var(--bg),
-    0 0 18px var(--bg),
-    0 0 30px var(--bg);
 }
 .credits p {
-  margin: 0 0 2.4em;
+  margin: 0 0 1.4em;
+  padding: 0.75em 1.1em;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  box-shadow: 0 6px 20px rgb(40 30 60 / 0.1);
 }
-/* From under the bottom edge to over the top one: its own height, and the height of the window. */
+.credits p:last-child {
+  margin-bottom: 0;
+}
+/* From where it starts to over the top edge: its own height, and as much of the window's as it had to go. */
 @keyframes credits {
   to {
-    transform: translateY(calc(-100% - 100vh));
+    transform: translateY(calc(-100% - 70vh));
   }
 }
 
@@ -866,27 +931,76 @@ button.key {
   margin: 0;
 }
 
-/* The card at the end. It comes up once the ending has been said. */
+/* The card at the end. It comes up once the ending has been said: all but solid, so that it is read without the island
+   showing through, with everybody who is up along its top. Never taller than the window: it scrolls in itself if it must. */
 .end {
   top: 50%;
   left: 50%;
-  width: min(24rem, calc(100vw - 24px));
-  padding: 24px 26px;
+  width: min(25rem, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 22px 24px 20px;
   transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--bg) 95%, transparent);
+  box-shadow: 0 18px 50px rgb(40 30 60 / 0.22);
   text-align: center;
+}
+.end .crowd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 3px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+/* Four small tiles: a number, and under it what it counts. */
+.end .stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.end .stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  padding: 8px 2px 7px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.end .stats dt {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.end .stats dd {
+  margin: 0 0 2px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.end .stats small {
+  font-size: 0.7rem;
+  font-weight: 650;
+  opacity: 0.65;
 }
 .end[data-open='true'] {
   transition:
     opacity 0.8s 2s,
     visibility 0s 2s;
 }
-/* What the game noticed about how it was played: said plainly, a line each. */
+/* What the game noticed about how it was played: said plainly, a line each, with a hair of a rule between them. */
 .end .noticed {
-  font-style: italic;
-  line-height: 1.45;
+  margin: 0 0 16px;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  opacity: 1;
+}
+.end .noticed li {
+  padding: 7px 4px;
 }
 .end .noticed li + li {
-  margin-top: 0.5em;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .end h2 {
   margin: 0 0 0.4em;
@@ -896,7 +1010,8 @@ button.key {
   letter-spacing: -0.02em;
 }
 .end p {
-  margin: 0 0 0.8em;
+  margin: 0 0 1em;
+  line-height: 1.45;
 }
 .end ul {
   margin: 0 0 1.2em;
@@ -909,8 +1024,26 @@ button.key {
 .end .buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 10px 8px;
   justify-content: center;
+}
+/* The two big buttons on a line of their own, the two small ones under them: a break in the row between the two kinds. */
+.end .buttons::after {
+  content: '';
+  flex-basis: 100%;
+  order: 1;
+  margin-top: -10px;
+}
+.end .buttons .sound {
+  order: 2;
+}
+@media (max-width: 420px) {
+  .end {
+    padding-inline: 16px;
+  }
+  .end .btn {
+    padding-inline: 14px;
+  }
 }
 .end .sound {
   position: static;

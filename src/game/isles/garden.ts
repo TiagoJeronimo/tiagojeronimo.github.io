@@ -1,15 +1,24 @@
 import { note } from '../../sound.ts'
+import type { Critter } from '../critters.ts'
 import { BARK, GROUND, NEAR, W, any, drawn, step, tileAt, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
+import { untilBeat } from '../music.ts'
 
 /** The coop is open: out come the chicks. Their cheeping calls the flock home, and the flock brings seeds. */
 function letOut(w: Island, tile: number) {
   const x = tx(tile)
   const z = tz(tile)
   w.say('Chicks! Out they tumble, cheeping fit to burst. The racket calls the flock home, and the flock brings seeds. The loudest thing here weighs nothing and has no plan. It works anyway.', 'chick')
+  // A hop is a cheep, but a small one: it does not carry, and is only heard from close by.
+  const cheep = (chick: Critter) => {
+    const heard = w.hears(chick.x, chick.z)
+    if (heard > 0.1) note(1, 0.04 * heard)
+  }
   for (let k = 0; k < 2; k++)
     w.after(0.3 + k * 0.7, () => {
-      // They potter about the garden a hop at a time: over the grass, between the carrots, up onto a cabbage or a pumpkin.
+      // They potter about the garden a hop at a time: over the grass, between the carrots, up onto a cabbage or a
+      // pumpkin. Every hop comes down on a beat of the tune, whether or not anybody can hear it: a chick waits for the
+      // right moment to leave the ground (it is up for half a beat), and stays put after it for a beat or a few.
       w.critters.spawn('chick', x, w.h[tile], z + 0.5).next = (chick) => {
         const here = tileAt(chick.x, chick.z)
         const [di, dj] = NEAR[Math.floor(Math.random() * 4)]
@@ -17,9 +26,15 @@ function letOut(w: Island, tile: number) {
         const to = u >= 0 && w.isle[u] === w.isle[tile] && '.ckpH'.includes(w.mark[u]) ? u : here
         const perch = !w.alive[to] ? 0 : w.mark[to] === 'k' ? 0.43 : w.mark[to] === 'p' ? 0.37 : 0
         const roam = perch ? 0.12 : 0.5
-        note(1, 0.04)
-        w.critters.go(chick, tx(to) + any() * roam, w.h[to] + perch, tz(to) + any() * roam, 0.25, 0.14)
-        chick.rest = 0.4 + Math.random() * 1.6
+        const [hx, hz] = [tx(to) + any() * roam, tz(to) + any() * roam]
+        const [wait, beat] = untilBeat(w.time)
+        const up = beat / 2
+        const lead = wait >= up ? wait - up : wait + beat - up
+        w.after(lead, () => {
+          if (chick.hidden || chick.nap > 0.1) return // night has fallen meanwhile: it is asleep
+          w.critters.go(chick, hx, w.h[to] + perch, hz, up, 0.14, () => cheep(chick))
+        })
+        chick.rest = lead + Math.floor(Math.random() * 4) * beat + 0.05
       }
     })
   w.seeds = 9

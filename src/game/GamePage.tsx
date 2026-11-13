@@ -25,8 +25,9 @@ const HUES: Record<string, string> = {
   bees: 'ffc21f', bunny: 'f08fa8', duck: 'ffa23f', penguin: '4a6fa8', goat: 'c9a06b', ghost: '8fb0ea', windmill: 'e9806f', shell: 'f08fa8', 'old tree': '8a6d58', fire: 'ff8a3c', geyser: '5cb8ee', snowman: '7fb4e8',
   snowball: '7fb4e8', lantern: 'ffc21f', volcano: 'ff6a3c', cactus: '5fa85a', river: '4fa8e8', 'fairy ring': 'e0527f', bats: '7a5fa0', balloon: 'e9605a', bottle: '4fb894', 'falling star': 'ffc21f', snail: 'ff7a6b',
   capybara: 'b98a5e', axolotl: 'f58fb0',
+  secret: 'ffc21f', // "A secret: ..." has the word itself in gold
   // Lines of these kinds are not about a thing with a name to pick out: only what a tip marks itself stands out in them.
-  tip: '', secret: '', combo: '', 'about you': '',
+  tip: '', combo: '', 'about you': '',
 }
 /**
  * How a line names whoever or whatever it is about, for the page to make that stand out: a friend by its name in the
@@ -46,7 +47,7 @@ const tint = (hex: string) => {
   const strong = d === 0 ? 0 : d / (1 - Math.abs(most + least - 1))
   return `hsl(${Math.round(hue * 60)} ${Math.round(Math.min(85, strong * 140 + 12))}% var(--key))`
 }
-const QUIET = 'wake-the-island/quiet' // kept once somebody has turned the sound off: it then stays off
+const SOUND = 'wake-the-island/sound' // what somebody last chose with the sound's button, 'on' or 'off'. Until they have, it is off
 // The three ways of getting about, said in a corner at the start of every island: each goes the first time it is used
 // there. Where there is a keyboard, the keys that do the same come after, in brackets: "Drag to move [or W A S D]".
 const FINGERS = matchMedia('(pointer: coarse)').matches // a screen that is touched: no mouse, and no keys to speak of
@@ -330,30 +331,33 @@ function Stage({
 
 export default function GamePage() {
   const [state, setState] = useState(START)
-  // The sound is on, unless somebody has turned it off. A browser lets a page make none until it has been clicked on or
-  // a key pressed: so every click and every key says again what is wanted, and the first of them is what starts it.
-  const [sound, setLoud] = useState(() => {
+  // The sound is off until somebody turns it on with its button. (It used to start by itself at the first touch, which
+  // a phone does not always let a page do: there it stayed silent, and nothing said why.) Until the button has been
+  // pressed once, a small label under it asks. What was chosen is remembered. And once it is on, every touch and key
+  // says so again, before the game hears it: on a later visit the first of them is what starts it (a browser lets a
+  // page make no sound before that), and a browser can send a sound to sleep, which that wakes. A tap on the picture is
+  // not a "click" everywhere, so a finger lifting is listened for as well.
+  const [chosen, setChosen] = useState(() => {
     try {
-      return !localStorage.getItem(QUIET)
+      return localStorage.getItem(SOUND)
     } catch {
-      return true
+      return null
     }
   })
+  const sound = chosen === 'on'
   useEffect(() => {
     const say = () => setSound(sound)
-    addEventListener('click', say, true)
-    addEventListener('keydown', say, true)
+    const ways = ['click', 'keydown', 'pointerup', 'touchend']
+    for (const way of ways) addEventListener(way, say, true)
     return () => {
-      removeEventListener('click', say, true)
-      removeEventListener('keydown', say, true)
+      for (const way of ways) removeEventListener(way, say, true)
     }
   }, [sound])
   const loud = () => {
-    const next = toggleSound()
-    setLoud(next)
+    const next = toggleSound() ? 'on' : 'off'
+    setChosen(next)
     try {
-      if (next) localStorage.removeItem(QUIET)
-      else localStorage.setItem(QUIET, '1')
+      localStorage.setItem(SOUND, next)
     } catch {
       // no storage: it is asked again next time
     }
@@ -531,6 +535,12 @@ export default function GamePage() {
       <header className="top">
         <button className="sound icon" aria-label={sound ? 'Turn the sound off' : 'Turn the sound on'} title={sound ? 'Sound on' : 'Sound off'} onClick={loud}>
           <Speaker on={sound} />
+          {/* Until somebody has said yes or no to it: a small label under the button, which asks. */}
+          {chosen === null && (
+            <i className="ask" aria-hidden="true">
+              Sound?
+            </i>
+          )}
         </button>
         {/* A dot on it when something has gone into the log without being said out loud. */}
         <button
@@ -802,7 +812,7 @@ export default function GamePage() {
                             )}
                             {done && <span className="tick">{granted ? '✓ granted' : '✓ done'}</span>}
                             {/* Not said out loud at the time, and not seen here before: a dot. */}
-                            {(news.includes(line) || state.fresh.includes(line)) && <i className="new" title="New: this one was not said out loud" />}
+                            {(news.includes(line) || state.fresh.includes(line)) && <i className="new" title="New: this one went by unread" />}
                           </strong>
                         )}
                         <span>
@@ -819,17 +829,22 @@ export default function GamePage() {
 
       {/* What the game says, a line at a time across the bottom, like a subtitle. Whoever or whatever a line is about
           is written in its own colour, and a click on that goes to see it; the rest of the line lets clicks through to
-          the world. The space bar is "read, next", and a small mark at the end says that another line is waiting.
+          the world. The space bar is "read, next", and a small mark in the corner says that another line is waiting
+          (in the corner, and not at the end of the words: there it made the line wrap afresh whenever it came or went).
           (Not while the ending rolls: that has the picture to itself.) */}
       <p className="speech" key={state.hint} data-open={state.shown && !rolling} aria-live="polite">
         <Line text={state.hint} onGo={saying && leads(saying) ? () => see(saying) : undefined} color={saying ? hue(saying) || saying[3] : undefined} names={saying ? names(saying) : []} />
-        {state.waiting > 0 && <small aria-hidden="true"> ▸</small>}
+        <small aria-hidden="true" data-more={state.waiting > 0}>
+          ▸
+        </small>
       </p>
-      {/* The ending: what whoever is in the balloon has to say rolls up over the island, like the credits of a film.
-          Rolled again (a click on the balloon), it starts from the bottom again: hence the key. */}
+      {/* The ending: what whoever is in the balloon has to say rolls up over the island, like the credits of a film,
+          every line on a card of its own. Rolled again (a click on the balloon), it starts from the bottom again: hence
+          the key. When the last of it has gone off the top, it is over: the page says so itself, since the game's clock
+          stands still while nobody is looking, and the words do not. */}
       {rolling && (
         <div className="credits" key={state.rolled} aria-live="polite">
-          <div style={{ animationDuration: `${state.rolling}s` }}>
+          <div style={{ animationDuration: `${state.rolling}s` }} onAnimationEnd={(event) => event.animationName === 'credits' && game.current?.next()}>
             {state.credits.map((line) => (
               <p key={line}>{line}</p>
             ))}
@@ -842,24 +857,37 @@ export default function GamePage() {
       </div>
 
       <div className="end" data-open={state.done && state.ended && !waved && !rolling} role="dialog" aria-label="The end">
+        {/* Everybody who is up, along the top: it is their island now. */}
+        <div className="crowd" aria-hidden="true">
+          {friends
+            .filter((friend) => friend.met && FACES[friend.id])
+            .map((friend) => (
+              <Pic key={friend.id} what={FACES[friend.id]} size={30} />
+            ))}
+        </div>
         <h2>The whole world is awake</h2>
         <p>
           You woke it in <strong>{state.knocks} knocks</strong>. It was a game about clicking on things until they got better. It worked. That almost never works. Thank you.
         </p>
-        <ul>
-          <li>
-            {combos[0]} of {combos[1]} combos
-          </li>
-          <li>
-            {secrets[0]} of {secrets[1]} secrets
-          </li>
-          <li>
-            {snails[0]} of {snails[1]} snails
-          </li>
-          <li>
-            {wishes[0]} of {wishes[1]} wishes granted
-          </li>
-        </ul>
+        {/* What else there was to find, and how much of it was found: four small tiles. */}
+        <dl className="stats">
+          {(
+            [
+              ['combos', combos],
+              ['secrets', secrets],
+              ['snails', snails],
+              ['wishes', wishes],
+            ] as [string, number[]][]
+          ).map(([name, [have, all]]) => (
+            <div key={name}>
+              <dt>{name}</dt>
+              <dd>
+                {have}
+                <small> of {all}</small>
+              </dd>
+            </div>
+          ))}
+        </dl>
         <ul className="noticed">
           {state.notes.map((note) => (
             <li key={note}>{note}</li>

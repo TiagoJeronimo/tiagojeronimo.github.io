@@ -1,5 +1,5 @@
-// A tiny music box: every block that lands plays one soft note. Silent until it is turned on: by the visitor on the
-// CV, by the first click in the game.
+// A tiny music box: every block that lands plays one soft note. Silent until the visitor turns it on, on the CV and in
+// the game alike (the game remembers, and then starts it at the first touch of a later visit).
 
 const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24] // major pentatonic, two octaves
 let ctx: AudioContext | undefined

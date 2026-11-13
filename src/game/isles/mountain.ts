@@ -40,7 +40,7 @@ function roll(w: Island, ball: Critter, from: number) {
   })
   ball.thing = undefined
   w.watch(ball, 8) // the camera goes down the mountain with it
-  w.say('Off it goes, bigger at every step. A small decision that got out of hand. You will know the feeling.', 'snowball')
+  w.say('Off it goes, bigger at every step, and straight through the ice. A small decision that got out of hand. The lake is loose, and it knows the way down.', 'snowball')
   const next = (k: number) => {
     const u = path[k]
     ball.grow = 1 + k * 0.22
@@ -53,7 +53,6 @@ function roll(w: Island, ball: Critter, from: number) {
       for (let n = 0; n < 16; n++) w.bits.spawn(tx(u) + any(), w.h[u] + 1.2, tz(u) + any(), any() * 7, 4 + Math.random() * 5, any() * 7, 0.22, 0xffffff, 1.5, w.h[u], 0.3)
       w.burst(dam)
       w.blocked[u] = 0
-      w.say('Straight through the ice! The lake is loose, and it knows the way down. Everything does, once you let go of it.', 'snowball')
     })
   }
   next(0)
@@ -69,7 +68,13 @@ function wakeMole(w: Island, tile: number) {
   const channel = dry.sort((a, b) => Math.abs(tx(a) - tx(head)) + Math.abs(tz(a) - tz(head)) - Math.abs(tx(b) - tx(head)) - Math.abs(tz(b) - tz(head)))
   const mole = critters.spawn('mole', tx(tile), w.h[tile], tz(tile), 0x5d5560)
   mole.pet = 1
-  w.say('A mole! It sniffs the air, then digs straight for the dry tarn. It cannot see a thing, and has never once been lost.', 'mole')
+  // (One line for the whole of it. Whether there is water up the mountain to follow it down is known already.)
+  w.say(
+    w.filled[cascade(head) ?? -1]
+      ? 'A mole! It sniffs the air, digs straight for the dry tarn, and the water follows it down. It cannot see a thing, and has never once been lost.'
+      : 'A mole! It digs a channel straight to the dry tarn. It cannot see a thing, and has never once been lost. The water from up the mountain is your problem.',
+    'mole',
+  )
   channel.forEach((u, k) =>
     w.after(1.2 + k * 0.9, () => {
       w.uncover(u)
@@ -78,7 +83,6 @@ function wakeMole(w: Island, tile: number) {
     }),
   )
   w.after(1.4 + channel.length * 0.9, () => {
-    w.say(w.filled[cascade(head) ?? -1] ? 'Water follows the mole down its new channel, into the tarn. The mole did not do it for the water. The water does not care why.' : 'A channel to the tarn. All it needs now is water from up the mountain. The mole did its part. The rest is somebody else’s problem. Yours.', 'mole')
     critters.go(mole, tx(tile) + 1, w.h[tile], tz(tile), 0.6, 0.4, () => {
       mole.next = w.stroll
       mole.rest = 2

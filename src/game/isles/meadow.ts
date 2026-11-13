@@ -217,8 +217,6 @@ export const meadow: Isle = {
       w.put(mill, 0, 2.52, 0, 0.6, 0.24, 0.6, 0xe9806f)
       w.put(mill, 0, 2.72, 0, 0.3, 0.16, 0.3, 0xd96f60)
       w.put(mill, 0, 0.35, 0.46, 0.3, 0.6, 0.04, BARK)
-      const pane = w.put(mill, 0.24, 1.2, 0.46, 0.18, 0.18, 0.04, 0x86b6f5)
-      w.onNight.push((night) => w.solid.paint(pane, night ? 0xffd98a : 0x86b6f5, night ? 2.6 : 1)) // somebody is in: the window is lit at night
       const sails = w.critters.spawn('sails', x, top + 1.95, z + 0.52)
       sails.roll = 0.5
       sails.hidden = true
@@ -245,7 +243,7 @@ export const meadow: Isle = {
           sails.onPat = () => void w.strike(t) // a click on the sails is a click on the mill
           Object.assign(w.things[t], { tip: 'The windmill. A click stops it, and the wind with it', sound: 'creak' })
           Object.assign(w.things[mill], { tip: w.things[t].tip, sound: 'creak' })
-          w.say('The sails turn! The wind takes a cloud of seeds out west, right across the island. The windmill has a job again and is not going to be normal about it.', 'windmill')
+          w.say('The sails turn! The wind takes the seeds out west, and where they land, something dark and damp comes up. Not everything you plant is a meadow. It is still yours.', 'windmill')
           // Each seed is thrown so that it comes down where the swamp will be.
           for (let k = 0; k < 44; k++) w.after(0.8 + k * 0.05, () => w.bits.spawn(x + any(), top + 2.4 + any(), z + any(), (sx - x) / 3.4 + any(), 1.2, (sz - z) / 3.4 + any(), 0.1, 0xfffbe8, 3.5, NEVER, 0, 0.7))
           // The camera goes west with them, once it has seen the sails start to turn.
@@ -256,10 +254,7 @@ export const meadow: Isle = {
               return [x + (sx - x) * t, z + (sz - z) * t]
             }, 3.5)
           })
-          w.after(5, () => {
-            w.say('Where the seeds come down, something dark and damp comes up. Not everything you plant is a meadow. It is still yours.', 'windmill')
-            w.raise('swamp')
-          })
+          w.after(5, () => w.raise('swamp'))
         },
       })
       const ivy = Array.from({ length: 10 }, (_, k) => w.put(t, Math.cos(k * 2.4) * 0.52, 1.1 + k * 0.17, 0.56 + Math.sin(k * 2.4) * 0.1, 0.3, 0.2, 0.14, k % 2 ? 0x5f9a5a : 0x6fae62))

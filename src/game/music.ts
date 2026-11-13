@@ -26,6 +26,19 @@ export function music(voices: number, life: number, night: boolean, frog: boolea
   if (audio()) timer ||= window.setInterval(tick, 120) // no clock ticking away while the sound is off
 }
 
+/**
+ * Where the tune is in its beat: seconds until the next one, and how long a beat lasts. With the sound off there is no
+ * tune, but there is a beat all the same, the same one, counted on the game's own clock: whoever hops to it does not
+ * have to hear it.
+ * @param clock the game's time, in seconds
+ */
+export function untilBeat(clock: number): [wait: number, length: number] {
+  const length = world.night ? 0.5 : 0.4
+  const ctx = audio()
+  const ahead = ctx && due ? due - ctx.currentTime : -clock
+  return [((ahead % length) + length) % length, length]
+}
+
 export function hush() {
   clearInterval(timer)
   timer = 0

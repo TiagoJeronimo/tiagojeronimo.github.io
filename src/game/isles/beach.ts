@@ -33,11 +33,11 @@ function tides(w: Island, s: number, from: number) {
     )
     ;[...left, ...stones].forEach((cube, k) => (high ? w.solid.hide(cube, k * 0.03) : w.solid.show(cube, 0.8 + k * 0.05)))
     if (high) return w.say('The shell calls, and the tide comes back in over the starfish and the stones. The starfish had only just got used to it. They always have only just got used to it.', 'shell')
-    w.say('The shell calls the sea back out. Starfish, shells, and a row of stones that goes somewhere. You told the sea to leave and it left. That is a lot of sea to be obeyed by.', 'shell')
+    // The first time the sea goes out, one line for all of it: the islet the stones lead to comes up two seconds on.
+    w.say(found ? 'The shell calls the sea back out. Starfish, shells, and a row of stones that goes somewhere. You told the sea to leave and it left. That is a lot of sea to be obeyed by.' : 'The shell calls the sea back out. Stones lead west, to a scrap of sand nobody has stood on in years. It has a lighthouse. For whom is not clear.', 'shell')
     if (found) return
     found = true
     w.after(2.2, () => {
-      w.say('Out west, where the stones lead, the sea uncovers a scrap of sand nobody has stood on in years. It has a lighthouse. For whom is not clear.', 'shell')
       w.raise('islet')
       for (const u of w.tiles[w.index('islet')]) w.wakeAt[u] = w.time + 2 + Math.random() * 1.5
     })
@@ -203,15 +203,12 @@ export const beach: Isle = {
         },
         onBreak: () => {
           note(0, 0.25)
-          w.say('The shell calls and the tide comes in. The lagoon fills. All that water, and all it wanted was to be asked.', 'shell')
+          w.say('The shell calls and the tide comes in. All that water, and all it wanted was to be asked. Far out east, the sea draws back from a smoking rock.', 'shell')
           w.things[t].tip = 'The shell that calls the tide. Blow it again and the sea goes out. It does not ask why'
           w.memo.tide = 1
           const lagoon = w.tiles[s].filter((u) => w.mark[u] === 'l').sort((a, b) => tz(b) - tz(a))
           w.fill(lagoon[0]) // from the seaward end
-          w.after(5, () => {
-            w.say('And far out to the east, the sea draws back from a smoking rock. That is either geology or a warning. It is rarely not both.', 'shell')
-            w.raise('volcano')
-          })
+          w.after(5, () => w.raise('volcano'))
         },
         tap: () => {
           note(w.memo.tide ? 0 : 0.1, 0.22)
@@ -336,10 +333,8 @@ export const beach: Isle = {
       const at = tile === undefined ? undefined : w.place(tile, 0.34)
       if (!at) return
       Object.assign(bottle, { x: tx(tile) + at[0], y: w.h[tile] + 0.1, z: tz(tile) + at[1], face: Math.random() * 6.3, hidden: false })
-      // Said the first time. After that a bottle on the beach is news no longer: it clinks, and that is all.
-      if (w.memo.bottles) w.word('clink', bottle.x, bottle.y + 0.5, bottle.z)
-      else w.say('Something has washed up on the beach. Not a metaphor. An actual thing. Go and look.', 'bottle')
-      w.memo.bottles = 1
+      // Nothing is said about it: it clinks, and it is there to be found.
+      w.word('clink', bottle.x, bottle.y + 0.5, bottle.z)
     })
   },
 }

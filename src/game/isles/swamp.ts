@@ -47,10 +47,8 @@ function croak(w: Island, frog: Critter, first: boolean) {
   const beach = w.index('beach')
   const thirsty = () => w.open[beach] && w.things.some((thing) => thing.todo && w.isle[thing.tile] === beach)
   if (first) {
-    w.say('A frog! It clears its throat, and a cloud comes drifting in. It can make it rain by complaining. It is the most powerful thing here, and it sits on a leaf.', 'frog')
-    return w.rainOn('swamp', [frog.x + 6, frog.z - 5], () =>
-      w.say(thirsty() ? 'The bog is full to the brim. The frog looks south: something on the beach would like some rain too, and would never say so.' : 'The bog is full to the brim, and the swamp starts to stir. Slowly. A swamp does not get excited. It gets damp with intent.', 'frog'),
-    )
+    w.say('A frog! It clears its throat, and a cloud drifts in to fill the bog. It makes rain by complaining. The most powerful thing here, and it sits on a leaf.', 'frog')
+    return w.rainOn('swamp', [frog.x + 6, frog.z - 5])
   }
   const [to, words] = thirsty()
     ? ['beach', 'The frog sends its cloud south, to the beach. One croak. That is the whole procedure.']
@@ -204,7 +202,8 @@ export const swamp: Isle = {
       ring.caps[k] = cap
       ring.tiles[k] = tile
     } else if (c === 'j') {
-      const t = w.thing(tile, { auto: false, todo: true, tip: 'A ring of five mushrooms. They would like to be taken in order', clue: '[Five little mushrooms] stand in a ring in the swamp, each a bit taller than the last. They would like to be noticed in the right order. Who would not.' })
+      // (It is the five mushrooms round it that get tapped: they are what stirs, to say so.)
+      const t = w.thing(tile, { auto: false, todo: true, touched: () => ringOf(w).tiles.flatMap((u) => w.standing[u].flatMap((i) => w.things[i].cubes)), tip: 'A ring of five mushrooms. They would like to be taken in order', clue: '[Five little mushrooms] stand in a ring in the swamp, each a bit taller than the last. They would like to be noticed in the right order. Who would not.' })
       w.put(t, 0, 0.04, 0, 0.7, 0.08, 0.7, 0x8f9a8a)
       w.put(t, 0, 0.1, 0, 0.3, 0.06, 0.3, 0xa9b29c)
       ringOf(w).centre = t

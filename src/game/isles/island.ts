@@ -9,15 +9,18 @@ function freeRiver(w: Island, tile: number) {
   w.blocked[tile] = 0
   w.memo.river = 1
   w.rumble(0.4)
-  w.say('The spring is free. Watch where the water goes. It has been planning this route for years.')
+  // One line for it, whatever it sets off at once: a well that stood open and dry fills with the same breath.
+  const well = w.memo.well
+  w.say(well ? 'The spring is free. Watch where the water goes. It has planned this route for years, and it has not forgotten the well.' : 'The spring is free. Watch where the water goes. It has been planning this route for years.')
   for (const t of w.tiles[w.isle[tile]]) if (w.mark[t] === 'S') w.source(t, 3, 0.4)
-  if (w.memo.well) openWell(w, w.memo.well)
+  if (well) openWell(w, well, true)
 }
 
-function openWell(w: Island, tile: number) {
+/** @param quiet said already, by whatever brought the water */
+function openWell(w: Island, tile: number, quiet = false) {
   w.memo.well = 0
   w.memo.wellFull = 1
-  w.say('Water rises in the well. The ground around it stirs, like somebody remembering they left something on.')
+  if (!quiet) w.say('Water rises in the well. The ground around it stirs, like somebody remembering they left something on.')
   w.things[w.standing[tile][0]].tip = 'The well. It takes a wish, and gives back a splash'
   w.grow(w.standing[tile][0])
   w.source(tile, DEEP, 0.8)
@@ -26,7 +29,8 @@ function openWell(w: Island, tile: number) {
 function freeBird(w: Island, bird: Critter) {
   const { critters } = w
   const [x, z] = w.middle('meadow') // out at sea, where the meadow is waiting
-  w.say('Free! It heads straight out over the water with something in its beak. It did not say thank you. It is working on something better.', 'bird')
+  // (One line for the whole of it: the seed it drops, and the meadow that comes of it, are a few seconds off.)
+  w.say('Free! It heads out over the water and drops a seed into the sea. And the sea, which never answers anybody, answers. It did not say thank you. This is better.', 'bird')
   bird.thing = undefined
   bird.next = undefined
   // Up out of the cage and off in one flight, straight to the place.
@@ -34,10 +38,7 @@ function freeBird(w: Island, bird: Critter) {
   w.watch(bird, flight + 0.6)
   critters.go(bird, x, GROUND + 3, z, flight, 1.2, () => {
     w.bits.spawn(x, GROUND + 2.9, z, 0, 0, 0, 0.2, BARK, 2, 0.2, 0)
-    w.after(0.5, () => {
-      w.say('It drops a seed into the sea. And the sea, which never answers anybody, answers.', 'bird')
-      w.raise('meadow')
-    })
+    w.after(0.5, () => w.raise('meadow'))
     bird.next = w.flit
     bird.rest = 2
   })
@@ -48,7 +49,8 @@ function wakeBeaver(w: Island, beaver: Critter) {
   const dam = w.memo.dam
   const at = w.things[dam].tile
   const logs = [...w.things[dam].cubes]
-  w.say('The beaver wakes, yawns, looks at its dam, and starts taking it apart. No notes, no meeting. It simply changed its mind. Imagine.')
+  // (One line for the whole of it: the dam is gone, and the water off down the channel if there is any, in a few seconds.)
+  w.say(`The beaver wakes, looks at its dam, and takes it apart. No notes, no meeting. It simply changed its mind. ${w.memo.river ? 'Off goes the water, down the side channel.' : 'The channel is open now. All it needs is a river.'}`)
   beaver.thing = undefined
   beaver.pet = 1
   beaver.roll = 0 // on its feet
@@ -66,7 +68,6 @@ function wakeBeaver(w: Island, beaver: Critter) {
     w.things[dam].spent = true
     w.blocked[at] = 0
     w.mark[at] = 'r' // one more stretch of river now
-    w.say(w.memo.river ? 'The dam is gone. Off goes the water, down the side channel. It holds no grudge. Water never does. It is a bit much, honestly.' : 'The dam is gone, but there is no water to fill the channel yet. A door open on an empty room. Give it a minute. Give it a river.')
     w.critters.go(beaver, tx(at), w.h[at], tz(at), 0.5, 0.3, () => {
       beaver.next = w.paddle
       beaver.rest = 1
@@ -165,11 +166,11 @@ export const island: Isle = {
     'b.pp.To..r..eee ',
     '....T....r....T.',
     '........rr..b.G.',
-    '..T.....r....4..',
+    '......T.r....4..',
     '...o..M.r..T....',
     ' ..O....rr...W. ',
     '  .......r..b.  ',
-    '   .T....r...   ',
+    '   ...T..r...   ',
     '     ....r.     ',
   ],
   high: [
@@ -182,7 +183,8 @@ export const island: Isle = {
   ],
   // The same island drawn a second time: the hill in the middle of the north shore, its stream running out to the west coast,
   // the spring in the north-east corner, the river down the east side, and the pond in the south-west.
-  // What any map of it has to keep to. The coastline of the first: bridges from the snow, the garden, the swamp, the meadow
+  // What any map of it has to keep to. No tree within two tiles of the old one, which is a good deal bigger and would
+  // grow into it. The coastline of the first: bridges from the snow, the garden, the swamp, the meadow
   // and the beach land on (5, 0), (1, 3), (0, 9), (15, 9) and (8, 15), which stay bare ground. The river's last tile on the
   // southernmost row: water there is what raises the beach. The hill's stream apart from the river, or the rain would fill
   // the river round the boulder. And the dam in a stretch that runs east to west, with ground south of it for the beaver.
@@ -203,7 +205,7 @@ export const island: Isle = {
         'T...pp..M..r....',
         ' .W.......rr.O. ',
         '  ....T..rr...  ',
-        '   ....b.r.T.   ',
+        '   ....b.rT..   ',
         '     ....r.     ',
       ],
       high: [
@@ -228,7 +230,7 @@ export const island: Isle = {
         '........rrDrr.. ',
         '.T.M..o.r..Vppb.',
         '.......rr..ppp..',
-        '.....T.r...ppp..',
+        '......Tr...ppp..',
         '...O..rr....pp..',
         ' .....r..T....T ',
         '  b...r...W...  ',
@@ -375,21 +377,23 @@ export const island: Isle = {
         tip: 'A crate. It hums, and not from joy',
         clue: 'Something is humming inside that [crate]. Several thousand somethings, with one opinion.',
         onBreak: () => {
-          w.say('Bees! They take their time, and leave flowers where the ground is alive. Not one of them knows it is saving anything. For a bee it is just Tuesday.', 'bees')
+          // (One line for the whole of it: the garden comes up three seconds on, while this is still being read.)
+          w.say('Bees! They leave flowers where the ground is alive. Some fly off to a kitchen garden they remember, and it comes back with them. For a bee it is just Tuesday.', 'bees')
           w.grow(t)
           w.releaseBees(x, top + 1, z)
-          w.after(3, () => {
-            w.say('And off some of them go, over the water. They remember an old kitchen garden, and it comes back with them. Being remembered will do that.', 'bees')
-            w.raise('garden')
-          })
+          w.after(3, () => w.raise('garden'))
         },
       })
       w.put(t, 0, 0.4, 0, 0.8, 0.8, 0.8, 0xc9a06b)
       w.put(t, 0, 0.4, 0, 0.84, 0.14, 0.84, 0xa98463)
       // The first knock takes the rim of the lid off, and one of its planks: there is a dark gap to look into.
       w.things[t].marks = [[w.put(t, 0, 0.83, 0, 0.84, 0.06, 0.84, 0xa98463), w.scar(t, 0.14, 0.8, 0, 0.24, 0.03, 0.8, 0x4a3b3b), w.scar(t, 0.14, 0.62, 0.4, 0.24, 0.36, 0.03, 0x4a3b3b)]]
+      // The hive that was in it: yellow, with two dark bands round it and a dark way in, like the bees it is full of.
+      // (Bands and way in stand a little proud of it: flush with it, they would flicker.)
       w.put(t, 0, 0.3, 0, 0.5, 0.6, 0.5, 0xffd45c, true)
       w.put(t, 0, 0.65, 0, 0.34, 0.2, 0.34, 0xf0b63c, true)
+      for (const dy of [0.24, 0.44]) w.put(t, 0, dy, 0, 0.52, 0.07, 0.52, 0x3a3340, true)
+      w.put(t, 0, 0.09, 0.25, 0.14, 0.1, 0.03, 0x3a3340, true)
     } else if (c === 'G') {
       // A bird in a cage. It knows where the next piece of land is.
       const bird = w.critters.spawn('bird', x, top + 0.1, z, 0x7cc4f5)

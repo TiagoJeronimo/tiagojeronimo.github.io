@@ -9,10 +9,12 @@ import type { Island } from './Island.ts'
 export function combos(w: Island) {
   const { bits } = w
   const beach = w.index('beach')
+  let fruit = -1 // the tile of the tree, or the cactus, that fruit last came out on: where a combo of the bees shows
+  const orchard = () => (fruit < 0 ? undefined : w.above(fruit, 2.2))
   const found = {
     seeds: w.extra('combo', { hint: 'Seeds want wind. Something on the first island is full of seeds, and something in the meadow makes wind. They should talk.' }),
-    apples: w.extra('combo', { hint: 'Bees and fruit trees have business with each other. It is not your business. Arrange it anyway.' }),
-    pears: w.extra('combo', { hint: 'A cactus that has flowered would like to meet some bees. It is prickly about asking.' }),
+    apples: w.extra('combo', { hint: 'Bees and fruit trees have business with each other. It is not your business. Arrange it anyway.', at: orchard }),
+    pears: w.extra('combo', { hint: 'A cactus that has flowered would like to meet some bees. It is prickly about asking.', at: orchard }),
     steam: w.extra('combo', { hint: 'Ask the frog for rain where a fire is burning. Not because you should. Because you can.' }),
     glass: w.extra('combo', { hint: 'Ask the frog for rain where the lava runs. Somebody has to find out what happens.' }),
     glow: w.extra('combo', { hint: 'A lagoon with the tide in is worth seeing in the dark. Most things are, to be fair.' }),
@@ -63,8 +65,10 @@ export function combos(w: Island) {
         if (!thing.extra || !thing.up || (!thing.perch && !w.memo.cactus)) continue
         thing.extra.forEach((cube, k) => w.solid.show(cube, 0.3 + k * 0.2))
         thing.extra = undefined
-        // (Flowers on the old tree and fruit on an oak or two come out the same way, and are nothing to announce.)
-        if (thing.key === 'tree:fruit') found.apples('Bees and blossom! The fruit trees are heavy with apples. The bees will not be thanked. They never are.')
+        // (Flowers on the old tree and fruit on an oak or two come out the same way, and are nothing to announce. So
+        // the line about the apples says which trees it means, and where: or it reads as old news about the oranges.)
+        fruit = thing.tile
+        if (thing.key === 'tree:fruit') found.apples(`Bees and blossom! The apple trees in the ${w.isle[thing.tile] === w.index('garden') ? 'garden' : 'meadow'} are heavy with apples now. The bees will not be thanked. They never are.`)
         else if (!thing.perch) found.pears('Bees and cactus flowers! Prickly pears, the first in years. Hard to pick, hard to eat, and the cactus is thrilled.')
       }
     }

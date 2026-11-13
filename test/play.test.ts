@@ -18,7 +18,7 @@ const { headOf, shapeOf } = await import('../src/game/critters.ts')
 const { D, W, drawn, step, tileAt, tx, tz } = await import('../src/game/grid.ts')
 
 // What the test reaches into: mostly things the game keeps to itself.
-interface Thing { tile: number; cubes: number[]; hits?: number; tip?: string; tap?: () => void; play?: () => void; todo?: boolean; up?: boolean; key?: string; extra?: number[] }
+interface Thing { tile: number; cubes: number[]; grown?: number[]; hits?: number; tip?: string; tap?: () => void; play?: () => void; todo?: boolean; up?: boolean; key?: string; extra?: number[] }
 interface Game {
   things: Thing[]
   solid: { on(cube: number): boolean }
@@ -71,7 +71,7 @@ function play(seed: number) {
   const fruit = groves.flatMap((thing) => thing.extra!)
   assert.ok(flowers.length > 9 && ![...flowers, ...fruit].some((cube) => game.solid.on(cube)), say('the old tree is in flower, or an oak in fruit, before there are any bees'))
 
-  for (let round = 0; round < 40 && (game.found < THINGS || !open('islet')); round++) {
+  for (let round = 0; round < 40 && (game.found < THINGS || !open('islet') || named(/^An egg/) >= 0); round++) {
     // Knock on whatever can be knocked on, until it gives.
     game.things.forEach((thing, i) => {
       for (let k = 0; k < 4 && game.open[game.isle[thing.tile]] && game.things[i].hits; k++) game.strike(i)
@@ -85,6 +85,14 @@ function play(seed: number) {
     if (frog >= 0 && open('beach') && game.things.some((thing) => on(thing, 'beach') && thing.todo)) {
       game.strike(frog)
       wait(14)
+    }
+    // The egg in the ash, once the lava has warmed it, opens at a knock, and never by itself.
+    const egg = named(/^An egg, warm/)
+    if (egg >= 0) {
+      const dragons = () => (game as unknown as { critters: { list: { kind: string }[] } }).critters.list.filter((c) => c.kind === 'dragon').length
+      assert.equal(dragons(), 0, say('the egg opened by itself'))
+      game.strike(egg)
+      assert.equal(dragons(), 1, say('a knock on the warm egg did not open it'))
     }
     // The shell, once it has called the tide in, sends it out (which shows the way to the islet) and calls it back.
     const shell = named(/^The shell that calls the tide/)
@@ -129,6 +137,15 @@ function play(seed: number) {
   // And whatever still answers a click says what it is when pointed at: the well, the old tree, the fire, the bell.
   const mute = game.things.filter((thing) => (thing.tap || thing.play || thing.hits) && !thing.tip && game.open[game.isle[thing.tile]] && thing.cubes.some((cube) => game.solid.on(cube)))
   assert.equal(mute.length, 0, say(`things that answer a click and have no label: ${mute.map((thing) => game.mark[thing.tile])}`))
+  // The dragon is out of its egg, which opened and was not smashed: the bottom half of the shell is still there.
+  assert.ok(game.things.find((thing) => thing.tip?.startsWith('Half an eggshell'))?.cubes.some((cube) => game.solid.on(cube)), say('the dragon is out, and nothing is left of its egg'))
+  // The old tree has room to itself: no other tree cuts into it, neither one dealt there nor one grown since from a seed.
+  const box = (i: number) => (game.solid as unknown as { at(i: number): Float32Array }).at(i) // of a cube: x, y, z of its middle, then its three sizes
+  const all = (thing: Thing) => [...thing.cubes, ...(thing.grown ?? [])]
+  const old = game.things.find((thing) => thing.key === 'tree:old')!
+  const into = (a: number, b: number) => Math.min(...[0, 1, 2].map((k) => (box(a)[3 + k] + box(b)[3 + k]) / 2 - Math.abs(box(a)[k] - box(b)[k])))
+  const crowding = game.things.filter((thing) => thing !== old && thing.key?.startsWith('tree:') && all(thing).some((b) => all(old).some((a) => into(a, b) > 0.02)))
+  assert.equal(crowding.length, 0, say(`a tree grows into the old tree: the one ${crowding.map((thing) => `${tx(thing.tile) - tx(old.tile)} east and ${tz(thing.tile) - tz(old.tile)} south of it`)}`))
   // It is night by now (the lantern), and whoever sleeps, sleeps on the land: round the fire, by the hot water, or
   // wherever it was. Nobody dozes off out over the sea, level with a cliff they are not on.
   // (One that sleeps on a perch is where the perch is: the arm of a scarecrow may reach out over the edge.)
@@ -137,8 +154,11 @@ function play(seed: number) {
   assert.equal(adrift.length, 0, say(`asleep off the land: ${adrift.map((c) => `${c.kind} at ${c.x.toFixed(1)}, ${c.y.toFixed(1)}, ${c.z.toFixed(1)} (${c.next?.name})`)}`))
   // A wish granted from far off takes the camera with it: a carrot for the bunnies comes from the garden, across the
   // water, and the view goes over with it and ends up on whoever wished.
-  const wishing = game as unknown as { friends: { id: string; wish?: string; granted?: boolean }[]; show?: object; going?: { at?: () => number[] | undefined }; critters: { list: { kind: string; x: number; z: number }[] } }
+  const wishing = game as unknown as { friends: { id: string; wish?: string; granted?: boolean }[]; show?: object; going?: { at?: () => number[] | undefined }; critters: { list: { kind: string; x: number; z: number; key?: string; hidden?: boolean; onPat?: () => void }[] } }
   const bunnies = wishing.friends.find((friend) => friend.id === 'bunny')
+  // What somebody would like shows in a bubble over its head, and the friend book has it in words from then on.
+  const bubble = wishing.critters.list.find((c) => c.key === 'bubble:bunny' && !c.hidden)
+  assert.ok(!bubble || bunnies?.granted || bunnies?.wish, say('a bubble is up over the bunnies, and the book does not say what they want'))
   if (bunnies?.wish && !bunnies.granted) {
     wishing.show = undefined // the long look at the finished world is over by now: without a browser, nothing ever says so
     assert.ok(game.strike(game.things.findIndex((thing) => thing.tip?.startsWith('Carrots'))), say('a carrot was not taken as the wish it grants'))
@@ -221,6 +241,33 @@ for (const kind of ['bird', 'bunny', 'tortoise', 'duck', 'penguin', 'beaver', 'm
   const up = game.critters.list.filter((c) => !c.hidden && ['bird', 'beaver'].includes(c.kind) && c.nap < 0.5)
   assert.equal(up.length, 0, 'somebody who sleeps at night is still up twelve seconds into it')
 }
+// The chicks, once out of their coop, hop in time with the tune: every hop of theirs comes down on a beat of it (0.4
+// seconds by day), whether or not the tune can be heard. They are up for half a beat.
+{
+  const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { critters: { list: { kind: string }[]; go(c: { kind: string }, ...rest: unknown[]): void } }
+  const wait = (seconds: number) => {
+    for (let i = 0; i < seconds * 20; i++) game.advance(0.05)
+  }
+  // Only the first island and its garden are played: the lantern in the swamp would bring the night, and chicks sleep.
+  const near = (thing: Thing) => ['island', 'garden'].some((name) => game.isle[thing.tile] === game.index(name))
+  for (let round = 0; round < 8 && game.critters.list.filter((c) => c.kind === 'chick').length < 2; round++) {
+    game.things.forEach((thing, i) => {
+      for (let k = 0; k < 4 && near(thing) && game.open[game.isle[thing.tile]] && game.things[i].hits; k++) game.strike(i)
+    })
+    wait(10)
+  }
+  assert.equal(game.critters.list.filter((c) => c.kind === 'chick').length, 2, 'the coop is open, and there are not two chicks')
+  const landings: number[] = [] // when each hop of a chick comes down: a fifth of a second after it leaves the ground
+  const go = game.critters.go.bind(game.critters)
+  game.critters.go = (c, ...rest) => {
+    if (c.kind === 'chick') landings.push(game.time + 0.2)
+    go(c, ...rest)
+  }
+  wait(40)
+  // (The test steps the game a twentieth of a second at a time: a hop can be that much late.)
+  const off = landings.map((at) => Math.min(at % 0.4, 0.4 - (at % 0.4)))
+  assert.ok(landings.length > 20 && off.every((by) => by < 0.07), `of ${landings.length} hops of the chicks, some came down off the beat: by ${off.map((by) => by.toFixed(2))}`)
+}
 console.log('animals: ok')
 
 // --- what the game says, and what it notices -----------------------------------------------------
@@ -255,13 +302,17 @@ console.log('animals: ok')
   assert.ok(one && two && two[1] - one[1] > held('One short line.') + 0.9, `the second line did not wait for the first to be read, and a breath more (${one}, ${two})`)
   // What a click brings about is said at once, whatever is up. Here the click lands on a sign.
   const sign = game.things.findIndex((thing) => thing.tip?.startsWith('A sign.'))
-  game.say('A long line that is in the middle of being read when the click comes, so that it has to come back afterwards.')
+  // The line it replaces does not come back afterwards. It is in the log, and, cut off this early, with a dot.
+  game.say('A long line that is in the middle of being read when the click comes, and is gone for good when it does.')
   wait(1)
   game.pick = () => sign
   game.click()
   assert.ok(game.hint.startsWith('THE ISLAND: THAT WAY.'), `a click was not answered at once: ${game.hint}`)
+  const unread = game as unknown as { fresh: string[]; read(): void; heard: [string, ...unknown[]][] }
+  assert.ok(unread.fresh.some((line) => line.startsWith('A long line')) && unread.heard.some(([line]) => line.startsWith('A long line')), 'a line cut off by a click is not in the log as one that went by unread')
+  unread.read()
   wait(30)
-  assert.equal(heard.filter(([line]) => line.startsWith('A long line')).length, 2, 'a line cut off by a click did not come back')
+  assert.equal(heard.filter(([line]) => line.startsWith('A long line')).length, 1, 'a line replaced by a click came back afterwards')
 
   // A thing with nothing to give: knocked on five times, it gets a word; and again at ten.
   const dull = game.things.findIndex((thing) => !thing.hits && !thing.tap && !thing.play && !thing.todo && !thing.tip)
@@ -309,7 +360,7 @@ console.log('animals: ok')
   // With each, who or what it was about: what a knock brings about is about the thing knocked on (or whoever is shut
   // in it), a sign's line is a sign's, and what the game remarks on is about the player.
   const about = (start: string) => kept.find(([line]) => line.startsWith(start))?.[1]
-  assert.equal(about('Free! It heads straight out'), 'bird', 'the line about the bird let out of its cage is not about the bird')
+  assert.equal(about('Free! It heads out'), 'bird', 'the line about the bird let out of its cage is not about the bird')
   assert.equal(about('THE ISLAND: THAT WAY.'), 'sign', 'a sign was not read as a sign')
   assert.equal(about('Five knocks, and nothing.'), 'about you', 'a remark on how the game is played is not about the player')
   assert.equal(about('One short line.'), '', 'a line out of nowhere is about somebody')
@@ -360,7 +411,8 @@ console.log('animals: ok')
 // tip is not said again once its thing has been found; nor is any other line that was said about a thing before then.
 {
   let gone: number[] = []
-  const game = new Island(new Scene(), {} as Element, (state: { gone: number[] }) => (gone = state.gone), 0) as unknown as Game & {
+  let shown = false // whether a line is up across the bottom
+  const game = new Island(new Scene(), {} as Element, (state: { gone: number[]; shown: boolean }) => ({ gone, shown } = state), 0) as unknown as Game & {
     pick(): number
     click(): void
     nudge(): void
@@ -394,11 +446,18 @@ console.log('animals: ok')
   const tip = tipFor(cloud)
   run(1)
   click(cloud)
-  assert.ok(game.hint.startsWith('Rain!'), `the knock on the cloud was not answered at once: ${game.hint}`)
+  // The cloud is found: for a breath the rain has the picture to itself, with no line under it at all (the tip that
+  // was up goes at once). Then comes what there is to say about it.
+  run(0.2)
+  assert.ok(!shown, `a line was up while the cloud was still bursting: ${game.hint}`)
+  run(1.5)
+  assert.ok(!shown && !heard.some((line) => line.startsWith('Rain!')), 'the line about the rain did not wait for the rain to be seen')
+  run(1.5)
+  assert.ok(shown && game.hint.startsWith('Rain!'), `once the rain had had its moment, the knock on the cloud was not answered: ${game.hint}`)
   run(40)
   assert.equal(times(tip), 1, 'the tip about the cloud came back after the cloud had been seen to')
   assert.ok(gone.includes(sky), 'the cloud has rained itself out, and a line about it still leads there')
-  // A tip cut off by something else altogether, whose thing is found before its turn comes round again.
+  // A tip cut off by something else altogether: it does not come back either, whatever becomes of its thing.
   const boulder = index('A boulder.')
   const rock = game.things[boulder].tile
   const sign = index('A sign.')
@@ -407,7 +466,7 @@ console.log('animals: ok')
   click(sign)
   for (let k = 0; k < 3; k++) game.strike(boulder)
   run(60)
-  assert.equal(times(other), 1, 'a tip came back although its thing had been found meanwhile')
+  assert.equal(times(other), 1, 'a tip that a click had replaced came back')
   assert.ok(gone.includes(rock), 'the boulder is in pieces, and a line about it still leads there')
   assert.ok(!gone.includes(game.things[sign].tile), 'a sign counts as gone')
   // And any line said about a thing while it is still to be found, should it have to wait until the thing is done.
@@ -568,6 +627,71 @@ assert.ok(Math.abs(kept.soon[2] - taken[2]) < 0.02 * taken[2] && Math.hypot(kept
   game.visit(cloud.tile)
   run(5)
   assert.ok(up(game.arrow.x, game.arrow.y - 0.4, game.arrow.z) < 0.95, `the cloud is off the top of the picture when the view goes to see it (${up(game.arrow.x, game.arrow.y - 0.4, game.arrow.z).toFixed(2)})`)
+}
+// The knock that finishes a thing, from a view of the whole island. If what comes of it runs off (the boulder on the
+// spring: water, down the river) the view stays as wide as it is: it does not start in and stop halfway. If what
+// comes of it stays put (the lid off a dry well) the view goes in for a look, all the way, and stays.
+{
+  const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { pick(): number; click(): void; going?: object; far: number }
+  const camera = new PerspectiveCamera(30, 1.6, 1, 400)
+  const run = (seconds: number) => {
+    for (let i = 0; i < seconds * 20; i++) game.update(0.05, camera, 1280, 800)
+  }
+  const knock = (tip: string, times: number) => {
+    const id = game.things.findIndex((thing) => thing.tip?.startsWith(tip))
+    game.pick = () => id
+    for (let k = 0; k < times; k++) {
+      game.click()
+      run(0.5)
+    }
+    return game.things[id].tile
+  }
+  run(5)
+  const well = knock('A well, with a stone lid', 2)
+  run(6)
+  assert.ok(!game.going && Math.abs(game.zoom - game.far / 22) < 0.05 * game.zoom, `the view did not go in for a look at the open well (${game.zoom.toFixed(2)} times, for ${(game.far / 22).toFixed(2)})`)
+  assert.ok(Math.hypot(game.centre.x + game.pan.x - tx(well), game.centre.z + game.pan.z - tz(well)) < 0.3, 'nor is it looking at the well')
+  game.zoom = 1
+  game.pan.set(0, 0, 0)
+  run(2)
+  knock('A boulder.', 3)
+  run(6)
+  assert.ok(Math.abs(game.zoom - 1) < 0.02 && game.pan.length() < 0.2, `the view came in part of the way when the boulder gave, and stopped (${game.zoom.toFixed(2)} times, ${game.pan.length().toFixed(1)} off the middle)`)
+}
+// The things still to be found stir now and then, one at a time: that is all that says, on a touch screen, what can
+// be touched. Only those, and only gently.
+{
+  const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { solid: { poke(i: number, amount?: number): void }; things: (Thing & { clue?: string; touched?: () => number[] })[] }
+  const camera = new PerspectiveCamera(30, 1.6, 1, 400)
+  const stirred = new Set<Thing>()
+  const poke = game.solid.poke.bind(game.solid)
+  game.solid.poke = (i, amount) => {
+    if (amount === 4.5) stirred.add(game.things.find((thing) => thing.cubes.includes(i))!)
+    poke(i, amount)
+  }
+  for (let i = 0; i < 60 * 20; i++) game.update(0.05, camera, 1280, 800)
+  assert.ok(stirred.size >= 3, `in a minute only ${stirred.size} of the things to be found stirred`)
+  // (All of them things that count towards finishing and that take a knock: no scenery, no toys, no secrets.)
+  assert.ok([...stirred].every((thing) => thing.hits && thing.clue), 'something stirred that is not there to be found, or that a touch does nothing for')
+  // The fairy ring is seen to by tapping its five mushrooms: it is they that stir for it, not the ground between them.
+  const ring = game.things.find((thing) => thing.touched)!
+  const caps = new Set(ring.touched!().map((i) => game.things.find((thing) => thing.cubes.includes(i))))
+  assert.ok(caps.size === 5 && [...caps].every((cap) => cap?.tap) && !caps.has(ring), `the fairy ring stirs by way of ${caps.size} things, and they should be its five mushrooms`)
+}
+// A small noise (a chick's hop) does not carry: it is heard from close by with the view on it, and not from where the
+// whole island is in view, nor with the view somewhere else.
+{
+  const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { hears(x: number, z: number): number }
+  const camera = new PerspectiveCamera(30, 1.6, 1, 400)
+  const settle = () => {
+    for (let i = 0; i < 60; i++) game.update(0.05, camera, 1280, 800)
+  }
+  settle()
+  const [x, z] = [game.centre.x + game.pan.x, game.centre.z + game.pan.z]
+  const wide = game.hears(x, z)
+  game.zoom = 3
+  settle()
+  assert.ok(wide === 0 && game.hears(x, z) > 0.9 && game.hears(x + 10, z) === 0, `a small noise carries: ${wide} from far off, ${game.hears(x, z)} from close by, ${game.hears(x + 10, z)} ten tiles from the middle of the view`)
 }
 // A view taken in for a look goes a touch too far and steps back by as much: that is how one can tell it has arrived.
 {

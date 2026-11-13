@@ -148,6 +148,8 @@ export interface Thing {
   start?: boolean
   /** It has gone to pieces, or been taken apart: what stood here does not any more. */
   spent?: boolean
+  /** What has to be touched to see to it, when that is not the thing itself: the cubes of that. They stir in its place. */
+  touched?: () => number[]
 }
 
 const TALL = 'TXOI' // trees, the windmill, the old tree, the stacked stones: what can stand in the way of a view
@@ -167,7 +169,7 @@ export function deal(isle: Isle, seed: number) {
   map.forEach((row, j) => {
     for (let i = 0; i < row.length; i++) if (isle.loose?.includes(row[i])) slots.push([i, j])
   })
-  for (let attempt = 0; seed && attempt < 60; attempt++) {
+  for (let attempt = 0; seed && attempt < 1000; attempt++) {
     const hand = slots.map(([i, j]) => map[j][i])
     for (let k = hand.length - 1; k > 0; k--) {
       const n = Math.floor(rnd(seed * 7919 + isle.at[0] * 131 + isle.at[1] * 17 + attempt * 977 + k) * (k + 1))
@@ -182,7 +184,10 @@ export function deal(isle: Isle, seed: number) {
     // And a well ('W') stands where no river, spring or pond will have reached by the time it fills. Bringing water to
     // where there was none is what a well is for: with the ground round it green already, it would have nothing to do.
     const soaked = rows.some((row, j) => row.some((c, i) => c === 'W' && rows.some((other, v) => other.some((d, u) => 'rSp'.includes(d) && Math.hypot(u - i, v - j) < 4))))
-    if (!hidden && !crowded && !soaked) return rows.map((row) => row.join(''))
+    // And the old tree ('O') is a good deal bigger than any other, with boughs that reach out low down: no other tree
+    // within two tiles of it, or the two grow into each other.
+    const cramped = rows.some((row, j) => row.some((c, i) => c === 'O' && rows.slice(Math.max(0, j - 2), j + 3).some((near) => near.slice(Math.max(0, i - 2), i + 3).includes('T'))))
+    if (!hidden && !crowded && !soaked && !cramped) return rows.map((row) => row.join(''))
   }
   return map
 }

@@ -46,14 +46,25 @@ const FRIENDS = [
 ]
 
 // A thought bubble, seen from the front, and the little pictures that go in it: [x, y, z, width, height, depth, colour].
-const BUBBLE = [[0, 0.2, 0, 0.46, 0.38, 0.05, 0xffffff], [-0.1, -0.04, 0, 0.1, 0.08, 0.05, 0xffffff], [-0.17, -0.14, 0, 0.06, 0.05, 0.05, 0xffffff]]
+// Small and soft: a square with its corners taken off (a wide slab with a narrower one above and below it), two crumbs
+// of it trailing down towards whoever is thinking, and a picture of a few boxes, plain enough to read from a way off.
+const PAPER = 0xfffdf6
+const BUBBLE = [
+  [0, 0.21, 0, 0.44, 0.26, 0.05, PAPER],
+  [0, 0.365, 0, 0.32, 0.05, 0.05, PAPER],
+  [0, 0.055, 0, 0.32, 0.05, 0.05, PAPER],
+  [-0.1, -0.03, 0, 0.08, 0.07, 0.05, PAPER],
+  [-0.17, -0.12, 0, 0.05, 0.045, 0.05, PAPER],
+]
+const SOON = 60 // how long somebody has been free before a bubble comes up over it (seconds), and
+const APART = 20 // how long after one bubble the next may come: never two at once
 const ICONS: Record<string, number[][]> = {
-  firefly: [[0, 0.2, 0.04, 0.12, 0.12, 0.04, 0x4a4458], [0, 0.1, 0.04, 0.1, 0.08, 0.04, 0xf2ff7a], [0.1, 0.27, 0.04, 0.1, 0.06, 0.03, 0x9fd6ff], [-0.1, 0.27, 0.04, 0.1, 0.06, 0.03, 0x9fd6ff]],
-  carrot: [[0, 0.23, 0.04, 0.14, 0.1, 0.04, 0xff9a3c], [0, 0.14, 0.04, 0.1, 0.08, 0.04, 0xff9a3c], [0, 0.07, 0.04, 0.06, 0.06, 0.04, 0xf08a2c], [0, 0.32, 0.04, 0.06, 0.08, 0.04, 0x67bd72], [-0.07, 0.31, 0.04, 0.05, 0.06, 0.04, 0x7fca6c], [0.07, 0.31, 0.04, 0.05, 0.06, 0.04, 0x7fca6c]],
-  fish: [[-0.03, 0.2, 0.04, 0.2, 0.14, 0.04, 0xff9a5c], [0.11, 0.2, 0.04, 0.06, 0.2, 0.04, 0xff7a3c], [-0.09, 0.23, 0.05, 0.03, 0.03, 0.03, 0x3a3340]],
-  branch: [[-0.08, 0.13, 0.04, 0.14, 0.05, 0.04, BARK], [0.02, 0.18, 0.04, 0.14, 0.05, 0.04, BARK], [0.1, 0.24, 0.04, 0.1, 0.05, 0.04, BARK], [-0.03, 0.26, 0.04, 0.1, 0.08, 0.04, 0x8fd16b], [0.13, 0.31, 0.04, 0.09, 0.07, 0.04, 0x7fca6c]],
-  coconut: [[0, 0.2, 0.04, 0.2, 0.2, 0.04, 0x8a6d58], [0, 0.2, 0.05, 0.14, 0.14, 0.03, 0x9a7b62], [-0.04, 0.23, 0.06, 0.03, 0.03, 0.03, 0x4a3b3b], [0.04, 0.23, 0.06, 0.03, 0.03, 0.03, 0x4a3b3b], [0, 0.17, 0.06, 0.03, 0.03, 0.03, 0x4a3b3b]],
-  pearl: [[0, 0.1, 0.04, 0.28, 0.07, 0.04, 0xff9ab0], [0, 0.21, 0.04, 0.15, 0.15, 0.04, 0xf4f8ff], [-0.03, 0.25, 0.05, 0.05, 0.05, 0.03, 0xffffff]],
+  firefly: [[0, 0.19, 0.04, 0.13, 0.13, 0.04, 0xf5e04a], [0, 0.285, 0.04, 0.08, 0.06, 0.04, 0x4a4458], [0.1, 0.25, 0.04, 0.08, 0.05, 0.03, 0x9fd6ff], [-0.1, 0.25, 0.04, 0.08, 0.05, 0.03, 0x9fd6ff]],
+  carrot: [[0, 0.2, 0.04, 0.13, 0.13, 0.04, 0xff9a3c], [0, 0.11, 0.04, 0.07, 0.07, 0.04, 0xf08a2c], [0, 0.3, 0.04, 0.11, 0.07, 0.04, 0x67bd72]],
+  fish: [[-0.03, 0.21, 0.04, 0.2, 0.13, 0.04, 0xff9a5c], [0.11, 0.21, 0.04, 0.06, 0.18, 0.04, 0xff7a3c], [-0.09, 0.235, 0.05, 0.03, 0.03, 0.03, 0x3a3340]],
+  branch: [[-0.06, 0.15, 0.04, 0.16, 0.05, 0.04, BARK], [0.06, 0.2, 0.04, 0.14, 0.05, 0.04, BARK], [0.12, 0.28, 0.04, 0.1, 0.09, 0.04, 0x8fd16b]], // a twig that steps up to the right, and one leaf at its end
+  coconut: [[0, 0.21, 0.04, 0.2, 0.2, 0.04, 0x8a6d58], [-0.04, 0.245, 0.05, 0.035, 0.035, 0.03, 0x4a3b3b], [0.04, 0.245, 0.05, 0.035, 0.035, 0.03, 0x4a3b3b], [0, 0.18, 0.05, 0.035, 0.035, 0.03, 0x4a3b3b]], // its three eyes
+  pearl: [[0, 0.12, 0.04, 0.26, 0.07, 0.04, 0xff9ab0], [0, 0.225, 0.04, 0.14, 0.14, 0.04, 0xcfe0ff], [-0.03, 0.255, 0.05, 0.04, 0.04, 0.03, 0xffffff]],
 }
 
 interface Wish {
@@ -79,9 +90,9 @@ interface Wish {
 }
 
 /**
- * Animals with wishes. A while after an animal is free, a bubble over its head shows what it would like.
- * The thing is somewhere else in the world; a click on it sends it over. The animal gives something back.
- * None of it is needed to finish. This also keeps the friend book.
+ * Animals with wishes. A minute or so after an animal is free, a small bubble over its head shows what it would like
+ * (and the friend book says it in words). The thing is somewhere else in the world; a click on it sends it over. The
+ * animal gives something back. None of it is needed to finish. This also keeps the friend book.
  */
 export function wishes(w: Island) {
   const { critters, bits } = w
@@ -124,6 +135,7 @@ export function wishes(w: Island) {
     owner.pet = 1
     for (let k = 0; k < 6; k++) bits.spawn(owner.x + any() * 0.4, owner.y + 0.5, owner.z + any() * 0.4, any() * 1.5, 2.4, any() * 1.5, 0.13, 0xff8fb0, 1, NEVER, 0, 2)
     for (let k = 0; k < 3; k++) w.after(k * 0.13, () => note(0.5 + k * 0.2, 0.12))
+    w.breath()
     w.say(wish.thanks, wish.who)
     wish.give(owner)
   }
@@ -369,6 +381,7 @@ export function wishes(w: Island) {
   const list = [beaver, penguin, bunny, crab, frog, dragon] // the easier ones first
   for (const wish of list) friend(wish.who)!.more = true
   let clock = 0
+  let last = -APART // when the last bubble came up
   let finale = false
   w.ticks.push((dt, time) => {
     candle.position.set(light.x, light.y, light.z)
@@ -376,7 +389,7 @@ export function wishes(w: Island) {
     // Every bubble floats over its animal's head and faces the camera.
     for (const wish of list) {
       if (!wish.bubble || !wish.owner) continue
-      Object.assign(wish.bubble, { x: wish.owner.x, y: wish.owner.y + wish.high + 0.3 + Math.sin(time * 2) * 0.04, z: wish.owner.z, face: w.turn, yaw: w.turn, grow: 2.1 + Math.sin(time * 3) * 0.12 })
+      Object.assign(wish.bubble, { x: wish.owner.x, y: wish.owner.y + wish.high + 0.3 + Math.sin(time * 2) * 0.04, z: wish.owner.z, face: w.turn, yaw: w.turn, grow: 1.7 + Math.sin(time * 3) * 0.06 })
     }
     // The dragon's thanks, and again when the whole world is awake.
     if (w.finished && !finale && dragon.granted) {
@@ -412,16 +425,18 @@ export function wishes(w: Island) {
       const at = open(wish) && !wish.sent ? wish.where?.() : undefined
       if (at) for (let k = 0; k < 3; k++) bits.spawn(at[0] + any() * 0.5, at[1] + any() * 0.3, at[2] + any() * 0.5, 0, 0.7, 0, 0.1, 0xfff3a8, 0.9, NEVER, 0, -0.4, 3)
     }
-    // A new bubble, for somebody who has been free for a little while. Never more than three at a time.
+    // A new bubble, for somebody who has been free for a minute or so. One at a time, a while apart, and never more than
+    // three in all. (A game being put back does not wait: what was granted then has to be open to be granted again.)
     let showing = list.filter(open).length
     for (const wish of list) {
       const owner = wish.bubble ? undefined : critters.list.find((c) => (c.friend ?? c.kind) === wish.who && free(c))
-      if (!owner || time - (wish.since ??= time) < 6 || showing >= 3) continue
+      if (!owner || showing >= 3 || (!w.replaying && (time - (wish.since ??= time) < SOON || time - last < APART))) continue
       const known = friend(wish.who)!
+      last = time
       wish.owner = owner
       wish.bubble = critters.spawn('bubble', owner.x, owner.y + wish.high, owner.z, 0, [...BUBBLE, ...ICONS[wish.icon]])
       wish.bubble.key = `bubble:${wish.who}`
-      // A click on the bubble is a click on its animal.
+      // A click on the bubble is a click on its animal, and says the wish.
       wish.bubble.onPat = () => {
         if (owner.thing !== undefined) return w.strike(owner.thing)
         w.say(wish.want, wish.who)

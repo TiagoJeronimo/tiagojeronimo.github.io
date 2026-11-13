@@ -114,7 +114,7 @@ const IDLE: Partial<Record<Kind, string[]>> = {
   bunny: ['look', 'hop', 'scratch', 'chew'],
   tortoise: ['look', 'chew', 'yawn'],
   duck: ['look', 'preen', 'dip', 'flap'],
-  chick: ['hop', 'peck', 'flap'],
+  chick: ['peck', 'flap'], // (no hops of its own on the spot: every hop of a chick is in time with the tune, see the garden)
   penguin: ['look', 'flap', 'yawn'],
   beaver: ['look', 'chew', 'scratch', 'yawn'],
   frog: ['croak', 'hop'],
@@ -248,8 +248,8 @@ const SHAPES: Record<Kind, (c: number) => number[][]> = {
     [0, 0.12, 0.25, 0.14, 0.12, 0.1, 0xf5a3b5],
     [0.17, 0.06, 0.14, 0.1, 0.06, 0.14, 0xf5a3b5],
     [-0.17, 0.06, 0.14, 0.1, 0.06, 0.14, 0xf5a3b5],
-    [0.08, 0.2, 0.2, 0.03, 0.03, 0.02, EYE],
-    [-0.08, 0.2, 0.2, 0.03, 0.03, 0.02, EYE],
+    [0.08, 0.2, 0.21, 0.03, 0.03, 0.02, EYE],
+    [-0.08, 0.2, 0.21, 0.03, 0.03, 0.02, EYE],
   ],
   marmot: (c) => [
     [0, 0.18, 0, 0.3, 0.32, 0.36, c],
@@ -278,7 +278,7 @@ const SHAPES: Record<Kind, (c: number) => number[][]> = {
   ],
   dragon: (c) => [
     [0, 0.18, 0, 0.26, 0.24, 0.36, c],
-    [0, 0.13, 0.08, 0.2, 0.14, 0.2, 0xfff0b8],
+    [0, 0.125, 0.1, 0.2, 0.15, 0.2, 0xfff0b8], // its pale front, a little proud of the body in front and underneath: flush with it, the two flicker
     [0, 0.36, 0.16, 0.22, 0.2, 0.22, c],
     [0, 0.33, 0.3, 0.12, 0.1, 0.08, c],
     [0.07, 0.49, 0.1, 0.04, 0.08, 0.04, 0xfff3df],

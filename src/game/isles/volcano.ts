@@ -2,14 +2,27 @@ import { thump } from '../../sound.ts'
 import { LAVA, NEVER, STONE, any, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
 
-/** The egg in the ash hatches once the lava has warmed it. The little dragon then warms whatever on its isle is still cold. */
+/**
+ * The egg in the ash opens at a knock, once the lava has warmed it (never by itself). It opens, it is not smashed: the
+ * top comes off in a few small pieces, the bottom half stays where it stood, empty, and out comes a little dragon, which
+ * then warms whatever on its isle is still cold.
+ */
 function hatch(w: Island, egg: number) {
-  const { tile } = w.things[egg]
+  const thing = w.things[egg]
+  const { tile } = thing
   const s = w.isle[tile]
-  w.burst(egg)
-  w.things[egg].tap = w.things[egg].tip = undefined // there is no egg any more, cold or otherwise
-  w.say('The egg in the ash was only waiting for some warmth. A dragon! A very small one. It would like to be feared, and it is the size of a bread roll.', 'dragon')
-  w.critters.spawn('dragon', tx(tile), w.h[tile] + 0.1, tz(tile), 0x7fd6a8).next = (dragon) => {
+  const [shell, ...warm] = thing.cubes
+  for (const cube of warm) w.solid.hide(cube)
+  for (let k = 0; k < 5; k++) w.bits.spawn(tx(tile) + any() * 0.3, w.h[tile] + 0.45, tz(tile) + any() * 0.3, any() * 3, 3 + Math.random() * 1.5, any() * 3, 0.12, 0x3a3340, 1.4, w.h[tile], 0.3)
+  w.solid.size(shell, 0.36, 0.2, 0.36)
+  w.solid.place(shell, tx(tile), w.h[tile] + 0.14, tz(tile))
+  thing.cubes = [shell]
+  w.put(egg, 0, 0.25, 0, 0.26, 0.02, 0.26, 0xfff1d6) // the inside of it, pale
+  thing.tap = undefined // it is not cold any more, and has nothing left to ask for
+  thing.tip = 'Half an eggshell. Somebody has moved out, and up'
+  w.breath()
+  w.say('The egg was only waiting for some warmth, and then for somebody to knock. A dragon! A very small one. It would like to be feared, and it is the size of a bread roll.', 'dragon')
+  w.critters.spawn('dragon', tx(tile), w.h[tile] + 0.26, tz(tile), 0x7fd6a8).next = (dragon) => {
     const cold = w.tiles[s].filter((u) => !w.alive[u] && w.wakeAt[u] === Infinity)
     if (!cold.length) return w.flit(dragon)
     const u = cold[Math.floor(Math.random() * cold.length)]
@@ -137,7 +150,7 @@ export const volcano: Isle = {
           w.after(14, () => lava.forEach((u) => w.solid.paint(w.pool[u], LAVA, 2.2)))
         },
         onBreak: () => {
-          w.say('The volcano clears its throat. Lava! It has been meaning to say this for a thousand years.', 'volcano')
+          w.say('The volcano clears its throat. Lava! It has been meaning to say this for a thousand years. Where it meets the sea it sets: new land, still warm.', 'volcano')
           w.things[t].spent = false // the boulder is gone, but what a line about this place names is the volcano, and that is there to see
           for (let k = 0; k < 6; k++) w.after(k * 0.25, thump)
           w.blocked[tile] = 0
@@ -171,7 +184,6 @@ export const volcano: Isle = {
         if (w.isle[mouth] !== s || tx(mouth) !== Math.min(...w.tiles[s].map(tx))) return
         w.after(1.2, () => {
           const fresh = w.tiles[w.index('newland')]
-          w.say('Lava meets the sea, hisses, and sets. New land, still warm, and it will not stay bare for long. Something terrible and something useful, and no telling where one stops.', 'volcano')
           for (let k = 0; k < 30; k++) bits.spawn(tx(mouth) - 1 + any(), 1, tz(mouth) + any() * 2, any(), 2 + Math.random() * 3, any(), 0.24, 0xffffff, 2, NEVER, 0, -1)
           w.raise('newland', tx(mouth) - 1, tz(mouth))
           for (const u of fresh) w.wakeAt[u] = w.time + 3 + Math.hypot(tx(u) - tx(mouth), tz(u) - tz(mouth)) * 0.5
@@ -184,14 +196,29 @@ export const volcano: Isle = {
       w.put(egg, 0.1, 0.44, 0.1, 0.1, 0.06, 0.1, 0xffc24a)
       const ring = w.thing(tile, { tip: 'Four stones round an egg. Somebody put them there, and left' })
       for (const [dx, dz] of [[-0.34, 0.1], [0.34, -0.06], [0.06, 0.36], [-0.1, -0.36]]) w.put(ring, dx, 0.08, dz, 0.2, 0.16, 0.2, STONE[1])
-      // Warm enough once the lava has come a couple of tiles down the mountain.
+      // Warm enough once the lava has come a couple of tiles down the mountain. It does not open by itself: the band
+      // round it glows, and it rocks now and then, with something tapping from inside, until somebody knocks on it.
       let lava = 0
+      let rock = -1 // seconds until it next rocks, once it is warm: below zero while it is cold, and once it is open
       w.onFill.push((filled) => {
         if (w.isle[filled] !== s || ++lava !== 3) return
-        w.after(1.5, () => {
-          hatch(w, egg)
-          w.things[ring].tip = 'Four stones, round where an egg was. They are taking it well'
+        const warm = w.things[egg]
+        rock = 1.5
+        w.solid.paint(warm.cubes[1], 0xffb347, 2.4)
+        Object.assign(warm, {
+          sound: 'crack',
+          tip: 'An egg, warm at last. Something inside is tapping back',
+          tap: () => {
+            rock = -1
+            hatch(w, egg)
+            w.things[ring].tip = 'Four stones, round half an eggshell. They are taking it well'
+          },
         })
+      })
+      w.ticks.push((dt) => {
+        if (rock < 0 || (rock -= dt) > 0) return
+        rock = 2.4 + Math.random() * 1.2
+        for (const wait of [0, 0.22]) w.after(wait, () => rock >= 0 && w.things[egg].cubes.forEach((cube) => w.solid.poke(cube, 7)))
       })
     }
   },

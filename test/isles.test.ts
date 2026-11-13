@@ -132,9 +132,10 @@ function plugged(at: At, find: Find, water: string, plug: string) {
 function apart(at: At, find: Find, one: string, other: string) {
   for (const c of one) for (const [i, j] of find(c)) for (const [di, dj] of SIDES) assert.ok(!other.includes(at(i + di, j + dj)), `'${c}' at (${i}, ${j}) touches '${at(i + di, j + dj)}'`)
 }
-/** Nothing that stands up into the sails of a windmill beside it or right in front of it. */
+/** Nothing that stands up into the sails of a windmill beside it or right in front of it. And no tree within two tiles of the old tree, which is big enough to grow into it. */
 function roomy(at: At, find: Find) {
   for (const [i, j] of find('X')) for (const [di, dj] of [[-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) assert.ok(!'TNIO'.includes(at(i + di, j + dj)), `'${at(i + di, j + dj)}' stands in the sails of the windmill`)
+  for (const [i, j] of find('O')) for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) assert.notEqual(at(i + di, j + dj), 'T', `a tree at (${i + di}, ${j + dj}) stands within two tiles of the old tree`)
 }
 /** Still water keeps off the coast, or it would pour over the edge. */
 function inland(at: At, find: Find, still: string) {
@@ -148,6 +149,7 @@ for (const isle of isles)
     beds = isle.beds
     try {
       RULES[isle.name]?.(at, find)
+      roomy(at, find)
     } catch (error) {
       throw new Error(`${isle.name}, map ${n + 1}: ${(error as Error).message}`, { cause: error })
     }
@@ -156,7 +158,7 @@ for (const isle of isles)
 // on the same places, with everything that is not loose where it was. And the same seed always deals the same isle.
 const sorted = (rows: string[]) => [...rows.join('')].sort().join('')
 for (const isle of isles)
-  for (let seed = 0; seed < 40; seed++) {
+  for (let seed = 0; seed < 300; seed++) {
     const map = drawn(isle, seed).rows
     const rows = deal(isle, seed)
     assert.deepEqual(rows, deal(isle, seed), `${isle.name}: seed ${seed} deals differently the second time`)

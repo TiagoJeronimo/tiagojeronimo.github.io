@@ -268,16 +268,13 @@ export const snow: Isle = {
         tip: 'A rattling stone. Steam leaks out round it. It is fine. It is not fine',
         clue: 'One [stone] up north keeps rattling, and steam leaks out around it. Whatever is under there has stopped being polite about it.',
         onBreak: () => {
-          w.say('A geyser! Hot water, in all this snow. It was under there the whole time, boiling quietly, like a few people you know.', 'geyser')
+          w.say('A geyser! It was under the snow the whole time, boiling quietly, like a few people you know. It lets go, and out east, a mountain happens.', 'geyser')
           w.things[t].spent = false // the stone is gone, but what a line about this place names is the geyser, and that is there to see
           w.blocked[tile] = 0
           w.fill(tile)
           w.source(tile, 3.2, 0.8)
           since = w.time
-          w.after(3.5, () => {
-            w.say('The geyser shakes the sea floor. Out east, rock pushes up through the water. One thing lets go, and somewhere else a mountain happens.', 'geyser')
-            w.raise('mountain')
-          })
+          w.after(3.5, () => w.raise('mountain'))
         },
       })
       w.stones(t, 1.3, tile)
