@@ -220,7 +220,9 @@ export default function Home() {
   const [seen, setSeen] = useState<string[]>([]) // the cards opened, on this visit: each gets a stamp
   const [hop, setHop] = useState<{ slug: string; n: number }>() // the card the llama is walking behind just now,
   const [coon, setCoon] = useState<{ slug: string; n: number }>() // and the one the raccoon is visiting
+  const [big, setBig] = useState<string>() // one of a sheet's small pictures, being looked at big
   const sheet = useRef<HTMLDialogElement>(null)
+  const zoom = useRef<HTMLDialogElement>(null)
   const from = useRef<DOMRect>(undefined) // where the card that was clicked stands: the sheet grows out of it
   const open = cards.find((project) => project.slug === slug)
   const kinds = (Object.keys(KINDS) as Kind[]).filter((one) => projects.some((project) => project.kind === one))
@@ -254,6 +256,12 @@ export default function Home() {
   }, [open])
   // A card that has been opened is stamped.
   if (open && !seen.includes(open.slug)) setSeen([...seen, open.slug])
+  // A small picture that was clicked comes up big, over the sheet, until a click or the Escape key.
+  useEffect(() => {
+    const dialog = zoom.current!
+    if (big && !dialog.open) dialog.showModal()
+    if (!big && dialog.open) dialog.close()
+  }, [big])
   // Night is a mark on the page itself, which the styles go by.
   useEffect(() => {
     document.documentElement.toggleAttribute('data-night', night)
@@ -409,11 +417,13 @@ export default function Home() {
                 <p key={line}>{line}</p>
               ))}
               {open.aside && <p className="aside">{open.aside}</p>}
-              {/* More pictures of the same thing, where there are any. */}
+              {/* More pictures of the same thing, where there are any: small, and a click shows one big. */}
               {open.more && (
                 <p className="more">
                   {open.more.map((picture) => (
-                    <img key={picture} src={picture} alt="" loading="lazy" />
+                    <button key={picture} onClick={() => setBig(picture)} aria-label="See this picture bigger">
+                      <img src={picture} alt="" loading="lazy" />
+                    </button>
                   ))}
                 </p>
               )}
@@ -439,6 +449,10 @@ export default function Home() {
             </div>
           </article>
         )}
+      </dialog>
+
+      <dialog className="zoom" ref={zoom} onClose={() => setBig(undefined)} onClick={() => setBig(undefined)} aria-label="The picture, bigger">
+        {big && <img src={big} alt="" />}
       </dialog>
 
       {/* By night the fireflies are out, down the whole length of the page: scrolling goes past them. */}

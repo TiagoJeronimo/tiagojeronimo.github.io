@@ -622,11 +622,36 @@
   gap: 8px;
   margin-top: 1em;
 }
+.sheet .more button {
+  padding: 0;
+  border-radius: 12px;
+  line-height: 0;
+  cursor: zoom-in;
+}
 .sheet .more img {
   width: 100%;
   aspect-ratio: 6 / 5;
   border-radius: 12px;
   object-fit: cover;
+}
+/* One of them, big: the whole picture, as large as the window lets it be, over everything. */
+.zoom {
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: none;
+  cursor: zoom-out;
+}
+.zoom::backdrop {
+  background: rgb(40 36 58 / 0.72);
+}
+.zoom img {
+  display: block;
+  max-width: 94vw;
+  max-height: 92dvh;
+  border-radius: 18px;
 }
 /* A small word of my own at the end of a card that is otherwise all business. */
 .sheet .aside {

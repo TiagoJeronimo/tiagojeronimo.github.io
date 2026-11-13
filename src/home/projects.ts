@@ -204,7 +204,7 @@ const made: Project[] = [
     slug: 'voxel-unity',
     title: 'Voxels and Perlin noise',
     kind: 'video',
-    when: '2020',
+    when: '2019',
     blurb: 'Unity experiments: a world of cubes that Perlin noise puts where it likes.',
     body: [
       'Experiments in Unity: voxels, and Perlin noise to decide where the ground goes. Perlin noise is the bit of maths that makes random numbers come out smooth, so that the cubes pile up into hills and not into static.',
