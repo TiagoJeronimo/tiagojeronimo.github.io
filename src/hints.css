@@ -19,9 +19,11 @@
 .top .sound:first-of-type {
   margin-left: auto;
 }
-/* And the way back to everything else, alone on the left. */
+/* And the way back to everything else, alone on the left: a button to look at, on the cream of the pages it leads
+   back to, and not on a patch of sky like the rest. */
 .top .sound.back {
   margin: 0 auto 0 0;
+  background: color-mix(in srgb, #fff4e0 78%, transparent);
 }
 
 /* The three ways of getting about: small, under the way back. They come up a moment after a game has, and each goes

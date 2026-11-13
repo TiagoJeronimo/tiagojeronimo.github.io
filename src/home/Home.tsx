@@ -92,13 +92,16 @@ function Shot({ project, as = 'card' }: { project: Project; as?: 'card' | 'poste
   // the browser takes whichever is enough for the size it is shown at.
   const lean = picture?.endsWith('.jpg') && (project.framed || (project.wide && as !== 'card'))
   const [late, setLate] = useState(false) // the second picture waits until the page has had time for the first
+  // And nothing turns to meet it until it has really come: a ground that had turned by itself stood in one colour
+  // beside a picture in another.
+  const [woken, setWoken] = useState(false)
   useEffect(() => {
     if (!project.after) return
     const timer = setTimeout(() => setLate(true), 2500)
     return () => clearTimeout(timer)
   }, [project.after])
   return (
-    <div className={`shot${project.whole ? ' whole' : ''}${project.framed ? ' framed' : ''}`} data-title={project.title}>
+    <div className={`shot${project.whole ? ' whole' : ''}${project.framed ? ' framed' : ''}${woken && as !== 'card' ? ' woken' : ''}`} data-title={project.title}>
       {picture ? (
         <img
           src={picture}
@@ -112,7 +115,7 @@ function Shot({ project, as = 'card' }: { project: Project; as?: 'card' | 'poste
         <Art name={project.art} accent={mark(project)} />
       )}
       {/* What it becomes, laid over what it is: it comes up under the cursor. */}
-      {as !== 'card' && project.after && late && <img className="after" src={project.after} alt="" />}
+      {as !== 'card' && project.after && late && <img className="after" src={project.after} alt="" onLoad={() => setWoken(true)} />}
       {/* The marks of a place I worked, in the corner: so that the card is told at a glance for the real place it is.
           They come off like stickers. */}
       {project.logos && (
@@ -329,8 +332,9 @@ export default function Home() {
   const shown = cards.filter((project) => kind === 'all' || project.kind === kind)
   const card = (project: Project, n: number) => {
     const poster = project.wide && kind === 'all'
+    const game = !poster && GAMES.includes(project.links[0].href) // one of my two games, on a card of the ordinary shape
     return (
-      <li key={project.slug} data-slug={project.slug} className={[poster && 'wide', seen.includes(project.slug) && 'seen'].filter(Boolean).join(' ') || undefined} style={{ ...colours(project), '--n': n, viewTransitionName: `card-${project.slug}` } as CSSProperties}>
+      <li key={project.slug} data-slug={project.slug} className={[poster && 'wide', game && 'game', seen.includes(project.slug) && 'seen'].filter(Boolean).join(' ') || undefined} style={{ ...colours(project), '--n': n, viewTransitionName: `card-${project.slug}` } as CSSProperties}>
         {project.slug === BEHIND && <Snail id="a" found={found} find={find} />}
         {coon?.slug === project.slug && <Raccoon key={coon.n} leave={() => setCoon(undefined)} />}
         {hop?.slug === project.slug && (
@@ -360,9 +364,10 @@ export default function Home() {
             </span>
           </span>
         </a>
-        {/* The poster carries its main link as a button, so that the thing itself is one click away. It lies over the
-            card and is not inside it: a link within a link is no link. */}
-        {poster && (
+        {/* The poster carries its main link as a button, so that the thing itself is one click away; and so does the
+            card of a game, in the corner of its picture. It lies over the card and is not inside it: a link within a
+            link is no link. */}
+        {(poster || game) && (
           <a className="btn now" href={project.links[0].href} {...outside(project.links[0].href)} onClick={play(project.links[0].href)}>
             {project.links[0].label}
           </a>

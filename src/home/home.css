@@ -281,14 +281,15 @@
   height: 100%;
   object-fit: cover;
 }
-/* A second picture laid over the first: what the thing becomes. It comes up under the cursor, or the keyboard. */
+/* A second picture laid over the first: what the thing becomes. It comes up under the cursor, or the keyboard: once
+   it has been fetched (`woken`, which the page sets when it has), and not before. */
 .shot .after {
   opacity: 0;
   transition: opacity 0.8s;
 }
-.grid li:hover .after,
-.tile:focus-visible .after,
-.sheet .shot:hover .after {
+.grid li:hover .woken .after,
+.tile:focus-visible .woken .after,
+.sheet .woken:hover .after {
   opacity: 1;
 }
 /* The marks of the places I have worked: small, each on a white square, in the corner of its card's picture. */
@@ -401,9 +402,10 @@
 .wide .shot .after {
   width: calc(62% + 2px);
 }
-/* When the island wakes under the cursor, the ground it stands on turns with it: to the colour of the second picture. */
-.wide:hover .shot,
-.wide .tile:focus-visible .shot {
+/* When the island wakes under the cursor, the ground it stands on turns with it: to the colour of the second picture.
+   With it, and so only once that picture is there to turn: else the ground stood green beside an island still dry. */
+.wide:hover .woken,
+.wide .tile:focus-visible .woken {
   background-color: #d2eadd;
 }
 .wide .shot::after {
@@ -435,14 +437,35 @@
   font-size: clamp(0.8rem, 2.7cqw, 1rem);
   transition: translate 0.14s;
 }
-.wide:hover .now {
+.wide:hover .now,
+.game:hover .now {
   translate: 0 -4px;
 }
-.wide .tile:active ~ .now {
+.wide .tile:active ~ .now,
+.game .tile:active ~ .now {
   translate: 0 3px;
 }
-.wide:hover .now:active {
+.wide:hover .now:active,
+.game:hover .now:active {
   translate: 0 -1px;
+}
+/* A game on a card of the ordinary shape carries the same button, in the lower left corner of its picture (which is
+   three quarters as tall as the card is wide): the game is one tap away, which matters most on a phone. Like the
+   poster, the card only rises under the cursor: the button would not turn with it. */
+.grid .game {
+  container-type: inline-size;
+}
+.game .now {
+  position: absolute;
+  z-index: 2;
+  top: calc(75cqw - 3.35em);
+  left: 12px;
+  padding: 0.4em 1.05em;
+  font-size: 0.88rem;
+  transition: translate 0.14s;
+}
+.grid .game:hover > .tile {
+  rotate: 0deg;
 }
 /* (In one column the wide card is no wider than the others, so it is taller for its width.) */
 @media (max-width: 36rem) {
@@ -813,11 +836,11 @@
   }
   /* On a screen with no cursor to rest on a card, what the thing becomes comes and goes by itself. */
   @media (hover: none) {
-    .shot .after {
+    .woken .after {
       animation: wake 9s ease-in-out infinite;
     }
-    /* (The ground waits for the second picture, which comes late: the two then turn together.) */
-    .wide .shot:has(.after) {
+    /* (Both wait for the second picture to have come, and so set out in the same moment and turn together.) */
+    .wide .woken {
       animation: dawn 9s ease-in-out infinite;
     }
   }
