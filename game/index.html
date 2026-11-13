@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e5d6bb" />
+    <meta name="description" content="A tiny voxel game: a dry little island, and a few things in the way of its water." />
+    <!-- What a link to the game shows where it is pasted (chats, social sites). Most of them want whole addresses,
+         https://… and all: these are the site's, where it lives on GitHub Pages. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://tiagojeronimo.github.io/game/" />
+    <meta property="og:title" content="Wake the island" />
+    <meta property="og:description" content="A tiny voxel game: a dry little island, and a few things in the way of its water." />
+    <meta property="og:image" content="https://tiagojeronimo.github.io/wake-the-island.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A small island made of cubes, wide awake: green, with water running and animals about." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>Wake the island · Tiago Silva</title>
+  </head>
+  <body>
+    <!-- While the game is on its way: a few tiles of the island putting themselves together, in plain HTML and CSS, so
+         that it is there from the first paint. The game takes it away once its own first frame is drawn, and its own
+         island goes on from there. -->
+    <style>
+      html { background: #e5d6bb; }
+      #boot { position: fixed; inset: 0; z-index: 9; display: grid; place-content: center; justify-items: center; gap: 46px; background: #e5d6bb; color: #3f3b4e; font: 800 1.25rem/1 system-ui, sans-serif; letter-spacing: -0.02em; pointer-events: none; transition: opacity 0.6s; }
+      #boot.gone { opacity: 0; }
+      #boot div { position: relative; width: 150px; height: 150px; transform: rotateX(58deg) rotateZ(45deg); animation: boot-bob 2.4s 1s ease-in-out infinite; }
+      #boot i { position: absolute; left: calc(var(--i) * 30px); top: calc(var(--j) * 30px); width: 28px; height: 28px; border-radius: 3px; background: #dccaa0; box-shadow: 7px 7px 0 #b08b62; animation: boot-pop 0.45s calc(0.1s + var(--d) * 0.22s) cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+      #boot i.b { background: #d0bd92; }
+      @keyframes boot-pop { from { opacity: 0; transform: scale(0.2); } }
+      @keyframes boot-bob { 50% { transform: rotateX(58deg) rotateZ(45deg) translate(-3px, -3px); } }
+    </style>
+    <div id="boot" aria-hidden="true">
+      <div><i style="--i:1;--j:0;--d:2" class="b"></i><i style="--i:2;--j:0;--d:2"></i><i style="--i:3;--j:0;--d:2" class="b"></i><i style="--i:0;--j:1;--d:2" class="b"></i><i style="--i:1;--j:1;--d:1"></i><i style="--i:2;--j:1;--d:1" class="b"></i><i style="--i:3;--j:1;--d:1"></i><i style="--i:4;--j:1;--d:2" class="b"></i><i style="--i:0;--j:2;--d:2"></i><i style="--i:1;--j:2;--d:1" class="b"></i><i style="--i:2;--j:2;--d:0"></i><i style="--i:3;--j:2;--d:1" class="b"></i><i style="--i:4;--j:2;--d:2"></i><i style="--i:0;--j:3;--d:2" class="b"></i><i style="--i:1;--j:3;--d:1"></i><i style="--i:2;--j:3;--d:1" class="b"></i><i style="--i:3;--j:3;--d:1"></i><i style="--i:4;--j:3;--d:2" class="b"></i><i style="--i:1;--j:4;--d:2" class="b"></i><i style="--i:2;--j:4;--d:2"></i><i style="--i:3;--j:4;--d:2" class="b"></i></div>
+      Wake the island
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/game/main.tsx"></script>
+  </body>
+</html>

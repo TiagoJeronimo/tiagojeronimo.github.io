@@ -1,0 +1,954 @@
+/* The game page does not scroll: the island fills the window, edge to edge, and what is said lies across the bottom.
+   The page starts out the colour the dry island is drawn on, and from then on follows the picture (see `toned`). */
+:root {
+  --bg: #e5d6bb;
+  --key: 40%; /* how light the words that name a thing are written: darker by day, lighter by night (the game sets it) */
+}
+html {
+  scroll-snap-type: none;
+  overflow: hidden;
+}
+body {
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+
+/* The three ways of getting about: small, in the top left corner, which is otherwise empty. They come up a moment
+   after a new island has, and each goes the first time it is used there. Clicks pass through them. */
+.hints {
+  position: fixed;
+  z-index: 2;
+  top: 16px;
+  left: clamp(14px, 4vw, 60px);
+  display: grid;
+  justify-items: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+  animation: hints 0.8s 1.5s both;
+}
+.hints li {
+  max-height: 2.4em;
+  overflow: hidden;
+  margin-bottom: 6px; /* not a gap on the list: a gap would stay behind when the line has gone */
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  backdrop-filter: blur(8px);
+  font-size: 0.74rem;
+  font-weight: 650;
+  /* Done with, it fades, and then gives up its place, so that the others close up. */
+  transition:
+    opacity 0.5s,
+    translate 0.5s,
+    max-height 0.4s 0.5s,
+    padding 0.4s 0.5s,
+    margin 0.4s 0.5s;
+}
+/* The keys that do the same, after the words and in brackets: a little quieter than the words. */
+.hints kbd {
+  margin-left: 0.5em;
+  font: inherit;
+  opacity: 0.6;
+}
+.hints li[data-done='true'] {
+  max-height: 0;
+  margin-bottom: 0;
+  padding-block: 0;
+  opacity: 0;
+  translate: -8px 0;
+}
+@keyframes hints {
+  from {
+    opacity: 0;
+  }
+}
+/* The small buttons together on the right, on every screen size: the sound, the map, a nudge, and the cog. */
+.top .sound {
+  /* In place, whatever the shape of the window: the CV's own page moves its one button to a corner in a tall window, and
+     that is not wanted here. (Positioned all the same, for the dot some of them carry.) */
+  position: relative;
+  inset: auto;
+  margin: 0 0 0 8px;
+  /* The land can be right behind them, from close up: they stand on a patch of the page's colour, like the cards. */
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  backdrop-filter: blur(8px);
+}
+.top .sound:first-of-type {
+  margin-left: auto;
+}
+/* Under the word on the journal's button: how far along the game is. A green like the bar's on the map, darker: a line
+   this thin has to stand out more than a bar does. */
+.gauge {
+  position: absolute;
+  inset: auto 8px 1px;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+.gauge i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #4fae3c;
+  transition: width 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+/* A dot on the corner of a button, or of a tab: there is something new behind it. */
+[data-dot='true']::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f0719a;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.tabs button {
+  position: relative;
+}
+/* Two of them are a small picture, in the colour of the words, as tall as a line of words is. */
+.top .icon {
+  padding: 3px 6px;
+  line-height: 0;
+}
+.top .icon svg {
+  width: 1.55em;
+  height: 1.55em;
+}
+
+/* At the top of the map: the title, how much of the world is alive, and the counts. */
+.tally {
+  margin-bottom: 16px;
+}
+.tally h1 {
+  margin: 0 0 0.5em;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.meter {
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: 7px;
+  background: #7fca6c;
+  transition: width 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.count {
+  margin: 0.5em 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* Small print under it. */
+.keys {
+  margin: 0.8em 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
+/* The cog in the corner opens a sheet: a new island, this one over again, and how to get about (with a mouse and keys,
+   or with fingers). Two columns: what it is, and a word about it. */
+.menu {
+  position: relative;
+  display: flex;
+  margin-left: 8px;
+}
+.menu .sheet {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(28rem, calc(100vw - 40px));
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(12px);
+  font-size: 0.82rem;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s,
+    visibility 0s 0.2s;
+}
+.menu .sheet[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s;
+}
+/* The controls: a row for each thing there is to do, and across it the ways of doing it. What to do is in bold, as
+   the first thing looked for; a small heading over each way, where there is more than one. */
+.menu table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.menu th,
+.menu td {
+  padding: 4px 16px 4px 0;
+  vertical-align: top;
+}
+.menu th:last-child,
+.menu td:last-child {
+  padding-right: 0;
+}
+.menu tbody th {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.menu tbody td {
+  opacity: 0.8;
+}
+.menu thead th {
+  padding-top: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.6;
+}
+/* The two buttons in it, side by side and the same size. They look like buttons: dark, with light words (light, with
+   dark ones, by night). */
+.menu .pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.top .menu .pair .sound {
+  margin: 0;
+  padding: 7px 10px;
+  background: var(--ink);
+  color: var(--bg);
+  backdrop-filter: none;
+}
+/* A heading over each part of it, with a line above every one but the first; and a note in small print. */
+.menu h3,
+.menu p {
+  margin: 0;
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+.menu h3 {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.menu h3:not(:first-child) {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+/* Who made this, in a line, and the way to the rest of the site. */
+.menu .about {
+  font-size: inherit;
+  opacity: 1;
+}
+.about a {
+  color: inherit;
+  font-weight: 700;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+/* The same line under the card at the end, where everybody who finishes will see it. */
+.end .about {
+  margin: 1.2em 0 0;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+/* While the sheet is open, the rest of the page is covered by nothing you can see: a click on it shuts the sheet. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* What the cursor is resting on. */
+.label {
+  position: fixed;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  max-width: 17rem;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(8px);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.label[data-open='true'] {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .label {
+    display: none;
+  }
+}
+
+/* The friend book: a frosted card under the buttons. */
+.atlas,
+.end {
+  position: fixed;
+  z-index: 3;
+  box-sizing: border-box;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.25s,
+    visibility 0s 0.25s;
+}
+.atlas[data-open='true'],
+.end[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s;
+}
+/* The map: the isles laid out as they lie, and under them the friends and what has been found. */
+.atlas {
+  top: 64px;
+  right: clamp(10px, 3.5vw, 52px);
+  display: flex;
+  flex-direction: column;
+  width: min(46rem, calc(100vw - 2 * clamp(10px, 3.5vw, 52px))); /* as far from the left edge as from the right, at the least */
+  height: min(48rem, calc(100vh - 84px));
+  overflow: hidden;
+}
+/* What a tab holds scrolls; the tabs themselves stay where they are. The bar it scrolls by is a thin, faint one with
+   nothing behind it, and has its place kept whether it is needed or not, so that no tab is wider than another. */
+.atlas .page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 26%, transparent) transparent;
+  scrollbar-gutter: stable;
+  padding: 2px 20px 20px;
+}
+.atlas h2 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.atlas h3 {
+  margin: 16px 0 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.atlas ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.atlas .shut {
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-left: auto;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.atlas .note {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+.atlas .link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+/* Pictures are a few pixels a side, drawn large and left sharp. */
+.pic,
+.chart canvas {
+  image-rendering: pixelated;
+}
+.tabs {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  padding: 14px 18px 12px;
+}
+.tabs button {
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tabs button[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+/* The chart: the world from above, a pixel a tile, with sea all round it, a frame, a graticule and a compass, like a map. */
+.chart {
+  position: relative;
+  width: min(100%, 31rem);
+  aspect-ratio: 35 / 34;
+  margin: 0 auto 12px;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 calc(20% - 1px), color-mix(in srgb, #4a6a8a 14%, transparent) calc(20% - 1px) 20%),
+    repeating-linear-gradient(90deg, transparent 0 calc(20% - 1px), color-mix(in srgb, #4a6a8a 14%, transparent) calc(20% - 1px) 20%),
+    #cfe6ee;
+  box-shadow:
+    inset 0 0 0 2px #6d7f97,
+    inset 0 0 0 5px #eef6f8,
+    inset 0 0 0 6px #6d7f97;
+  color: #3f4a63;
+}
+.chart .land {
+  position: absolute;
+  inset: 10%;
+}
+.chart canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.chart .title {
+  position: absolute;
+  top: 4.2%;
+  left: 5%;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.chart .rose {
+  position: absolute;
+  right: 4%;
+  bottom: 4%;
+  line-height: 0;
+}
+.pin {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+/* Names as on an old map: small capitals, set straight onto the land. */
+.pin .tag {
+  font-size: 0.66rem;
+  font-weight: 800;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-shadow:
+    0 0 3px #f4fafb,
+    0 0 3px #f4fafb,
+    0 0 6px #f4fafb;
+}
+.pin .small {
+  font-size: 0.56rem;
+  font-style: italic;
+  font-variant: normal;
+  font-weight: 600;
+}
+/* A stamp, as from a rubber stamp: a ring of ink a little askew. */
+.stamp {
+  display: grid;
+  justify-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  align-content: center;
+  border: 2px solid #e0527f;
+  border-radius: 50%;
+  outline: 1px dashed #e0527f;
+  outline-offset: -6px;
+  background: color-mix(in srgb, #ffffff 55%, transparent);
+  color: #e0527f;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-12deg);
+}
+.pin:nth-child(odd) .stamp {
+  transform: rotate(9deg);
+}
+.ledger li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  font-size: 0.8rem;
+}
+.ledger li[data-open='false'] {
+  opacity: 0.5;
+}
+.ledger li[data-whole='true'] strong::after {
+  content: ' ♥';
+  color: #f0719a;
+}
+.ledger span {
+  opacity: 0.8;
+}
+/* The friends: a face, a name, hearts, and a word about them. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 10px;
+}
+.cards li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-size: 0.9rem;
+}
+.cards li[data-met='false'] {
+  opacity: 0.55;
+}
+.cards .hearts {
+  float: right;
+}
+.cards p {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+/* What has been found, as stickers in an album: a dark shape until it is. */
+.stickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr));
+  gap: 8px;
+}
+.stickers li {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-size: 0.74rem;
+  line-height: 1.3;
+  text-align: center;
+}
+.stickers li[data-found='false'] {
+  border: 1px dashed color-mix(in srgb, var(--ink) 25%, transparent);
+  background: none;
+  font-style: italic;
+  opacity: 0.75;
+}
+.atlas .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.visitor {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 0 6px;
+  text-align: center;
+}
+.visitor p {
+  max-width: 30rem;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.finds li {
+  padding: 3px 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+.finds li::before {
+  content: '♥ ';
+  color: #f0719a;
+}
+.finds .rest {
+  opacity: 0.6;
+}
+.finds .rest::before {
+  content: '♡ ';
+}
+.hearts {
+  color: #f0719a;
+  letter-spacing: 0.1em;
+}
+/* The log: everything that has been said, a line each, the latest on top. In front of each, who or what it was about (a
+   face for a friend, a word or two for the rest), so that the eye can find a line without reading them all. */
+.log li {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 2px 14px;
+  align-items: start;
+  padding: 9px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.log strong {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 0.8rem;
+}
+/* In front of the name: a face, a small picture of the thing, or a square of its colour. All the same size, so that
+   the names line up. */
+.log canvas {
+  flex: none;
+  width: 27px;
+  height: 27px;
+}
+/* Where a piece of land came up: a line across, with its name in the middle. What is above it was said after. */
+.log .chapter {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0 10px;
+  border-bottom: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.log .chapter::before,
+.log .chapter::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+/* A tip that has been seen to: ticked, and quieter than the ones still open. */
+.log [data-done='true'] > span {
+  opacity: 0.5;
+}
+.log .tick {
+  color: #5fa85a;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+/* A line that went into the log without being said out loud, and has not been seen here before, carries a dot. */
+.log .new {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f0719a;
+}
+/* A name that leads somewhere is a button: a click goes to see. */
+.log .go {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.log .go:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.log span {
+  grid-column: 2; /* also when the line is about nobody */
+}
+/* The kinds of line that are not about somebody have a colour each. */
+.log [data-about='tip'] strong {
+  color: #cf7a2e;
+}
+.log [data-about='sign'] strong {
+  color: #a0825a;
+}
+.log [data-about='bottle'] strong {
+  color: #3f9a7c;
+}
+.log [data-about='secret'] strong,
+.log [data-about='combo'] strong,
+.log [data-about='snail'] strong {
+  color: #e0527f;
+}
+.log [data-about='about you'] strong {
+  font-style: italic;
+  opacity: 0.6;
+}
+/* Where the map is narrow, who goes on top and the line under it. */
+@media (max-width: 600px) {
+  .log li {
+    grid-template-columns: 1fr;
+  }
+  .log span {
+    grid-column: 1;
+  }
+}
+
+/* The words that name the thing a line is about stand out, wherever a line is shown. Where they lead somewhere they
+   are a button, with dots under them, and can be clicked even in the line at the bottom of the picture, which lets
+   every other click through to the world. */
+.key {
+  color: #d9702b; /* for when the colour of the thing is not known: otherwise it is written in that */
+  font-weight: 800;
+}
+button.key {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* What the game says: a line at a time across the bottom of the picture, in the middle, like a subtitle, on a soft patch
+   of the page's own colour so that it reads over whatever is behind it. It comes up, stays for as long as it takes to
+   read, and fades. */
+.speech {
+  position: fixed;
+  z-index: 2;
+  inset: auto 0 clamp(10px, 3.5vh, 36px);
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(38rem, calc(100vw - 24px));
+  margin: 0 auto;
+  pointer-events: none;
+  padding: 0.45em 0.95em;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 74%, transparent);
+  color: var(--ink);
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  text-wrap: balance;
+  opacity: 0;
+  transition: opacity 0.9s;
+}
+.speech[data-open='true'] {
+  opacity: 1;
+  animation: speech 0.5s ease-out;
+}
+/* The small mark at the end of a line that has another waiting behind it. */
+.speech small {
+  font-size: 0.8em;
+  opacity: 0.5;
+}
+@keyframes speech {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* The ending: the last words roll up over the island like the credits of a film, down the middle of the picture, and
+   fade out towards its top and bottom. Clicks pass through to the world: the balloon is there to be clicked. */
+.credits {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  /* A thin veil of the page's colour over the picture, so that the words win; it thins out with them, top and bottom. */
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
+  mask-image: linear-gradient(transparent 5%, #000 24%, #000 76%, transparent 95%);
+  animation: veil 1.2s both;
+}
+@keyframes veil {
+  from {
+    opacity: 0;
+  }
+}
+.credits > div {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: min(30rem, calc(100vw - 48px));
+  translate: -50% 0;
+  animation: credits linear both;
+  color: var(--ink);
+  font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  /* To be read over land and water alike: a soft edge of the page's colour round every letter. */
+  text-shadow:
+    0 0 2px var(--bg),
+    0 0 5px var(--bg),
+    0 0 10px var(--bg),
+    0 0 18px var(--bg),
+    0 0 30px var(--bg);
+}
+.credits p {
+  margin: 0 0 2.4em;
+}
+/* From under the bottom edge to over the top one: its own height, and the height of the window. */
+@keyframes credits {
+  to {
+    transform: translateY(calc(-100% - 100vh));
+  }
+}
+
+/* The postcard: the picture, as large as fits, and under it a way to keep it. */
+.postcard {
+  position: fixed;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(46rem, calc(100vw - 24px));
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.25s,
+    visibility 0s 0.25s;
+}
+.postcard[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s;
+}
+.postcard img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgb(40 30 60 / 0.28);
+  rotate: -1.2deg;
+}
+.postcard .buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.postcard .sound {
+  position: static;
+  margin: 0;
+}
+
+/* The card at the end. It comes up once the ending has been said. */
+.end {
+  top: 50%;
+  left: 50%;
+  width: min(24rem, calc(100vw - 24px));
+  padding: 24px 26px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.end[data-open='true'] {
+  transition:
+    opacity 0.8s 2s,
+    visibility 0s 2s;
+}
+/* What the game noticed about how it was played: said plainly, a line each. */
+.end .noticed {
+  font-style: italic;
+  line-height: 1.45;
+}
+.end .noticed li + li {
+  margin-top: 0.5em;
+}
+.end h2 {
+  margin: 0 0 0.4em;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.end p {
+  margin: 0 0 0.8em;
+}
+.end ul {
+  margin: 0 0 1.2em;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  opacity: 0.85;
+}
+.end .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.end .sound {
+  position: static;
+  margin: 0;
+}
+
+/* The noise of a knock, as a word that floats up from the thing and is gone. */
+.words {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.word {
+  position: absolute;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--ink, #3f3b4e);
+  text-shadow:
+    0 0 6px var(--bg),
+    0 0 2px var(--bg),
+    0 1px 0 var(--bg);
+  animation: word 0.95s ease-out forwards;
+}
+@keyframes word {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.5) rotate(var(--tilt));
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -90%) scale(1.12) rotate(var(--tilt));
+  }
+  to {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--drift)), -300%) scale(1) rotate(var(--tilt));
+  }
+}

@@ -1,0 +1,387 @@
+:root {
+  --bg: #fff4e0;
+  --ink: #3f3b4e;
+  --accent: #f08a4b;
+  font: 17px/1.55 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The page is as tall as the journey: one screen of scrolling per chapter, and the browser always
+   brings a scroll to rest on one, never more than one chapter per swipe. */
+html {
+  scroll-snap-type: y mandatory;
+}
+.track > div {
+  height: 100vh;
+  height: 100svh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* --- top bar ------------------------------------------------------------ */
+
+.top {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px clamp(20px, 5vw, 72px);
+  pointer-events: none;
+}
+.top > * {
+  pointer-events: auto;
+}
+.mark {
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  transition: opacity 0.3s;
+}
+.mark[data-shown='false'] {
+  opacity: 0;
+  pointer-events: none;
+}
+.sound {
+  white-space: nowrap;
+  margin: 0 16px 0 auto;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+.sound[aria-pressed='true'] {
+  color: var(--bg);
+  background: var(--ink);
+}
+.dots {
+  display: flex;
+  gap: 8px;
+}
+.dots button {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  transition:
+    transform 0.25s,
+    background 0.25s;
+}
+.dots button:hover {
+  background: color-mix(in srgb, var(--ink) 50%, transparent);
+}
+.dots button.on {
+  background: var(--accent);
+  transform: scale(1.35) rotate(45deg);
+}
+
+/* --- chapter cards ------------------------------------------------------ */
+
+.card {
+  position: fixed;
+  z-index: 1;
+  left: clamp(24px, 6vw, 96px);
+  top: 50%;
+  translate: 0 -50%;
+  width: min(33rem, 38vw);
+  visibility: hidden;
+  will-change: transform, opacity;
+}
+.card > * {
+  margin: 0;
+}
+.card p {
+  margin-top: 0.85em;
+  color: color-mix(in srgb, var(--ink) 86%, transparent);
+  text-wrap: pretty;
+}
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0 0 0.9em !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.kicker::before {
+  content: '';
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 3px;
+  background: var(--accent);
+}
+h2 {
+  font-size: clamp(2.1rem, 4.4vw, 4.1rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.role {
+  margin-top: 1.1em !important;
+  font-weight: 700;
+  color: var(--ink) !important;
+}
+blockquote {
+  margin-top: 1.1em;
+  padding-left: 0.9em;
+  border-left: 4px solid var(--accent);
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+cite {
+  display: block;
+  margin-top: 0.3em;
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 1.2em;
+  padding: 0;
+  list-style: none;
+}
+.tags li {
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+/* Hero: the name itself is built in 3D, the words sit under it. */
+.hero {
+  left: 50%;
+  top: auto;
+  bottom: 9vh;
+  translate: -50% 0;
+  width: min(40rem, 90vw);
+  text-align: center;
+}
+.lead {
+  margin-top: 0 !important;
+  font-size: clamp(1.25rem, 2.3vw, 1.8rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink) !important;
+}
+.lead.soft {
+  font-weight: 500;
+  opacity: 0.8;
+}
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-top: 1.8em !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bob {
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 3px;
+  background: var(--accent);
+  animation: bob 1.4s cubic-bezier(0.5, 0, 0.5, 1) infinite alternate;
+}
+@keyframes bob {
+  to {
+    transform: translateY(0.5em) rotate(90deg);
+  }
+}
+
+/* Finale: the whole world in the middle, words above it, links below. */
+.finale {
+  left: 50%;
+  top: 9vh;
+  translate: -50% 0;
+  width: min(44rem, 90vw);
+  height: 82vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+.finale > * {
+  pointer-events: auto;
+}
+.finale h2 {
+  font-size: clamp(2.1rem, 4.4vw, 3.6rem);
+}
+.links {
+  display: flex;
+  gap: 12px;
+  margin-top: auto !important;
+}
+
+/* --- chunky buttons ----------------------------------------------------- */
+
+.btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 14px;
+  font-weight: 750;
+  text-decoration: none;
+  color: var(--bg);
+  background: var(--ink);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--ink) 55%, var(--bg));
+  transition:
+    translate 0.08s,
+    box-shadow 0.08s;
+}
+.btn:hover {
+  translate: 0 -1px;
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--ink) 55%, var(--bg));
+}
+.btn:active {
+  translate: 0 4px;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 55%, var(--bg));
+}
+
+.tools {
+  position: fixed;
+  z-index: 2;
+  right: clamp(20px, 5vw, 72px);
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 10px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(12px);
+  transition: opacity 0.3s;
+}
+.tools span {
+  opacity: 0.7;
+}
+.tools .coarse {
+  display: none;
+}
+@media (pointer: coarse) {
+  .tools .fine {
+    display: none;
+  }
+  .tools .coarse {
+    display: inline;
+  }
+}
+.tools[data-shown='false'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* --- portrait: model on top, words on a sheet below ---------------------- */
+
+@media (max-aspect-ratio: 1/1) {
+  :root {
+    font-size: 15px;
+  }
+  .card:not(.hero, .finale) {
+    left: 14px;
+    right: 14px;
+    top: auto;
+    bottom: 14px;
+    translate: none;
+    width: auto;
+    max-height: 40svh;
+    overflow: auto;
+    padding: 18px 18px 20px;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  h2 {
+    font-size: clamp(1.7rem, 7.5vw, 2.4rem);
+  }
+  .top {
+    padding: 14px;
+  }
+  .sound {
+    position: fixed;
+    top: 50px;
+    left: 14px;
+    margin: 0;
+  }
+  .tools {
+    top: 42px;
+    bottom: auto;
+    right: 10px;
+    padding: 4px 4px 8px 12px;
+    font-size: 0.75rem;
+  }
+  .tools .btn {
+    padding: 7px 13px;
+    border-radius: 12px;
+  }
+  .hero {
+    bottom: 14svh;
+  }
+  .finale {
+    top: 15svh;
+    height: 76svh;
+  }
+  .dots {
+    gap: 6px;
+  }
+  .dots button {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bob {
+    animation: none;
+  }
+}
