@@ -14,71 +14,8 @@ body {
   touch-action: none;
 }
 
-/* The three ways of getting about: small, in the top left corner, which is otherwise empty. They come up a moment
-   after a new island has, and each goes the first time it is used there. Clicks pass through them. */
-.hints {
-  position: fixed;
-  z-index: 2;
-  top: 16px;
-  left: clamp(14px, 4vw, 60px);
-  display: grid;
-  justify-items: start;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  pointer-events: none;
-  animation: hints 0.8s 1.5s both;
-}
-.hints li {
-  max-height: 2.4em;
-  overflow: hidden;
-  margin-bottom: 6px; /* not a gap on the list: a gap would stay behind when the line has gone */
-  padding: 3px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg) 76%, transparent);
-  backdrop-filter: blur(8px);
-  font-size: 0.74rem;
-  font-weight: 650;
-  /* Done with, it fades, and then gives up its place, so that the others close up. */
-  transition:
-    opacity 0.5s,
-    translate 0.5s,
-    max-height 0.4s 0.5s,
-    padding 0.4s 0.5s,
-    margin 0.4s 0.5s;
-}
-/* The keys that do the same, after the words and in brackets: a little quieter than the words. */
-.hints kbd {
-  margin-left: 0.5em;
-  font: inherit;
-  opacity: 0.6;
-}
-.hints li[data-done='true'] {
-  max-height: 0;
-  margin-bottom: 0;
-  padding-block: 0;
-  opacity: 0;
-  translate: -8px 0;
-}
-@keyframes hints {
-  from {
-    opacity: 0;
-  }
-}
-/* The small buttons together on the right, on every screen size: the sound, the map, a nudge, and the cog. */
-.top .sound {
-  /* In place, whatever the shape of the window: the CV's own page moves its one button to a corner in a tall window, and
-     that is not wanted here. (Positioned all the same, for the dot some of them carry.) */
-  position: relative;
-  inset: auto;
-  margin: 0 0 0 8px;
-  /* The land can be right behind them, from close up: they stand on a patch of the page's colour, like the cards. */
-  background: color-mix(in srgb, var(--bg) 76%, transparent);
-  backdrop-filter: blur(8px);
-}
-.top .sound:first-of-type {
-  margin-left: auto;
-}
+/* (The small buttons at the top, on the right the sound, the map, a nudge and the cog, and on the left the way back, are
+   styled in `../hints.css`, which the castle shares: the two games are furnished alike.) */
 /* Under the word on the journal's button: how far along the game is. A green like the bar's on the map, darker: a line
    this thin has to stand out more than a bar does. */
 .gauge {

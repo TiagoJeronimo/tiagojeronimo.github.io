@@ -635,6 +635,27 @@
   object-fit: cover;
 }
 /* One of them, big: the whole picture, as large as the window lets it be, over everything. */
+/* A word before a game is opened on a phone: a small card in the middle of the screen. */
+.notice {
+  width: min(23rem, calc(100vw - 32px));
+  padding: 22px 22px 20px;
+  border: 0;
+  border-radius: 22px;
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 30px 80px rgb(40 30 60 / 0.3);
+}
+.notice::backdrop {
+  background: rgb(40 36 58 / 0.5);
+}
+.notice h2 {
+  margin: 0 0 0.35em;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+.notice p {
+  margin: 0;
+}
 .zoom {
   max-width: none;
   max-height: none;

@@ -70,7 +70,7 @@ const made: Project[] = [
     blurb: 'A tiny voxel game: a dry little island, and a few things in the way of its water.',
     body: [
       'You knock on things until they get better. That is the whole game. It is also, I have come to think, most of what I do for a living.',
-      'The idea is older than the game. I started it in Unity around 2020, left it in a folder for years, and only finished it now, in the browser. The island was very patient about it.',
+      'The idea is older than the game. I started it in Unity around 2020, left it in a folder for years, and only finished it now, in the browser, with AI helping me get it to something you can actually play. The island was very patient about it.',
       'Seven isles, twenty-seven things to find, a few animals with wishes, and a balloon with opinions. It plays on a phone too.',
     ],
     tags: ['TypeScript', 'three.js', 'react-three-fiber', 'Vite'],
@@ -80,6 +80,23 @@ const made: Project[] = [
     after: '/thumbs/wake-the-island-woken.jpg',
     art: 'worm',
     wide: true,
+  },
+  {
+    slug: 'storm-the-castle',
+    title: 'Storm the castle',
+    kind: 'games',
+    when: '2021–2026',
+    blurb: 'A castle, two colours of soldier, and a cat that both of them say is theirs.',
+    body: [
+      'You get archers, swordsmen and a hill. Let one go over the castle and it defends it; anywhere else, and it attacks. They take the walls down a stone at a time to get at the cat on the keep. Whoever carries the cat home owns the castle, which then puts itself back together, and it all starts again.',
+      'There is a third button, and it is a picnic. It ends the war faster than either of the others. There are also sheep, which both sides stop to pat on the way to battle. I did not plan for any of that to be the moral.',
+      'It started in 2021: bored, in covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill. It stayed that way for years. AI helped me get it to something you can play. The cat does not care who wins. I have come to think the cat is right.',
+    ],
+    tags: ['TypeScript', 'three.js', 'react-three-fiber', 'Vite'],
+    links: [{ label: 'Play', href: '/castle/' }],
+    picture: '/thumbs/storm-the-castle.jpg',
+    small: '/thumbs/storm-the-castle-card.jpg',
+    art: 'castle',
   },
   {
     slug: 'curvatron',
@@ -243,13 +260,14 @@ const worked: Project[] = chapters
     accent: chapter.accent,
   }))
 
-// Newest first: by the last year in `when`, then by the first. The wide one leads whatever its years, and what has no
-// year comes last, in the order it was written here.
+// Newest first: by the last year in `when`; of two that end in the same year, what I made comes before where I worked
+// (so the two games stand side by side at the head of the page); and then by the first year. The wide one leads
+// whatever its years, and what has no year comes last, in the order it was written here.
 const years = (project: Project) => {
   const all = project.when?.match(/\d{4}/g)?.map(Number) ?? [0]
   return [all[all.length - 1], all[0]]
 }
-export const projects: Project[] = [...made, ...worked].sort((a, b) => Number(!!b.wide) - Number(!!a.wide) || years(b)[0] - years(a)[0] || years(b)[1] - years(a)[1])
+export const projects: Project[] = [...made, ...worked].sort((a, b) => Number(!!b.wide) - Number(!!a.wide) || years(b)[0] - years(a)[0] || Number(a.kind === 'work') - Number(b.kind === 'work') || years(b)[1] - years(a)[1])
 
 /** The card that says how to reach me. It is no project: it stands last in the grid, is counted with none of them, and
     no chip shows it but All. */

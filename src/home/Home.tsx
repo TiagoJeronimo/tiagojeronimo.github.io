@@ -212,6 +212,10 @@ function Raccoon({ leave }: { leave: () => void }) {
 /** The project named in the address, after the `#`: none when there is nothing there. */
 const named = () => decodeURIComponent(location.hash.slice(1))
 
+/** The two games are made for a mouse and a keyboard. Whoever asks for one on a phone is told so first: see `play`. */
+const GAMES = ['/game/', '/castle/']
+const PHONE = '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 500px)' // held upright, or on its side
+
 export default function Home() {
   const [kind, setKind] = useState<Kind | 'all'>('all')
   const [slug, setSlug] = useState(named)
@@ -221,8 +225,10 @@ export default function Home() {
   const [hop, setHop] = useState<{ slug: string; n: number }>() // the card the llama is walking behind just now,
   const [coon, setCoon] = useState<{ slug: string; n: number }>() // and the one the raccoon is visiting
   const [big, setBig] = useState<string>() // one of a sheet's small pictures, being looked at big
+  const [warned, setWarned] = useState<string>() // the game somebody has asked for on a phone, while they are told what to expect
   const sheet = useRef<HTMLDialogElement>(null)
   const zoom = useRef<HTMLDialogElement>(null)
+  const notice = useRef<HTMLDialogElement>(null)
   const from = useRef<DOMRect>(undefined) // where the card that was clicked stands: the sheet grows out of it
   const open = cards.find((project) => project.slug === slug)
   const kinds = (Object.keys(KINDS) as Kind[]).filter((one) => projects.some((project) => project.kind === one))
@@ -262,6 +268,18 @@ export default function Home() {
     if (big && !dialog.open) dialog.showModal()
     if (!big && dialog.open) dialog.close()
   }, [big])
+  // A link to one of the games, clicked on a phone, does not go there at once: a word comes up first, and a button
+  // that goes all the same.
+  const play = (href: string) => (event: { preventDefault(): void }) => {
+    if (!GAMES.includes(href) || !matchMedia(PHONE).matches) return
+    event.preventDefault()
+    setWarned(href)
+  }
+  useEffect(() => {
+    const dialog = notice.current!
+    if (warned && !dialog.open) dialog.showModal()
+    if (!warned && dialog.open) dialog.close()
+  }, [warned])
   // Night is a mark on the page itself, which the styles go by.
   useEffect(() => {
     document.documentElement.toggleAttribute('data-night', night)
@@ -345,7 +363,7 @@ export default function Home() {
         {/* The poster carries its main link as a button, so that the thing itself is one click away. It lies over the
             card and is not inside it: a link within a link is no link. */}
         {poster && (
-          <a className="btn now" href={project.links[0].href} {...outside(project.links[0].href)}>
+          <a className="btn now" href={project.links[0].href} {...outside(project.links[0].href)} onClick={play(project.links[0].href)}>
             {project.links[0].label}
           </a>
         )}
@@ -438,7 +456,7 @@ export default function Home() {
               )}
               <div className="go">
                 {open.links.map((link, k) => (
-                  <a key={link.href} className={k ? 'sound' : 'btn'} href={link.href} {...outside(link.href)}>
+                  <a key={link.href} className={k ? 'sound' : 'btn'} href={link.href} {...outside(link.href)} onClick={play(link.href)}>
                     {link.label}
                   </a>
                 ))}
@@ -453,6 +471,20 @@ export default function Home() {
 
       <dialog className="zoom" ref={zoom} onClose={() => setBig(undefined)} onClick={() => setBig(undefined)} aria-label="The picture, bigger">
         {big && <img src={big} alt="" />}
+      </dialog>
+
+      {/* A word before a game is opened on a phone. Shut by its button, the Escape key, or a click beside it. */}
+      <dialog className="notice" ref={notice} aria-labelledby="notice-title" onClose={() => setWarned(undefined)} onClick={(event) => event.target === notice.current && setWarned(undefined)}>
+        <h2 id="notice-title">Made for a computer</h2>
+        <p>This game is meant to be played on a computer. It will open on your phone, but it probably won’t work very well.</p>
+        <div className="go">
+          <a className="btn" href={warned}>
+            Play anyway
+          </a>
+          <button className="sound" onClick={() => setWarned(undefined)}>
+            Not now
+          </button>
+        </div>
       </dialog>
 
       {/* By night the fireflies are out, down the whole length of the page: scrolling goes past them. */}

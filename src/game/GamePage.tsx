@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Bloom, EffectComposer, N8AO, TiltShift, ToneMapping } from '@react-three/postprocessing'
 import { BlendFunction, KernelSize, ToneMappingMode, type TiltShiftEffect } from 'postprocessing'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
+import { FINGERS, HINTS } from '../hints.ts'
 import { setSound, toggleSound } from '../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
@@ -47,12 +48,8 @@ const tint = (hex: string) => {
   const strong = d === 0 ? 0 : d / (1 - Math.abs(most + least - 1))
   return `hsl(${Math.round(hue * 60)} ${Math.round(Math.min(85, strong * 140 + 12))}% var(--key))`
 }
-// The three ways of getting about, said in a corner at the start of every island: each goes the first time it is used
-// there. Where there is a keyboard, the keys that do the same come after, in brackets: "Drag to move [or W A S D]".
-const FINGERS = matchMedia('(pointer: coarse)').matches // a screen that is touched: no mouse, and no keys to speak of
-const HINTS = FINGERS
-  ? [['m', '', 'Drag to move'], ['z', '', 'Pinch to zoom'], ['t', '', 'Twist to turn']]
-  : [['m', 'W A S D', 'Drag to move'], ['z', '+ −', 'Scroll to zoom'], ['t', 'Q E', 'Right-drag to turn']]
+// (The three ways of getting about, said in a corner at the start of every island, are `HINTS` in `../hints.ts`: each
+// goes the first time it is used there.)
 // The controls, under the cog, in plain words (this is where people look when they are lost): a row for each thing
 // there is to do, and across it the ways of doing it. With a mouse there are keys as well, and the two get a heading.
 const WAYS = FINGERS ? [] : ['Mouse', 'Keys']
@@ -518,6 +515,10 @@ export default function GamePage() {
         ))}
       </ul>
       <header className="top">
+        {/* The way back to everything else, in the corner: the castle has the same. */}
+        <a className="sound back" href="/">
+          ← Things I’ve made
+        </a>
         <button className="sound icon" aria-label={sound ? 'Turn the sound off' : 'Turn the sound on'} title={sound ? 'Sound on' : 'Sound off'} onClick={loud}>
           <Speaker on={sound} />
           {/* Until somebody has said yes or no to it: a small label under the button, which asks. */}

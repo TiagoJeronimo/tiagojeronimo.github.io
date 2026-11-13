@@ -12,6 +12,11 @@ export const ART: Record<string, { rows: string[]; ink: Record<string, string> }
     rows: ['.....LG.....', '..LG.GG.LG..', '..GGGGGGGG..', '..GKGGGGKG..', '..GGGGGGGG..', '...GSSSSG...', '....SSSS....', '....SSSS....', '............'],
     ink: { G: '#5fb56a', L: '#93db8d', S: '#cdeaa0', K: '#3f3b4e' },
   },
+  // A castle, with its gate and its flag.
+  castle: {
+    rows: ['.....Paa....', '.....P......', '.S.S.SS.S.S.', '.SSS.SS.SSS.', '.SSSSSSSSSS.', '.SSSSDDSSSS.', '.SSSSDDSSSS.', '.SSSSDDSSSS.', '............'],
+    ink: { S: '#b7b2ba', D: '#9a7b62', P: '#8a6d58' },
+  },
   // A snake that turns: one button, many players.
   snake: {
     rows: ['............', '..aaaaaa....', '..a....a....', '..a....a..H.', '..a....aaaa.', '..a.........', '..aaaaaaa...', '..........o.', '............'],
