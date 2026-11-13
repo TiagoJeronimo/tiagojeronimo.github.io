@@ -1,0 +1,1226 @@
+/* The front page: a few words at the top, then everything I have made, a card each. */
+.home {
+  --dark: #3f3b4e; /* ink as it is by day: for words that stand on something pale whatever the hour */
+  --card: #fffdf8;
+  position: relative; /* the fireflies of the night are spread over the whole of it */
+  width: min(70rem, 100% - 2 * clamp(16px, 4vw, 48px));
+  margin: 0 auto;
+  padding: clamp(28px, 6vh, 64px) 0 40px;
+}
+
+/* Night, by the moon at the end of the links: the page goes dark, the cards keep their lights on, the three at the foot of
+   the page shut their eyes, and a few fireflies come out. */
+:root {
+  transition:
+    background-color 0.5s,
+    color 0.5s;
+}
+:root[data-night] {
+  --bg: #1d2136;
+  --ink: #f2e9d8;
+}
+[data-night] .home {
+  --card: #2a2f4b;
+}
+[data-night] .shot {
+  filter: brightness(0.9);
+}
+
+.hello {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 32px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: clamp(20px, 4vh, 36px);
+}
+.hello h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.hello p {
+  max-width: 34rem;
+  margin: 0.5em 0 0;
+  text-wrap: pretty;
+}
+.hello .lead {
+  max-width: none; /* the job, the trade and the town, on one line wherever there is room for it */
+  text-wrap: balance;
+  font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.hello nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.home a.sound {
+  margin: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.home a.sound:hover {
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+/* The link that writes to me shows the address itself under the cursor, or the keyboard, with a button that copies
+   it. (The small box hangs from the link with no gap between them, so that the cursor can go from one to the other.) */
+.mail {
+  position: relative;
+  display: inline-flex;
+}
+.tip {
+  position: absolute;
+  z-index: 3;
+  top: 100%;
+  left: 0;
+  padding-top: 6px;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    visibility 0.15s;
+}
+.mail:hover .tip,
+.mail:focus-within .tip {
+  visibility: visible;
+  opacity: 1;
+}
+.tip > span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 6px 6px 12px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  white-space: nowrap;
+  background: var(--card);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--ink) 14%, var(--bg));
+}
+.tip .sound {
+  margin: 0;
+}
+/* The moon that brings the night (a sun, once it is night): a small drawing with a face, for a button. Pressed, it
+   keeps its quiet chip, where the others turn dark: the sun shows best on the night itself. */
+.lamp {
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 12px;
+  line-height: 0;
+}
+.lamp[aria-pressed='true'] {
+  color: inherit;
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+.lamp svg {
+  width: 36px;
+}
+.lamp .i-K {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* The kinds of thing: a chip each, with how many there are. The one that is pressed is dark. */
+.kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.kinds .sound {
+  margin: 0;
+  padding: 6px 13px;
+  border-radius: 12px;
+  font-size: 0.86rem;
+}
+.kinds small {
+  margin-left: 0.25em;
+  font-size: 0.85em;
+  opacity: 0.6;
+}
+
+/* The cards. Each stands on a small hard shadow, like the buttons, and lifts a little under the cursor: to one side
+   or the other, turn about. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(15.5rem, 100%), 1fr));
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.grid li {
+  position: relative; /* a snail may be hiding behind its card, and somebody may be asleep on it */
+}
+/* A card that has been opened is stamped, like an isle in the game on which everything has been found. */
+.seen .shot::before {
+  content: 'seen';
+  content: 'seen' / '';
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
+  padding: 1px 8px 2px;
+  border: 2px solid;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--mark) 80%, var(--dark));
+  background: rgb(255 255 255 / 0.82);
+  rotate: 7deg;
+}
+/* Somebody at a card, now and then (`Home.tsx` says when and at which). A raccoon comes along the top of one in a
+   few bounds, has a sleep there, and goes: a click wakes it, and it is off at once. A llama walks by behind one: its
+   head and neck come up over the top edge, go along, stop for a look, go on, and down again. The three at the foot
+   of the page stay where they are. */
+.nap,
+.hop {
+  position: absolute;
+  width: 44px;
+  padding: 0;
+  line-height: 0;
+}
+.nap {
+  z-index: 2;
+  top: -29px; /* its chin on the card's top edge */
+  left: 26%;
+}
+.nap .i-K {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.nap::after {
+  content: 'z';
+  position: absolute;
+  top: -4px;
+  left: 100%;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.7;
+  visibility: hidden; /* only while it sleeps */
+}
+.nap.off::after {
+  content: none;
+}
+.hop {
+  z-index: 0; /* behind the card, which hides as much of its neck as is below the edge */
+  top: -30px;
+  left: 4%;
+  pointer-events: none;
+}
+
+@media (min-width: 36rem) {
+  .grid .wide {
+    grid-column: span 2;
+  }
+}
+.tile {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  color: inherit;
+  text-decoration: none;
+  background: var(--card);
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--ink) 14%, var(--bg));
+  transition:
+    translate 0.14s,
+    rotate 0.14s,
+    box-shadow 0.14s,
+    background-color 0.5s;
+}
+.grid li:hover > .tile {
+  translate: 0 -4px;
+  rotate: -0.7deg;
+  box-shadow: 0 10px 0 color-mix(in srgb, var(--ink) 14%, var(--bg));
+}
+.grid li:nth-child(even):hover > .tile {
+  rotate: 0.7deg;
+}
+.grid .wide:hover > .tile {
+  rotate: 0deg; /* the poster only rises: its button lies over it, and would not turn with it */
+}
+.tile:active {
+  translate: 0 3px;
+  rotate: 0deg;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--ink) 14%, var(--bg));
+}
+
+/* What a card shows: a picture cut to its shape, or a small drawing on the card's pale colour. The picture is laid
+   over the frame and does not size it: left in the flow, a picture of another shape would stretch its card. */
+.shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  background: var(--tile);
+}
+.shot svg {
+  width: 74%;
+  height: auto;
+}
+.shot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* A second picture laid over the first: what the thing becomes. It comes up under the cursor, or the keyboard. */
+.shot .after {
+  opacity: 0;
+  transition: opacity 0.8s;
+}
+.grid li:hover .after,
+.tile:focus-visible .after,
+.sheet .shot:hover .after {
+  opacity: 1;
+}
+/* The marks of the places I have worked: small, each on a white square, in the corner of its card's picture. */
+.shot .logos {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+}
+.badge,
+.shot .logos .badge {
+  width: 42px;
+  height: 42px;
+  padding: 5px;
+  border-radius: 11px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 3px 0 rgb(63 59 78 / 0.18);
+  cursor: grab;
+  touch-action: none; /* a finger on it pulls it, and does not scroll the page */
+  user-select: none;
+}
+.shot .logos .badge {
+  position: static;
+}
+/* They come off like stickers, and so do the snails that have been found: a copy follows the pointer and lies on the
+   page wherever it is let go (`lift` in `Home.tsx`), until the page is loaded again. */
+.sticker {
+  position: absolute;
+  z-index: 5;
+  margin: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.sticker svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.sheet .shot .logos {
+  bottom: 16px;
+  left: clamp(18px, 4vw, 30px);
+}
+.sheet .shot .logos .badge {
+  width: 56px;
+  height: 56px;
+  padding: 7px;
+  border-radius: 14px;
+}
+@media (max-width: 36rem) {
+  .sheet .shot .logos .badge {
+    width: 44px; /* on a narrow sheet they would hide too much of a picture they stand on */
+    height: 44px;
+    padding: 5px;
+    border-radius: 12px;
+  }
+}
+/* A logo is shown whole, with the card's colour round it. */
+.shot.whole img {
+  padding: 6%;
+  object-fit: contain;
+}
+/* A picture that gains nothing by being big is shown small, on a white card of its own with round corners and a
+   small hard shadow: the same dress as the marks of the places I have worked. It keeps its own shape, as big as
+   fits, and nothing of it is cut off. */
+.shot.framed > img {
+  inset: 50% auto auto 50%;
+  width: auto;
+  max-width: 86%;
+  height: auto;
+  max-height: 68%;
+  padding: 7px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--dark) 18%, transparent);
+  translate: -50% -50%;
+}
+.sheet .shot.framed > img {
+  padding: 10px;
+  border-radius: 22px;
+}
+/* (Over a play button it sits a little higher and is less tall, which leaves the foot of the picture to the button.) */
+.play .shot.framed > img {
+  top: 45%;
+  max-height: 60%;
+}
+@media (max-width: 36rem) {
+  .play .shot.framed {
+    aspect-ratio: 4 / 3; /* taller on a narrow sheet, or the button would stand on the picture */
+  }
+  .play .shot.framed > img {
+    top: 43%;
+    max-height: 54%;
+  }
+}
+/* The wide card is a poster: the name of the thing in big letters on the left, its picture on the right, on the
+   colour the picture itself has round its island (the game's own empty page), so that the two join without a seam. */
+.wide .shot {
+  aspect-ratio: 8 / 3;
+  container-type: inline-size;
+  background: #e4d9bd;
+  transition: background-color 0.8s;
+}
+.wide .shot img {
+  left: auto;
+  width: 62%;
+}
+/* (The second picture reaches a hair further left than the first, so that no sand of the first shows along its edge.) */
+.wide .shot .after {
+  width: calc(62% + 2px);
+}
+/* When the island wakes under the cursor, the ground it stands on turns with it: to the colour of the second picture. */
+.wide:hover .shot,
+.wide .tile:focus-visible .shot {
+  background-color: #d2eadd;
+}
+.wide .shot::after {
+  content: attr(data-title);
+  content: attr(data-title) / ''; /* said once, by the card's own title underneath */
+  position: absolute;
+  top: 39%;
+  left: 6cqw;
+  width: 34cqw;
+  translate: 0 -50%;
+  font-size: 1.7rem;
+  font-size: 6.6cqw;
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  color: var(--dark);
+}
+/* Its main link, as a button under the name. `--poster` is how tall the picture is, in the card's own widths. */
+.grid .wide {
+  container-type: inline-size;
+  --poster: 37.5cqw;
+}
+.wide .now {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--poster) * 0.64);
+  left: 6cqw;
+  padding: 0.45em 1.15em;
+  font-size: clamp(0.8rem, 2.7cqw, 1rem);
+  transition: translate 0.14s;
+}
+.wide:hover .now {
+  translate: 0 -4px;
+}
+.wide .tile:active ~ .now {
+  translate: 0 3px;
+}
+.wide:hover .now:active {
+  translate: 0 -1px;
+}
+/* (In one column the wide card is no wider than the others, so it is taller for its width.) */
+@media (max-width: 36rem) {
+  .wide .shot {
+    aspect-ratio: 40 / 21;
+  }
+  .grid .wide {
+    --poster: 52.5cqw;
+  }
+}
+.what {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 16px 15px;
+}
+.what strong {
+  font-size: 1.12rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+/* What I was there, on a card of somewhere I worked: in the card's own colour, and not to be missed. */
+.what .role {
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--mark) 72%, var(--ink));
+}
+[data-night] .what .role {
+  color: color-mix(in srgb, var(--mark) 50%, var(--ink));
+}
+.blurb {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  opacity: 0.82;
+  text-wrap: pretty;
+}
+/* The kind, on a chip of the card's colours, and the year after it. */
+.meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: auto 0 0;
+  padding-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+.meta i {
+  padding: 2px 9px;
+  border-radius: 8px;
+  font-style: normal;
+  color: color-mix(in srgb, var(--mark) 78%, var(--dark));
+  background: var(--tile);
+}
+
+/* The old stuff: under a dashed line of its own, apart from the rest. */
+.old {
+  position: relative; /* a snail walks its line */
+  margin-top: clamp(32px, 6vh, 56px);
+  padding-top: 22px;
+  border-top: 2px dashed color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.old h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.old > p {
+  margin: 0.3em 0 16px;
+  font-size: 0.92rem;
+  opacity: 0.8;
+}
+
+/* A snail in hiding: small, and mostly behind something. One looks over the top of a card, one walks the dashed
+   line, one sits in the corner of a sheet. */
+.snail {
+  position: absolute;
+  z-index: 0;
+  width: 38px;
+  padding: 0;
+  line-height: 0;
+}
+.s-a {
+  top: -17px;
+  right: 30px;
+}
+.s-b {
+  top: -23px;
+  right: 9%;
+}
+.s-c {
+  top: 14px;
+  right: 16px;
+  width: 34px;
+}
+
+/* One project, close up: a sheet in the middle of the window, over a veil. Never taller than the window. */
+.sheet {
+  width: min(42rem, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 26px;
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 30px 80px rgb(40 30 60 / 0.3);
+}
+.sheet::backdrop {
+  background: rgb(40 36 58 / 0.5);
+}
+.sheet:focus-visible {
+  outline: none; /* it holds the keyboard when it opens, and is plain to see without a ring */
+}
+.sheet .shot {
+  aspect-ratio: 16 / 9;
+}
+.sheet .shot svg {
+  width: auto;
+  height: 78%;
+}
+.play {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+}
+.play .btn {
+  position: absolute;
+  inset: auto auto 16px 50%;
+  translate: -50% 0;
+}
+.play:focus-visible {
+  outline-offset: -6px; /* inside the picture: the sheet cuts off whatever is outside it */
+}
+.sheet .about {
+  position: relative;
+  padding: 20px clamp(18px, 4vw, 30px) 24px;
+}
+.sheet .meta {
+  margin: 0 0 8px;
+  padding: 0;
+}
+.sheet h2 {
+  margin: 0;
+  font-size: clamp(1.7rem, 4.5vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.sheet p {
+  margin: 0.7em 0 0;
+  text-wrap: pretty;
+}
+.sheet .role {
+  display: inline-block;
+  margin-top: 0.6em;
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--mark) 72%, var(--dark));
+  background: var(--tile);
+}
+.sheet .lead {
+  font-weight: 800;
+}
+/* More pictures of the same thing, small, in a row under the words. */
+.sheet .more {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 1em;
+}
+.sheet .more img {
+  width: 100%;
+  aspect-ratio: 6 / 5;
+  border-radius: 12px;
+  object-fit: cover;
+}
+/* A small word of my own at the end of a card that is otherwise all business. */
+.sheet .aside {
+  font-size: 0.9rem;
+  font-style: italic;
+  opacity: 0.75;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 1em 0 0;
+  padding: 0;
+  list-style: none;
+}
+.tags .sound {
+  margin: 0;
+}
+.go {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 1.4em;
+}
+.go .sound {
+  margin: 0;
+  padding: 6px 12px;
+}
+.go button.sound {
+  margin-left: auto;
+}
+
+/* The foot of the page: three who blink and answer a pat, whose page this is, and the snails found so far. */
+.home footer {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-top: clamp(40px, 9vh, 80px);
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.home footer .row {
+  display: flex;
+  gap: 14px;
+}
+.home footer svg {
+  width: 56px;
+}
+.home footer p {
+  margin: 0;
+}
+.home footer a {
+  color: inherit;
+  font-weight: 700;
+}
+.pet {
+  position: relative;
+  padding: 0;
+  line-height: 0;
+}
+.pet span {
+  display: block;
+}
+/* What it says to a pat: a word that floats up off its head and is gone. */
+.pet i {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  font-size: 0.85rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pet .i-K {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+[data-night] .pet .i-K {
+  transform: scaleY(0.15); /* asleep */
+}
+.home footer .tray {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin-top: 12px;
+}
+.tray .row {
+  gap: 4px;
+}
+.home footer .tray svg {
+  width: 30px;
+}
+.tray .got {
+  cursor: grab;
+  touch-action: none;
+}
+.tray .lost {
+  opacity: 0.16;
+  filter: brightness(0);
+}
+[data-night] .tray .lost {
+  filter: brightness(0) invert(1);
+}
+
+/* The fireflies of the night: small lights adrift over the whole page, from one edge of the window to the other and
+   from its top to its foot. They belong to the page, so scrolling goes past them; a click goes through them. */
+.flies {
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.flies i {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffe98a;
+  box-shadow: 0 0 9px 3px rgb(255 226 120 / 0.5);
+}
+
+/* Everything that moves by itself, for whoever has not asked their device for less of it. */
+@media (prefers-reduced-motion: no-preference) {
+  /* The cards come in one after another. */
+  .grid li {
+    animation: pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) calc(var(--n, 0) * 45ms) backwards;
+  }
+  /* And slide to their new places when a chip is pressed (the page asks the browser for that: `pick` in `Home.tsx`). */
+  ::view-transition-group(*) {
+    animation-duration: 0.32s;
+  }
+  /* On a screen with no cursor to rest on a card, what the thing becomes comes and goes by itself. */
+  @media (hover: none) {
+    .shot .after {
+      animation: wake 9s ease-in-out infinite;
+    }
+    /* (The ground waits for the second picture, which comes late: the two then turn together.) */
+    .wide .shot:has(.after) {
+      animation: dawn 9s ease-in-out infinite;
+    }
+  }
+  /* The small drawings move while the cursor is on their card, or the keyboard is: a pixel at a time. */
+  .tile:is(:hover, :focus-visible) .art-rocket {
+    animation: bob 0.5s steps(1) infinite;
+  }
+  .tile:is(:hover, :focus-visible) .art-rocket .i-f {
+    animation: flicker 0.2s steps(1) infinite;
+  }
+  .tile:is(:hover, :focus-visible) .art-cube :is(.i-a, .i-A),
+  .tile:is(:hover, :focus-visible) .art-pin :is(.i-a, .i-W) {
+    animation: up 0.7s steps(1) infinite;
+  }
+  .tile:is(:hover, :focus-visible) .art-page .i-a,
+  .tile:is(:hover, :focus-visible) .art-screens .i-a {
+    animation: flicker 0.7s steps(1) infinite;
+  }
+  /* (The worm leans one way and the other, ducks into its apple, peeps over the top, and comes back up: its head, its
+     neck and its foot each do their part of that.) */
+  .tile:is(:hover, :focus-visible) .art-worm :is(.i-H, .i-K) {
+    animation: worm-head 2.6s steps(1) infinite;
+  }
+  .tile:is(:hover, :focus-visible) .art-worm .i-N {
+    animation: worm-neck 2.6s steps(1) infinite;
+  }
+  .tile:is(:hover, :focus-visible) .art-worm .i-G {
+    animation: worm-foot 2.6s steps(1) infinite;
+  }
+  /* The face on the button for night blinks too, and gives a wobble under the cursor. */
+  .lamp .i-K {
+    animation: blink 5.2s -2.6s infinite;
+  }
+  .lamp:hover svg {
+    animation: wobble 0.5s;
+  }
+  /* The three at the foot of the page blink, each in its own time, and jump, tilt or wobble at a pat. */
+  .pet .i-K {
+    animation: blink 5.2s infinite;
+  }
+  .pet:nth-child(2) .i-K {
+    animation-delay: -1.9s;
+  }
+  .pet:nth-child(3) .i-K {
+    animation-delay: -3.4s;
+  }
+  [data-night] .pet .i-K {
+    animation: none;
+  }
+  .pet .pat {
+    animation: hop 0.5s;
+  }
+  .pet:nth-child(2) .pat {
+    animation-name: tilt;
+  }
+  .pet:nth-child(3) .pat {
+    animation-name: wobble;
+  }
+  .pet i {
+    animation: word 0.9s ease-out forwards;
+  }
+  .seen .shot::before {
+    animation: stamp 0.35s cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+  /* The raccoon's visit, fourteen seconds of it: its body, its eyes, and the z over it while it sleeps. */
+  .nap {
+    animation: visit 14s linear forwards;
+  }
+  .nap .i-K {
+    animation: drowse 14s linear forwards;
+  }
+  .nap::after {
+    animation:
+      zzz 2.4s ease-in-out infinite,
+      dreaming 14s linear forwards;
+  }
+  .nap.off .i-K {
+    animation: none; /* woken: eyes open */
+  }
+  .nap.off {
+    animation: scurry 0.7s ease-in forwards;
+  }
+  .hop {
+    animation: stroll 7s linear forwards;
+  }
+  .hop svg {
+    animation: nod 0.45s ease-in-out infinite alternate;
+  }
+  .tile:is(:hover, :focus-visible) .art-envelope {
+    animation: bob 0.5s steps(1) infinite;
+  }
+  /* A snail found goes to its place at the foot of the page with a small jump; the one on the line walks it. */
+  .tray .got {
+    animation: pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  .s-b {
+    animation: crawl 44s linear infinite;
+  }
+  .snail.caught {
+    z-index: 2; /* out from behind its card */
+  }
+  .snail.caught svg {
+    animation: caught 0.6s ease-in forwards;
+  }
+  .flies i {
+    animation:
+      drift var(--t) ease-in-out var(--d) infinite alternate,
+      glow 2.8s ease-in-out var(--d) infinite;
+  }
+}
+@keyframes stamp {
+  from {
+    opacity: 0;
+    scale: 2.2;
+  }
+}
+@keyframes zzz {
+  from {
+    opacity: 0;
+    translate: -4px 6px;
+  }
+  40% {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    translate: 6px -12px;
+  }
+}
+/* Up from behind the card, along its top with a stop in the middle, and down behind it again. */
+@keyframes stroll {
+  0% {
+    left: 4%;
+    translate: 0 30px;
+  }
+  8%,
+  92% {
+    translate: 0 0;
+  }
+  44%,
+  60% {
+    left: 38%;
+  }
+  100% {
+    left: 70%;
+    translate: 0 30px;
+  }
+}
+@keyframes nod {
+  to {
+    translate: 0 -3px;
+  }
+}
+/* In from the card's left end in a few bounds, a long sleep, and off to the right the same way. */
+@keyframes visit {
+  0% {
+    opacity: 0;
+    translate: -90px 0;
+  }
+  2% {
+    opacity: 1;
+  }
+  3% {
+    translate: -68px -8px;
+  }
+  6% {
+    translate: -45px 0;
+  }
+  9% {
+    translate: -22px -8px;
+  }
+  12%,
+  84% {
+    translate: 0 0;
+  }
+  87% {
+    translate: 22px -8px;
+  }
+  90% {
+    translate: 45px 0;
+  }
+  93% {
+    translate: 68px -8px;
+  }
+  96% {
+    opacity: 1;
+    translate: 92px 0;
+  }
+  100% {
+    opacity: 0;
+    translate: 120px 0;
+  }
+}
+@keyframes drowse {
+  0%,
+  15%,
+  83%,
+  100% {
+    transform: none;
+  }
+  18%,
+  80% {
+    transform: scaleY(0.15);
+  }
+}
+@keyframes dreaming {
+  0%,
+  18%,
+  80%,
+  100% {
+    visibility: hidden;
+  }
+  19%,
+  79% {
+    visibility: visible;
+  }
+}
+/* Off along the top of the card in a few bounds, and gone. */
+@keyframes scurry {
+  15% {
+    translate: 0 -8px;
+  }
+  30% {
+    translate: 16px 0;
+  }
+  45% {
+    translate: 38px -8px;
+  }
+  60% {
+    translate: 60px 0;
+  }
+  80% {
+    opacity: 1;
+    translate: 92px -6px;
+  }
+  100% {
+    opacity: 0;
+    translate: 128px 0;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.9;
+    translate: 0 12px;
+  }
+}
+@keyframes wake {
+  0%,
+  35%,
+  100% {
+    opacity: 0;
+  }
+  50%,
+  85% {
+    opacity: 1;
+  }
+}
+@keyframes dawn {
+  0%,
+  35%,
+  100% {
+    background-color: #e4d9bd;
+  }
+  50%,
+  85% {
+    background-color: #d2eadd;
+  }
+}
+@keyframes bob {
+  50% {
+    translate: 0 -11%; /* one of its pixels: it is nine of them tall */
+  }
+}
+@keyframes up {
+  50% {
+    transform: translateY(-1px); /* one pixel of the drawing, not of the screen */
+  }
+}
+@keyframes flicker {
+  50% {
+    opacity: 0.25;
+  }
+}
+/* (Pixels of the drawing, not of the screen. Whatever goes down into the apple is hidden by it: the apple is drawn
+   after the worm.) */
+@keyframes worm-head {
+  10% {
+    transform: translate(1px, 0);
+  }
+  30% {
+    transform: translate(-2px, 0);
+  }
+  20%,
+  40%,
+  90% {
+    transform: none;
+  }
+  50%,
+  80% {
+    transform: translate(0, 2px);
+  }
+  60% {
+    transform: translate(0, 4px);
+  }
+}
+@keyframes worm-neck {
+  30% {
+    transform: translate(-1px, 0);
+  }
+  40%,
+  90% {
+    transform: none;
+  }
+  50%,
+  80% {
+    transform: translate(0, 2px);
+  }
+  60% {
+    transform: translate(0, 4px);
+  }
+}
+@keyframes worm-foot {
+  50%,
+  80% {
+    transform: translate(0, 2px);
+  }
+  60% {
+    transform: translate(0, 4px);
+  }
+  90% {
+    transform: none;
+  }
+}
+/* A snail found jumps out of its hiding place, looks about, and is gone. */
+@keyframes caught {
+  35% {
+    translate: 0 -18px;
+    scale: 1.3;
+    rotate: -10deg;
+  }
+  55% {
+    translate: 0 -18px;
+    scale: 1.3;
+    rotate: 10deg;
+  }
+  100% {
+    translate: 0 -34px;
+    scale: 0;
+    rotate: 0deg;
+    opacity: 0;
+  }
+}
+@keyframes blink {
+  0%,
+  93%,
+  100% {
+    transform: none;
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes hop {
+  30% {
+    translate: 0 -14px;
+  }
+  60% {
+    translate: 0 0;
+  }
+  78% {
+    translate: 0 -4px;
+  }
+}
+@keyframes tilt {
+  30%,
+  70% {
+    rotate: 14deg;
+  }
+}
+@keyframes wobble {
+  20% {
+    rotate: -9deg;
+  }
+  40% {
+    rotate: 8deg;
+  }
+  60% {
+    rotate: -5deg;
+  }
+  80% {
+    rotate: 3deg;
+  }
+}
+@keyframes word {
+  from {
+    opacity: 0;
+    translate: -50% 6px;
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    translate: -50% -18px;
+  }
+}
+/* It walks one way, turns round, and walks back. */
+@keyframes crawl {
+  0% {
+    translate: -90px 0;
+    scale: 1 1;
+  }
+  49.9% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+  50% {
+    translate: 0 0;
+    scale: -1 1;
+  }
+  99.9% {
+    translate: -90px 0;
+    scale: -1 1;
+  }
+  100% {
+    translate: -90px 0;
+    scale: 1 1;
+  }
+}
+@keyframes drift {
+  to {
+    translate: var(--dx) var(--dy);
+  }
+}
+@keyframes glow {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  .tile,
+  .shot .after,
+  .wide .shot {
+    transition: none;
+  }
+  .grid li:hover > .tile {
+    rotate: 0deg;
+  }
+}

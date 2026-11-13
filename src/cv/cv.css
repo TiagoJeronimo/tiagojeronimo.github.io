@@ -1,0 +1,165 @@
+/* The CV: one column of plain words, the years down the left. It prints as it reads. */
+.cv {
+  width: min(46rem, 100% - 2 * clamp(16px, 4vw, 40px));
+  margin: 0 auto;
+  padding: clamp(24px, 6vh, 56px) 0 64px;
+}
+.cv .back {
+  display: inline-block;
+  margin: 0 0 22px;
+  color: inherit;
+  text-decoration: none;
+}
+.cv h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+}
+.cv .lead {
+  margin: 0.5em 0 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.cv header p {
+  margin: 0.4em 0 0;
+}
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 700;
+}
+.cv a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.cv h2 {
+  margin: 44px 0 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* One chapter: the years on the left, behind a small square of its colour; the rest beside them. */
+.cv article {
+  display: grid;
+  grid-template-columns: 7.2rem minmax(0, 1fr);
+  gap: 4px 20px;
+  padding: 20px 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.when {
+  display: flex;
+  gap: 0.55em;
+  align-items: baseline;
+  margin: 0.2em 0 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.when::before {
+  content: '';
+  flex: none;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 3px;
+  background: var(--mark);
+}
+.cv h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+/* The mark of the place, in front of its name. */
+.cv h3 img {
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+  border-radius: 7px;
+  object-fit: contain;
+  background: #fff;
+}
+.cv article p {
+  margin: 0.55em 0 0;
+  text-wrap: pretty;
+}
+.cv .role {
+  margin-top: 0.15em;
+  font-weight: 700;
+}
+.cv .title {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--mark) 70%, var(--ink));
+}
+.cv blockquote {
+  margin: 1em 0 0;
+  padding-left: 0.9em;
+  border-left: 4px solid var(--mark);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.cv cite {
+  display: block;
+  margin-top: 0.3em;
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.cv .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0.9em 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cv .tags li {
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: var(--tile);
+}
+.sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+@media (max-width: 34rem) {
+  .cv article {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media print {
+  :root {
+    font-size: 11pt;
+    background: none;
+  }
+  .cv {
+    width: auto;
+    padding: 0;
+  }
+  .cv .back {
+    display: none;
+  }
+  .cv article {
+    break-inside: avoid;
+  }
+}

@@ -47,7 +47,6 @@ const tint = (hex: string) => {
   const strong = d === 0 ? 0 : d / (1 - Math.abs(most + least - 1))
   return `hsl(${Math.round(hue * 60)} ${Math.round(Math.min(85, strong * 140 + 12))}% var(--key))`
 }
-const SOUND = 'wake-the-island/sound' // what somebody last chose with the sound's button, 'on' or 'off'. Until they have, it is off
 // The three ways of getting about, said in a corner at the start of every island: each goes the first time it is used
 // there. Where there is a keyboard, the keys that do the same come after, in brackets: "Drag to move [or W A S D]".
 const FINGERS = matchMedia('(pointer: coarse)').matches // a screen that is touched: no mouse, and no keys to speak of
@@ -331,19 +330,13 @@ function Stage({
 
 export default function GamePage() {
   const [state, setState] = useState(START)
-  // The sound is off until somebody turns it on with its button. (It used to start by itself at the first touch, which
-  // a phone does not always let a page do: there it stayed silent, and nothing said why.) Until the button has been
-  // pressed once, a small label under it asks. What was chosen is remembered. And once it is on, every touch and key
-  // says so again, before the game hears it: on a later visit the first of them is what starts it (a browser lets a
-  // page make no sound before that), and a browser can send a sound to sleep, which that wakes. A tap on the picture is
-  // not a "click" everywhere, so a finger lifting is listened for as well.
-  const [chosen, setChosen] = useState(() => {
-    try {
-      return localStorage.getItem(SOUND)
-    } catch {
-      return null
-    }
-  })
+  // The sound is off whenever the game is opened, and a small label under its button asks, until the button has been
+  // pressed. (The choice used to be remembered, so that on a later visit the button said "on" from the start: but a
+  // browser lets a page make no sound before the first touch, and sometimes not after it either, so it said on and
+  // nothing played.) Once it is on, every touch and key says so again, before the game hears it: a browser can send a
+  // sound to sleep, which that wakes. A tap on the picture is not a "click" everywhere, so a finger lifting is
+  // listened for as well.
+  const [chosen, setChosen] = useState<'on' | 'off' | null>(null)
   const sound = chosen === 'on'
   useEffect(() => {
     const say = () => setSound(sound)
@@ -353,15 +346,7 @@ export default function GamePage() {
       for (const way of ways) removeEventListener(way, say, true)
     }
   }, [sound])
-  const loud = () => {
-    const next = toggleSound() ? 'on' : 'off'
-    setChosen(next)
-    try {
-      localStorage.setItem(SOUND, next)
-    } catch {
-      // no storage: it is asked again next time
-    }
-  }
+  const loud = () => setChosen(toggleSound() ? 'on' : 'off')
   // Which island. 0 is the one as drawn; any other number deals the things on it out afresh, the same way every time.
   // The number sits in the link, so an island can be passed on.
   const [seed, setSeed] = useState(() => Number(new URLSearchParams(location.search).get('seed')) || 0)
@@ -622,7 +607,7 @@ export default function GamePage() {
                 everything on this sheet. */}
             <h3>About me</h3>
             <p className="about">
-              I’m Tiago Silva, a senior software engineer in Zurich. <a href="/">See my CV</a>
+              I’m Tiago Jerónimo Silva, a senior full-stack engineer in Zürich. <a href="/">More things I’ve made</a> · <a href="/cv/">My CV</a>
             </p>
           </div>
         </div>
@@ -909,7 +894,7 @@ export default function GamePage() {
         </div>
         {/* And who made it, with the way to the rest of the site: the same line as under the cog. */}
         <p className="about">
-          I’m Tiago Silva, a senior software engineer in Zurich. <a href="/">See my CV</a>
+          I’m Tiago Jerónimo Silva, a senior full-stack engineer in Zürich. <a href="/">More things I’ve made</a> · <a href="/cv/">My CV</a>
         </p>
       </div>
 

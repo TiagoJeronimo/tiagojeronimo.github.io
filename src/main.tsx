@@ -1,11 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/bricolage-grotesque'
-import './index.css'
-import App from './App.tsx'
+import './base.css'
+import './home/home.css'
+import Home from './home/Home.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Home />
   </StrictMode>,
 )
