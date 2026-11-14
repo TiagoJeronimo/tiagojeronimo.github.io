@@ -65,6 +65,7 @@ export function combos(w: Island) {
         if (!thing.extra || !thing.up || (!thing.perch && !w.memo.cactus)) continue
         thing.extra.forEach((cube, k) => w.solid.show(cube, 0.3 + k * 0.2))
         thing.extra = undefined
+        Object.assign(thing, thing.ripe)
         // (Flowers on the old tree and fruit on an oak or two come out the same way, and are nothing to announce. So
         // the line about the apples says which trees it means, and where: or it reads as old news about the oranges.)
         fruit = thing.tile

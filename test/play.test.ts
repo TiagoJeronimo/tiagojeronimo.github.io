@@ -53,6 +53,7 @@ interface Game {
 
 const THINGS = 27
 let endings = 0 // on how many islands the ending was caught in the middle of being said
+let glassed = 0 // and on how many the lava was caught while it had set
 let carried = 0 // and on how many a wish was open to be granted from across the water, with the camera going along
 
 function play(seed: number) {
@@ -70,6 +71,8 @@ function play(seed: number) {
   const groves = game.things.filter((thing) => thing.key === 'tree:oak' && thing.extra)
   const fruit = groves.flatMap((thing) => thing.extra!)
   assert.ok(flowers.length > 9 && ![...flowers, ...fruit].some((cube) => game.solid.on(cube)), say('the old tree is in flower, or an oak in fruit, before there are any bees'))
+  // Nor is such an oak an orange tree yet: it has no label and answers no knock, like the oaks next to it.
+  assert.ok(!groves.some((thing) => thing.tip || thing.play), say('an oak with no orange on it says it is an orange tree'))
 
   for (let round = 0; round < 40 && (game.found < THINGS || !open('islet') || named(/^An egg/) >= 0); round++) {
     // Knock on whatever can be knocked on, until it gives.
@@ -80,11 +83,14 @@ function play(seed: number) {
     // The fairy ring: its five mushrooms, the smallest first.
     if (open('swamp') && game.things.some((thing) => on(thing, 'swamp') && thing.todo))
       for (const c of '12345') game.strike(game.things.findIndex((thing) => on(thing, 'swamp') && game.mark[thing.tile] === c))
-    // The cactus wants rain: the frog, once awake, sends its cloud wherever rain will do something.
-    const frog = named(/^The frog/)
-    if (frog >= 0 && open('beach') && game.things.some((thing) => on(thing, 'beach') && thing.todo)) {
-      game.strike(frog)
+    // The cactus wants rain, and a knock on it asks for some. With the frog still asleep nobody hears, and nothing
+    // comes of it. Once the frog is awake, its cloud comes south and the cactus flowers.
+    const cactus = game.things.findIndex((thing) => on(thing, 'beach') && thing.todo)
+    if (cactus >= 0 && open('beach')) {
+      const heard = named(/^The frog\./) >= 0
+      game.strike(cactus)
       wait(14)
+      assert.equal(!game.things[cactus].todo, heard, say(heard ? 'the frog was awake, and a knock on the cactus brought no rain' : 'the cactus got its rain with the frog asleep'))
     }
     // The egg in the ash, once the lava has warmed it, opens at a knock, and never by itself.
     const egg = named(/^An egg, warm/)
@@ -94,16 +100,24 @@ function play(seed: number) {
       game.strike(egg)
       assert.equal(dragons(), 1, say('a knock on the warm egg did not open it'))
     }
-    // The shell, once it has called the tide in, sends it out (which shows the way to the islet) and calls it back.
+    // Once the shell has called the tide in, the lagoon has a plug: a knock on it lets the sea out (which shows the way
+    // to the islet), and the shell calls it back. Each of the two says on its label what it will do, as things stand.
     const shell = named(/^The shell that calls the tide/)
     if (shell >= 0 && !open('islet')) {
+      const plug = named(/^A plug/)
+      assert.ok(plug >= 0 && game.things[plug].up && game.things[plug].tip?.includes('out it comes'), say('the tide is in, and the lagoon has no plug to pull'))
       game.strike(shell)
       wait(6)
-      // Its label says what the next call will do, and that depends on where the tide is.
-      assert.ok(!game.memo.tide && game.things[shell].tip?.includes('comes back in'), say(`the tide is out, and the shell says: ${game.things[shell].tip}`))
+      assert.ok(game.memo.tide && !open('islet'), say('a second blow on the shell sent the sea out: that is the plug\'s job now'))
+      game.strike(plug)
+      wait(6)
+      assert.ok(!game.memo.tide && open('islet') && game.things[shell].tip?.includes('comes back in') && game.things[plug].tip?.includes('pulled'), say(`the plug is out, and: ${game.things[shell].tip} / ${game.things[plug].tip}`))
+      game.strike(plug)
+      wait(2)
+      assert.ok(!game.memo.tide, say('a knock on a plug that is out did something to the sea'))
       game.strike(shell)
       wait(6)
-      assert.ok(game.memo.tide && game.things[shell].tip?.includes('goes out'), say(`the tide is in, and the shell says: ${game.things[shell].tip}`))
+      assert.ok(game.memo.tide && game.things[shell].tip?.includes('there is a plug') && game.things[plug].tip?.includes('out it comes'), say(`the tide is back in, and: ${game.things[shell].tip} / ${game.things[plug].tip}`))
     }
   }
   wait(30)
@@ -132,11 +146,16 @@ function play(seed: number) {
   assert.equal(called('An orange tree').length, groves.length, say('an oak with oranges on it does not answer a knock'))
   assert.ok([...flowers, ...fruit].every((cube) => game.solid.on(cube)), say('the bees are out, and the old tree has no flowers or an oak that should bear fruit has none'))
   // No label goes on saying what is no longer so: by now the marmots are up and the egg has hatched.
-  for (const stale of ['sleeps one, and soundly', 'round an egg', 'stone cold', 'heavy with rain'])
+  for (const stale of ['sleeps one, and soundly', 'round an egg', 'stone cold', 'heavy with rain', 'all twigs'])
     assert.ok(!game.things.some((thing) => thing.tip?.includes(stale)), say(`a label still says "${stale}"`))
   // And whatever still answers a click says what it is when pointed at: the well, the old tree, the fire, the bell.
   const mute = game.things.filter((thing) => (thing.tap || thing.play || thing.hits) && !thing.tip && game.open[game.isle[thing.tile]] && thing.cubes.some((cube) => game.solid.on(cube)))
   assert.equal(mute.length, 0, say(`things that answer a click and have no label: ${mute.map((thing) => game.mark[thing.tile])}`))
+  // With the rain the cactus got company: young ones beside it on open sand, two where there is room for two (as
+  // there is on the first map).
+  const young = game.things.filter((thing) => thing.tip?.startsWith('A young cactus'))
+  assert.ok(young.length <= 2 && young.every((thing) => on(thing, 'beach') && !game.bed[thing.tile]) && new Set(young.map((thing) => thing.tile)).size === young.length, say(`odd young cacti, on tiles ${young.map((thing) => thing.tile)}`))
+  if (!seed) assert.equal(young.length, 2, say('the cactus stayed alone in the rain'))
   // The dragon is out of its egg, which opened and was not smashed: the bottom half of the shell is still there.
   assert.ok(game.things.find((thing) => thing.tip?.startsWith('Half an eggshell'))?.cubes.some((cube) => game.solid.on(cube)), say('the dragon is out, and nothing is left of its egg'))
   // The old tree has room to itself: no other tree cuts into it, neither one dealt there nor one grown since from a seed.
@@ -191,7 +210,33 @@ function play(seed: number) {
   assert.ok(film.reel && game.ended, say('a click on the balloon did not roll the ending again'))
   wait(film.reel!.seconds + 1)
   assert.ok(!film.reel && game.ended, say('the ending, rolled again, did not come to its end'))
+  // Rolled once more, a click anywhere on the picture cuts it short, as the space bar does.
+  film.critters.list.find((c) => c.kind === 'balloon')!.onPat!()
+  ;(game as unknown as { click(): void }).click()
+  assert.ok(!film.reel && game.ended, say('a click on the picture did not cut the ending short'))
   assert.ok(game.noticed.length > 1 && game.noticed.length < 5 && game.noticed.some((line) => line.startsWith('It took you')), say(`odd notes for the card at the end: ${game.noticed}`))
+  // Last, since it takes a while of the game's time: rain on running lava sets it like glass for a while, and for that while nothing of it falls or flies. (The frog's
+  // cloud goes to a fire first, if one is burning: so the frog is asked more than once.)
+  const rainmaker = named(/^The frog\./)
+  const loose = (game as unknown as { bits: { spawn(...a: number[]): void } }).bits
+  const spawn = loose.spawn
+  let sparks = 0
+  loose.spawn = (...a) => {
+    if (a[7] === 0xff7a2f) sparks++
+    spawn.apply(loose, a)
+  }
+  for (let k = 0; k < 4 && rainmaker >= 0 && game.memo.lava && !game.memo.glass; k++) {
+    game.strike(rainmaker)
+    for (let i = 0; i < 400 && !game.memo.set; i++) game.advance(0.05)
+    if (!game.memo.set) continue
+    sparks = 0
+    wait(8)
+    assert.equal(sparks, 0, say('lava that has set like glass still throws sparks'))
+    glassed++
+    wait(8)
+    assert.ok(!game.memo.set && sparks > 0, say('the lava never ran again after it had set'))
+  }
+  loose.spawn = spawn
   return game.time
 }
 
@@ -210,6 +255,7 @@ const began = performance.now()
 for (const seed of seeds) play(seed)
 assert.ok(carried > 0, 'on no island were the bunnies wishing for a carrot at the end: nothing checked that the camera goes along with a wish')
 assert.ok(endings > 0, 'on no island was the ending caught while it rolled: nothing checked what it holds, or that the space bar cuts it short')
+assert.ok(glassed > 0, 'on no island did rain reach the lava: nothing checked that set lava throws no sparks')
 console.log(`play: ok (${seeds.length} islands in ${((performance.now() - began) / 1000).toFixed(1)} s)`)
 
 // --- the animals ------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { PerspectiveCamera, Raycaster, Vector2 } from 'three'
 import { Castle, REACH, type Kind } from '../src/games/castle/Castle.ts'
-import { View } from '../src/games/castle/View.ts'
+import { View } from '../src/games/View.ts'
 
 type Drop = [kind: Kind, x: number, z: number]
 /** A new castle, soldiers let go over it, and `seconds` gone by; `each` is asked after every step of them. */
@@ -120,7 +120,7 @@ const world = new Castle()
 const [W, H] = [1280, 800]
 Object.assign(globalThis, { addEventListener() {}, innerWidth: W, innerHeight: H })
 const canvas = {} as HTMLElement
-const view = new View(canvas, world.solid.mesh, REACH, () => {})
+const view = new View(canvas, world.solid.mesh, REACH, () => {}, 60) // lifted as on the castle's page
 const camera = new PerspectiveCamera(30, W / H, 1, 400)
 const frames = (n: number) => {
   for (let i = 0; i < n; i++) view.update(0.016, camera, W, H)

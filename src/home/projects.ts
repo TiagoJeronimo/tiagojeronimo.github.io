@@ -1,4 +1,4 @@
-import { chapters, links, me } from '../content.ts'
+import { chapters, links } from '../content.ts'
 
 // Everything on the front page: one entry a card. To add a project, add an entry here; if it has a picture, put that
 // in `public/thumbs/` and name it in `picture`. Without one, the card shows the small drawing named in `art`
@@ -273,8 +273,8 @@ export const hello: Project = {
   slug: 'say-hello',
   title: 'Say hello',
   kind: 'hello',
-  blurb: 'Open to senior and staff product engineering roles, and to founding engineer roles.',
-  body: [me.open, 'Write to me about a role, a project, or the snails. I answer all three.', 'My reference letter is yours for the asking.'],
+  blurb: 'Open to senior and staff product engineering roles.',
+  body: ['I’m open to senior and staff product engineering roles. Based in Zürich.', 'Write to me about a role, a project, or the snails. I answer all three.', 'My reference letter is yours for the asking.'],
   links: [
     { label: 'Write to me', href: links.find((link) => link.label === 'Email')!.href },
     { label: 'LinkedIn', href: links.find((link) => link.label === 'LinkedIn')!.href },

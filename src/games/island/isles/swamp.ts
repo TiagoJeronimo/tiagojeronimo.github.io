@@ -37,8 +37,11 @@ const sing = (w: Island, x: number, y: number, z: number, k: number, lean = 0) =
   w.bits.spawn(x, y, z, lean, 1.5, 0, 0.16, LIT[k], 1.8, NEVER, 0, 0.6, 2.6)
 }
 
-/** The frog croaks, and its cloud goes where rain will do something: a thirsty cactus, a lit fire, running lava. Otherwise it rains at home. */
-function croak(w: Island, frog: Critter, first: boolean) {
+/**
+ * The frog croaks, and its cloud goes where rain will do something: a thirsty cactus, a lit fire, running lava. Otherwise it rains at home.
+ * @param asked the cactus asked for it (a knock on the cactus does that: see the beach), and the line says whose idea it was
+ */
+export function croak(w: Island, frog: Critter, first: boolean, asked = false) {
   for (let k = 0; k < 3; k++)
     w.after(k * 0.35, () => {
       note(0.05 + k * 0.04, 0.18)
@@ -51,7 +54,7 @@ function croak(w: Island, frog: Critter, first: boolean) {
     return w.rainOn('swamp', [frog.x + 6, frog.z - 5])
   }
   const [to, words] = thirsty()
-    ? ['beach', 'The frog sends its cloud south, to the beach. One croak. That is the whole procedure.']
+    ? ['beach', asked ? 'The cactus asks for rain, out loud, for once. Far off in the swamp the frog hears, and sends its cloud south. One croak. That is the whole procedure.' : 'The frog sends its cloud south, to the beach. One croak. That is the whole procedure.']
     : w.memo.fire && !w.memo.steam
       ? ['snow', 'The frog sends its cloud north, over the snow. There is a fire burning up there. The frog knows. The frog is like that.']
       : w.memo.lava && !w.memo.glass

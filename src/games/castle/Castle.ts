@@ -25,8 +25,8 @@
 // Besides: sheep that graze, and are patted by whoever passes; ducks on the pond; and soldiers with nothing to do, who
 // sit down, or fish, or sleep under a tree.
 import { CircleGeometry, DirectionalLight, DynamicDrawUsage, Group, HemisphereLight, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Quaternion, ShadowMaterial, Vector3 } from 'three'
-import { Bits, Cubes, unit } from '../island/cubes.ts'
-import { BARK, LEAF, NEAR, NEVER, RING, STONE, WOOD, any, rnd } from '../island/grid.ts'
+import { BARK, LEAF, NEAR, NEVER, RING, STONE, WOOD, any, rnd, shade } from '../basics.ts'
+import { Bits, Cubes, unit } from '../cubes.ts'
 import { thump } from '../../sound.ts'
 
 export type Kind = 'archer' | 'sword'
@@ -314,6 +314,7 @@ const flight = (far: number, lob = 1) => Math.min(1.1, Math.max(0.4, far / 11)) 
 
 export class Castle {
   readonly group = new Group()
+  private key = new DirectionalLight(0xffe9cf, 3.2) // the sun
   readonly solid = new Cubes(ROOM, new MeshStandardMaterial({ roughness: 0.9 }), 'wind')
   readonly wet = new Cubes(200, new MeshStandardMaterial({ roughness: 0.15, transparent: true, opacity: 0.72 }), 'waves')
   readonly bits = new Bits(1200)
@@ -542,13 +543,12 @@ export class Castle {
 
     // The light: a low warm sun, a soft sky, and a floor that only shows the shadows that fall on it. The land lies on
     // that floor, and it is somewhere to stand like any other.
-    const key = new DirectionalLight(0xffe9cf, 3.2)
+    const { key } = this
     key.position.set(-16, 30, 12)
     key.castShadow = true
-    key.shadow.mapSize.setScalar(globalThis.matchMedia?.('(pointer: coarse)').matches === false ? 4096 : 2048)
     key.shadow.bias = -0.0004
     key.shadow.normalBias = 0.04
-    key.shadow.radius = 5
+    this.shadows(0)
     Object.assign(key.shadow.camera, { near: 1, far: 110, left: -34, right: 34, top: 34, bottom: -34 })
     const floor = new Mesh(new CircleGeometry(300, 32), new ShadowMaterial({ color: 0x6d4a7a, opacity: 0.25 }))
     floor.rotation.x = -Math.PI / 2
@@ -559,6 +559,10 @@ export class Castle {
     this.sticks.castShadow = true
     for (let i = 0; i < this.shots.length; i++) this.sticks.setMatrixAt(i, _m.makeScale(0, 0, 0))
     this.group.add(solid.mesh, wet.mesh, this.bits.mesh, this.sticks, key, key.target, new HemisphereLight(0xe6efff, 0xffd9c4, 1.25), floor)
+  }
+  /** The shadows at the size that goes with a step of the picture (see `../Picture.tsx`). */
+  shadows(tier: number) {
+    shade(this.key, tier)
   }
   /** What it holds on the graphics card is given back: for a world that is thrown away for a new one. */
   dispose() {

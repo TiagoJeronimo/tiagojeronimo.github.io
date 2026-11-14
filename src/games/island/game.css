@@ -926,6 +926,10 @@ button.key {
     opacity 0.8s 2s,
     visibility 0s 2s;
 }
+/* Unless the player cut the ending short: then it was asked for, and comes at once. */
+.end[data-open='true'][data-cut='true'] {
+  transition: opacity 0.4s 0.15s;
+}
 /* What the game noticed about how it was played: said plainly, a line each, with a hair of a rule between them. */
 .end .noticed {
   margin: 0 0 16px;

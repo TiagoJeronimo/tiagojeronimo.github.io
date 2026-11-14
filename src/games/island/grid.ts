@@ -1,31 +1,16 @@
-// What the game and its isles share: the grid all the maps sit on, a few colours, and the shapes of an isle and a thing.
+// What the game and its isles share: the grid all the maps sit on, and the shapes of an isle and a thing. (The
+// colours, the neighbours of a tile and chance are every game's: they live in `../basics.ts` and are passed on from
+// here, so that the island's own files have one place to ask.)
+import { rnd } from '../basics.ts'
 import type { Island } from './Island.ts'
+
+export * from '../basics.ts'
 
 export const W = 35
 export const D = 34
 export const X0 = -17.5 // where tile (0, 0) is: the first island sits centred on the origin
 export const Z0 = -16.5
 export const GROUND = 2 // height of the plain; every step up is one more
-export const NEAR = [[1, 0], [-1, 0], [0, 1], [0, -1]]
-export const RING = [...NEAR, [1, 1], [-1, 1], [1, -1], [-1, -1]]
-export const NEVER = -99 // a floor no loose cube ever reaches
-
-export const LEAF = [0x9bd873, 0x8fd16b, 0xbfe36a]
-export const FRUIT = [0xa9de7c, 0x97d470, 0xc4e77e]
-export const BLOSSOM = [0xffc2d9, 0xf78bb5, 0xffd9e6]
-export const STONE = [0xb7b2ba, 0xa39eab, 0xc6c2c8]
-export const WOOD = 0x9a7b62
-export const BARK = 0x8a6d58
-export const WATER = 0xbfe6ff
-export const LAVA = 0xff7a2f
-
-// A repeatable random number in 0..1 from an integer, so the world looks the same on every visit.
-export const rnd = (n: number) => {
-  let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b)
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
-}
-export const any = () => Math.random() - 0.5
 export const tx = (tile: number) => (tile % W) + X0
 export const tz = (tile: number) => Math.floor(tile / W) + Z0
 export const tileAt = (x: number, z: number) => Math.round(x - X0) + Math.round(z - Z0) * W
@@ -132,6 +117,9 @@ export interface Thing {
   perch?: number[]
   /** Cubes kept back for a later moment of its own (apples, once there are bees). */
   extra?: number[]
+  /** What it is from that moment on, when that is not what it was (an oak with oranges on it is an orange tree). */
+  ripe?: Partial<Thing>
+
   up?: boolean
   /** The word for the noise it makes when knocked on. */
   sound?: string

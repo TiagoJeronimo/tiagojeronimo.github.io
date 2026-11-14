@@ -1,13 +1,16 @@
-import { note } from '../../../sound.ts'
+import { note, thump } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
-import { BARK, NEAR, STONE, W, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
+import { BARK, NEAR, NEVER, RING, STONE, W, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
+import { croak } from './swamp.ts'
 
 /**
- * The shell, once it has called the tide in, sends it out and calls it back for as long as anyone cares to blow it.
+ * The tide, once the shell has called it in: the plug lets it out and the shell calls it back, for as long as anyone cares to.
  * Low tide empties the lagoon and leaves starfish, shells and weed on its floor, and a row of stones out to a scrap of sand in the west.
+ * @param from where the stones start
+ * @param hole the tile the plug is on: nothing is left lying there
  */
-function tides(w: Island, s: number, from: number) {
+function tides(w: Island, s: number, from: number, hole: number) {
   const lagoon = w.tiles[s].filter((u) => w.mark[u] === 'l')
   const [mx, mz] = [lagoon.reduce((n, u) => n + tx(u), 0) / lagoon.length, lagoon.reduce((n, u) => n + tz(u), 0) / lagoon.length]
   const floor = [...lagoon].sort((a, b) => Math.hypot(tx(a) - mx, tz(a) - mz) - Math.hypot(tx(b) - mx, tz(b) - mz))
@@ -15,6 +18,7 @@ function tides(w: Island, s: number, from: number) {
   const left: number[] = []
   const lay = (u: number, dx: number, dz: number, sx: number, sy: number, sz: number, color: number) => left.push(w.solid.add(tx(u) + dx, w.h[u] + sy / 2, tz(u) + dz, sx, sy, sz, color, -2 - u, false))
   floor.forEach((u, k) => {
+    if (u === hole) return
     if (k % 4 === 0) for (const [dx, dz] of [[0, 0], ...NEAR]) lay(u, 0.1 + dx * 0.13, -0.1 + dz * 0.13, 0.13, 0.07, 0.13, 0xff9a5c)
     else if (k % 4 === 1) for (const [dx, dz, high] of [[-0.2, 0.2, 0.3], [-0.08, 0.1, 0.42], [-0.28, 0.02, 0.2]]) lay(u, dx, dz, 0.07, high, 0.07, 0x6fbc86)
     else if (k % 4 === 2) for (const [dx, dz, color] of [[0.2, 0.2, 0xffffff], [-0.15, -0.2, 0xffc2d9]]) lay(u, dx, dz, 0.14, 0.08, 0.12, color)
@@ -32,9 +36,9 @@ function tides(w: Island, s: number, from: number) {
       }),
     )
     ;[...left, ...stones].forEach((cube, k) => (high ? w.solid.hide(cube, k * 0.03) : w.solid.show(cube, 0.8 + k * 0.05)))
-    if (high) return w.say('The shell calls, and the tide comes back in over the starfish and the stones. The starfish had only just got used to it. They always have only just got used to it.', 'shell')
+    if (high) return w.say('The shell calls, and the tide comes back in over the starfish and the stones. The plug hops back in by itself. The starfish had only just got used to it. They always have only just got used to it.', 'shell')
     // The first time the sea goes out, one line for all of it: the islet the stones lead to comes up two seconds on.
-    w.say(found ? 'The shell calls the sea back out. Starfish, shells, and a row of stones that goes somewhere. You told the sea to leave and it left. That is a lot of sea to be obeyed by.' : 'The shell calls the sea back out. Stones lead west, to a scrap of sand nobody has stood on in years. It has a lighthouse. For whom is not clear.', 'shell')
+    w.say(found ? 'The plug comes out again, and the sea leaves. Starfish, shells, and a row of stones that goes somewhere. You pulled the plug on an ocean. It should be harder than that.' : 'The plug comes out, and the sea goes down the hole after it. Stones lead west, to a scrap of sand nobody has stood on in years. It has a lighthouse. For whom is not clear.', 'plug')
     if (found) return
     found = true
     w.after(2.2, () => {
@@ -42,6 +46,78 @@ function tides(w: Island, s: number, from: number) {
       for (const u of w.tiles[w.index('islet')]) w.wakeAt[u] = w.time + 2 + Math.random() * 1.5
     })
   }
+}
+
+/** A cactus: its trunk and two arms, as boxes in the plane it stands in: across, up, width and height. */
+const SHAPE = [[0, 0.45, 0.3, 0.9], [-0.27, 0.5, 0.26, 0.12], [-0.34, 0.7, 0.14, 0.34], [0.27, 0.34, 0.26, 0.12], [0.34, 0.5, 0.14, 0.26]]
+/** What the shell's label says with the sea out, and with it in. */
+const SHELL = ['The shell that calls the tide. Blow it, and the sea comes back in. It does not ask why', 'The shell that calls the tide. The sea is in. To let it out again, there is a plug']
+/** And the plug's. */
+const PLUG = ['A plug, pulled. The shell calls the sea back, and the plug with it', 'A plug, on a chain. Knock, and out it comes. The lagoon has always had one']
+
+/**
+ * The lagoon has a plug, at its seaward end: it bobs up with the first tide, on a chain from a peg on the bank. A knock
+ * pulls it and the sea goes out, which shows the stones to the islet; the shell calls the sea back, and the plug goes
+ * in again by itself. So the shell does one thing and the plug the other, and nobody has to think of blowing a shell
+ * twice. (It is on a tile of the lagoon and not on a letter of the map: wherever the lagoon lies, it has one.)
+ */
+function plug(w: Island, s: number) {
+  const tile = w.tiles[s].filter((u) => w.mark[u] === 'l').sort((a, b) => tz(b) - tz(a))[0]
+  const shell = w.things.find((thing) => thing.key === 'beach:c0')
+  if (tile === undefined || !shell) return
+  const [x, z, floor] = [tx(tile), tz(tile), w.h[tile]]
+  const bank = w.h[step(tile, 0, 1)] - floor // how far the bank to the south stands above the floor of the lagoon
+  let turn: ((high: boolean) => void) | undefined
+  let told = false
+  const set = (high: boolean) => {
+    // The beach's west edge, level with the islet, is where the stones start.
+    turn ??= tides(w, s, w.tiles[s].filter((u) => tz(u) === tz(beach.at[0] + (beach.at[1] + 3) * W)).sort((a, b) => tx(a) - tx(b))[0], tile)
+    turn(high)
+    seated.forEach((cube, k) => (high ? w.solid.show(cube, 2.2 + k * 0.06) : w.solid.hide(cube)))
+    pulled.forEach((cube, k) => (high ? w.solid.hide(cube) : w.solid.show(cube, 0.25 + k * 0.06)))
+    Object.assign(w.things[t], { tip: PLUG[+high], sound: high ? 'pop' : 'clunk' })
+    shell.tip = SHELL[+high]
+  }
+  const t: number = (w.memo.plug = w.thing(tile, {
+    auto: false,
+    sound: 'pop',
+    tip: PLUG[1],
+    fuss: 'It is out. It cannot be more out. The sea has left, as asked.',
+    // It is not there to be seen until the first tide brings it up (the shell does that: `grow`).
+    wake: () => [...seated, peg].forEach((cube, k) => w.solid.show(cube, k * 0.08)),
+    tap: () => {
+      if (!w.memo.tide) return
+      thump()
+      // The water turns once round the hole on its way down.
+      for (let k = 0; k < 10; k++) w.bits.spawn(x + Math.cos(k * 0.63) * 0.4, floor + 0.46, z + Math.sin(k * 0.63) * 0.4, -Math.sin(k * 0.63) * 1.4, 0.4, Math.cos(k * 0.63) * 1.4, 0.1, 0x9fd6ff, 0.9, floor, 0, 6)
+      set(false)
+    },
+  }))
+  // In its hole, with the sea over it: the plug with its ring up, and the chain taut to a peg on the bank. Big enough
+  // to be made out from where the camera starts, and high enough in the water for the bank not to hide it.
+  const float = [w.scar(t, 0, 0.5, 0, 0.6, 0.16, 0.6, 0x3f3a4c), w.scar(t, 0, 0.67, 0, 0.24, 0.2, 0.07, 0xc9ccd6)]
+  const seated = [...float, ...[0.25, 0.5, 0.75].map((far) => w.scar(t, -0.32 * far, 0.67 + (bank + 0.28 - 0.67) * far, 0.1 + 0.4 * far, 0.09, 0.09, 0.09, 0xb9bcc9))]
+  const peg = w.scar(t, -0.32, bank + 0.16, 0.52, 0.12, 0.32, 0.12, WOOD)
+  // Pulled: the hole it leaves in the floor, and the plug stood on its edge on the rim of the bank beside the peg,
+  // where it can be seen (the floor of the lagoon cannot, from most places), with the chain slack between the two.
+  const pulled = [
+    w.scar(t, 0, 0.015, 0, 0.36, 0.03, 0.36, 0x2a2433),
+    w.scar(t, 0.16, bank + 0.3, 0.5, 0.56, 0.56, 0.14, 0x3f3a4c),
+    w.scar(t, 0.16, bank + 0.65, 0.5, 0.22, 0.16, 0.07, 0xc9ccd6),
+    ...[0.22, 0.1, 0.22].map((dy, k) => w.scar(t, -0.24 + k * 0.05, bank + dy, 0.51, 0.07, 0.07, 0.07, 0xb9bcc9)),
+  ]
+  // What a blow on the shell does once the tide has come in the first time: it calls the sea back, if it is out.
+  shell.tap = () => {
+    note(w.memo.tide ? 0 : 0.1, 0.22)
+    if (!w.memo.tide) return set(true)
+    if (!told) w.say('The shell calls. The sea is already in, and says so by doing nothing. To let it out again, the lagoon has a plug.', 'shell')
+    told = true
+  }
+  // In its hole it bobs, a little, with the water.
+  w.ticks.push((_, time) => {
+    if (!w.things[t].up || !w.memo.tide) return
+    float.forEach((cube, k) => w.solid.place(cube, x, floor + (k ? 0.67 : 0.5) + Math.sin(time * 2.1) * 0.025, z))
+  })
 }
 
 // A hammock, piece by piece from one trunk to the other, for trunks three tiles apart and for two: from where to where
@@ -185,15 +261,15 @@ export const beach: Isle = {
     const z = tz(tile)
     const top = w.h[tile]
     if (c === 'c') {
-      // Blow it, and the tide comes in. After that every blow sends it out, or calls it back.
-      let turn: ((high: boolean) => void) | undefined
+      // Blow it, and the tide comes in. After that it calls the sea back whenever the plug has let it out: see `plug`,
+      // which also gives the shell what a blow does from then on.
       const t: number = w.thing(tile, {
         auto: false,
         hits: 2,
         keep: true,
         sound: 'toot',
         marks: [], // the first note sets it humming: see onHit
-        fuss: 'In, out, in, out. The starfish would like a word.',
+        fuss: 'The sea heard you the first time. It is in. It cannot be more in.',
         tip: 'A big spiral shell. It wants blowing. It has a lot to say',
         clue: 'A [big spiral shell] lies on the beach. It looks like it wants blowing. They say you can hear the sea in one. This one talks back.',
         onHit: () => {
@@ -204,19 +280,12 @@ export const beach: Isle = {
         onBreak: () => {
           note(0, 0.25)
           w.say('The shell calls and the tide comes in. All that water, and all it wanted was to be asked. Far out east, the sea draws back from a smoking rock.', 'shell')
-          w.things[t].tip = 'The shell that calls the tide. Blow it again and the sea goes out. It does not ask why'
+          w.things[t].tip = SHELL[1]
           w.memo.tide = 1
           const lagoon = w.tiles[s].filter((u) => w.mark[u] === 'l').sort((a, b) => tz(b) - tz(a))
           w.fill(lagoon[0]) // from the seaward end
+          w.after(3, () => w.grow(w.memo.plug)) // and up bobs the plug
           w.after(5, () => w.raise('volcano'))
-        },
-        tap: () => {
-          note(w.memo.tide ? 0 : 0.1, 0.22)
-          // The beach's west edge, level with the islet, is where the stones start.
-          turn ??= tides(w, s, w.tiles[s].filter((u) => tz(u) === tz(beach.at[0] + (beach.at[1] + 3) * W)).sort((a, b) => tx(a) - tx(b))[0])
-          const high = !w.memo.tide
-          turn(high)
-          w.things[t].tip = `The shell that calls the tide. Blow it again and the sea ${high ? 'goes out' : 'comes back in'}. It does not ask why`
         },
       })
       w.put(t, 0.05, 0.18, 0.05, 0.5, 0.36, 0.42, 0xffe2d2)
@@ -246,30 +315,72 @@ export const beach: Isle = {
       crab.hidden = true
       w.sleepers[s].push(crab)
     } else if (c === 'y') {
-      // It only flowers after rain, and it never rains here. Somebody in the swamp can send some.
+      // It only flowers after rain, and it never rains here. A knock, and it asks for some: the frog in the swamp calls
+      // the rain, and once awake it hears, and sends its cloud. (A click on the frog itself still does the same, as it
+      // does for a fire or for lava: but nobody has to think of that to finish.)
       const body: number[] = []
+      let unheard = false // it has asked with nobody to hear, and that has been said
       const t: number = w.thing(tile, {
         auto: false,
         todo: true,
-        tip: 'A cactus, waiting for rain. It is good at waiting. Too good',
-        clue: 'The [cactus] on the beach is waiting for rain. It will never ask. Somebody in the swamp knows how to call it.',
+        sound: 'ahem',
+        tip: 'A cactus, waiting for rain. Knock, and it asks for some. It hates asking',
+        clue: 'The [cactus] on the beach is waiting for rain, and too proud to say so. Knock, and it asks. Whoever calls the rain has to be awake to hear it: try the swamp.',
+        fuss: 'The cactus has asked six times now, which is six more than it ever meant to. It heard itself. So did everybody else.',
+        tap: () => {
+          const frog = w.critters.list.find((c) => c.kind === 'frog')
+          const its = frog?.thing === undefined ? undefined : w.things[frog.thing]
+          if (frog && its && !its.hits && w.open[w.isle[its.tile]]) return croak(w, frog, false, true)
+          if (!unheard) w.say('The cactus asks for rain, out loud, which it has never done. Nobody answers. Whoever calls the rain round here is still asleep, in the swamp.', 'cactus')
+          unheard = true
+        },
         rain: () => {
           const cactus = w.things[t]
           if (!cactus.todo) return
           cactus.todo = false
+          cactus.tap = cactus.fuss = undefined // it has what it asked for
           cactus.tip = 'The cactus, in flower. Worth the wait, it says. It would'
           w.memo.cactus = 1
           w.score(tile)
-          w.say('Rain on the beach. The cactus has waited years for this, and bursts into flower. All at once, like somebody who held it together for far too long.', 'cactus')
+          // And it is no longer the only one: young ones come up beside it, on the nearest open sand, two if there is room.
+          const sand = [...RING.map(([i, j]) => step(tile, i, j)), ...RING.map(([i, j]) => step(tile, i * 2, j * 2))].filter((u) => u >= 0 && w.isle[u] === s && w.free(u)).slice(0, 2)
+          w.say(`Rain on the beach. The cactus has waited years for this, and bursts into flower. All at once, like somebody who held it together for far too long.${['', ' A small one comes up beside it.', ' Two small ones come up beside it.'][sand.length]}${sand.length ? ' It was not as alone as it looked.' : ''}`, 'cactus')
           for (const cube of body) w.solid.paint(cube, 0x7fca6c)
           w.grow(t)
           w.source(tile, 3.4, 0.4)
+          sand.forEach((u, k) =>
+            w.after(1.4 + k * 0.8, () => {
+              if (!w.free(u)) return
+              w.clear(u) // what grows there makes way
+              const size = k ? 0.55 : 0.72
+              const young = w.thing(u, { tip: 'A young cactus. It came up with the rain, as if it had only been waiting to be asked' })
+              for (const [dx, dy, sx, sy] of SHAPE) w.put(young, dx * size, dy * size, 0, sx * size, sy * size, 0.24 * size, 0x7fca6c)
+              if (!k) w.put(young, 0, 0.96 * size, 0, 0.2 * size, 0.12 * size, 0.2 * size, 0xff8fb0)
+              thump()
+            }),
+          )
         },
       })
-      for (const [dx, dy, sx, sy] of [[0, 0.45, 0.3, 0.9], [-0.27, 0.5, 0.26, 0.12], [-0.34, 0.7, 0.14, 0.34], [0.27, 0.34, 0.26, 0.12], [0.34, 0.5, 0.14, 0.26]]) body.push(w.put(t, dx, dy, 0, sx, sy, 0.24, 0xa3b59f))
+      for (const [dx, dy, sx, sy] of SHAPE) body.push(w.put(t, dx, dy, 0, sx, sy, 0.24, 0xa3b59f))
       for (const [dx, dy] of [[0, 0.96], [-0.34, 0.92], [0.34, 0.68]]) w.put(t, dx, dy, 0, 0.2, 0.12, 0.2, 0xff8fb0, true)
       // Fruit, but only once it has flowered and there are bees.
       w.things[t].extra = [[-0.34, 0.74], [0.34, 0.5], [0.08, 0.8]].map(([dx, dy]) => w.solid.add(x + dx, top + dy, z + 0.15, 0.11, 0.12, 0.12, 0xe8556b, t, false))
+      // While it waits it says that it is thirsty, the only way a cactus can: every few seconds it hops, twice, and
+      // thinks of a drop of water. The thought goes up over its head the way thoughts do in a comic: two small white
+      // dots, and then the drop, bright enough to be seen against the lagoon and by night. It never lands.
+      let next = 0
+      w.ticks.push((_, time) => {
+        if (!w.things[t].todo || !w.open[s] || time < next) return
+        next = time + 5 + Math.random() * 3
+        const hop = () => {
+          if (w.things[t].todo) for (const cube of body) w.solid.poke(cube, 8)
+        }
+        hop()
+        w.after(0.25, hop)
+        w.bits.spawn(x + 0.1, top + 1.08, z, 0, 0.1, 0, 0.1, 0xffffff, 2, NEVER, 0, 0, 1.4)
+        w.after(0.2, () => w.bits.spawn(x + 0.2, top + 1.26, z, 0, 0.1, 0, 0.14, 0xffffff, 1.8, NEVER, 0, 0, 1.4))
+        w.after(0.45, () => w.bits.spawn(x + 0.3, top + 1.52, z, 0, 0.1, 0, 0.24, 0x3f9dff, 1.6, NEVER, 0, 0, 1.8))
+      })
     } else if (c === 'J') {
       const t = w.thing(tile, { tip: 'Stepping stones. They go somewhere, which is the whole idea' })
       w.put(t, 0, -0.1, -0.78, 0.5, 0.2, 0.42, STONE[0])
@@ -313,6 +424,7 @@ export const beach: Isle = {
 
   done(w, s) {
     hammock(w, s)
+    plug(w, s)
     // Bottle post. For as long as there is a secret nobody has found, a bottle washes up now and then with a riddle that points at one.
     // The riddle then stands next to that secret on the map.
     const bottle = w.critters.spawn('bottle', 0, -40, 0)
@@ -390,7 +502,7 @@ export const islet: Isle = {
       return
     }
     if (c !== 'C') return
-    const dug = w.extra('secret', { icon: 'chest', hint: 'Blow the shell a second time. Then follow the stones. Somebody laid them out sure that you would come.', at: () => w.above(tile, 0.9) })
+    const dug = w.extra('secret', { icon: 'chest', hint: 'The lagoon has a plug. Pull it, then follow the stones. Somebody laid them out sure that you would come.', at: () => w.above(tile, 0.9) })
     const t: number = w.thing(tile, {
       auto: false,
       sound: 'creak',

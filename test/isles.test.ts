@@ -132,8 +132,10 @@ function plugged(at: At, find: Find, water: string, plug: string) {
 function apart(at: At, find: Find, one: string, other: string) {
   for (const c of one) for (const [i, j] of find(c)) for (const [di, dj] of SIDES) assert.ok(!other.includes(at(i + di, j + dj)), `'${c}' at (${i}, ${j}) touches '${at(i + di, j + dj)}'`)
 }
-/** Nothing that stands up into the sails of a windmill beside it or right in front of it. And no tree within two tiles of the old tree, which is big enough to grow into it. */
+/** Nothing that stands up into the sails of a windmill beside it or right in front of it, and nothing at all on its doorstep. And no tree within two tiles of the old tree, which is big enough to grow into it. */
 function roomy(at: At, find: Find) {
+  // (Bare ground on a map is no place for a loose thing, so no dealing puts anything there either.)
+  for (const [i, j] of find('X')) assert.equal(at(i, j + 1), '.', `'${at(i, j + 1)}' stands on the doorstep of the windmill`)
   for (const [i, j] of find('X')) for (const [di, dj] of [[-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) assert.ok(!'TNIO'.includes(at(i + di, j + dj)), `'${at(i + di, j + dj)}' stands in the sails of the windmill`)
   for (const [i, j] of find('O')) for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) assert.notEqual(at(i + di, j + dj), 'T', `a tree at (${i + di}, ${j + dj}) stands within two tiles of the old tree`)
 }

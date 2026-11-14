@@ -30,7 +30,7 @@ export const meadow: Isle = {
   rows: [
     '   S.T  ',
     '  .S..X.',
-    ' ..K..b.',
+    ' ..K...b',
     ' ..q....',
     ' .qq.R.T',
     'H.q.....',
@@ -41,7 +41,8 @@ export const meadow: Isle = {
   ],
   // What any map of it has to keep to: the bridge at (0, 5); bare ground at (4, 0), where the bridge from the mountain
   // lands; the tortoise as the only way out of the spring, with two tiles of bare ground east of it to walk off over;
-  // and the stream running on from it to a coast.
+  // the stream running on from it to a coast; and bare ground right in front of the windmill's door, south of it, so
+  // that nothing ever stands on its doorstep (it is not a place for a loose thing either: see `roomy` in the test).
   variants: [
     // The spring in the north-east, the stream down the east side, the windmill in the west.
     {

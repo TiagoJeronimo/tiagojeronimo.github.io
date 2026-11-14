@@ -1,16 +1,19 @@
-// The camera of the castle, held the way the island's is. The left button, or one finger, takes hold of the land and
-// moves it; the right button, or shift, or a twist of two fingers, turns the world; the wheel, or a pinch, zooms,
-// towards whatever is under the cursor. The keys do all three: W A S D or the arrows, Q and E, + and −.
+// The camera for a game: a small land looked down on, held the way the island's is. The left button, or one finger,
+// takes hold of the land and moves it; the right button, or shift, or a twist of two fingers, turns the world; the
+// wheel, or a pinch, zooms, towards whatever is under the cursor. The keys do all three: W A S D or the arrows, Q and
+// E, + and −. The castle uses it, and so should the next game: give it the canvas, the mesh there is to point at, and
+// how far the land reaches.
 //
-// One thing is not as on the island, which is nearly flat: a castle on a hill stands high above the ground round it.
-// So what the cursor is on is found on the land itself, and not on a flat floor under it: zooming in on a tower goes to
-// the tower, and not through it to the grass behind. (And the island's own camera goes along with what happens there,
-// which this one has no need to: so the two are not one piece of code.)
+// What the cursor is on is found on the land itself, and not on a flat floor under it: zooming in on a tower goes to
+// the tower, and not through it to the grass behind. (The island has a camera of its own, older than this one, inside
+// `Island.ts`: it goes along with what happens there, which this one has no need to. The two are held alike, and are
+// not one piece of code.)
 import { Plane, Raycaster, Vector2, Vector3, type Object3D, type PerspectiveCamera } from 'three'
 
 const TILT = 0.72 // how steeply it looks down, from where it takes in the whole land
 const NEAREST = 11 // how near it may come to what it looks at
-const LIFT = 60 // the picture sits this many pixels above the middle of the window: the soldiers' buttons are at its foot
+const WIDE = 64 / 26 // from how far off the whole land is in the picture, for every unit it reaches from its middle
+const TALL = 74 / 26 // and in a window that is as wide as it is high: further, the narrower the window
 const UP = new Vector3(0, 1, 0)
 const FLOOR = new Plane(UP, 0) // the floor the land lies on: what the cursor is on when it is on nothing of the land
 const _p = new Vector3()
@@ -27,8 +30,9 @@ export class View {
   private land: Object3D
   private span: number
   private learnt: (known: string) => void
+  private lift: number
   private pitch = TILT
-  private far = 64 // from how far off this window sees the whole land
+  private far: number // from how far off this window sees the whole land
   private camera?: PerspectiveCamera
   private keys = new Set<string>()
   private fingers = new Map<number, number[]>()
@@ -41,12 +45,15 @@ export class View {
    * @param land what there is to point at
    * @param span how far from its middle there is anything to see: the view is never moved further off than that
    * @param learnt told whenever one more of the three ways has been used, with all that have
+   * @param lift how many pixels above the middle of the window the picture sits: for a page with buttons at its foot
    */
-  constructor(canvas: HTMLElement, land: Object3D, span: number, learnt: (known: string) => void) {
+  constructor(canvas: HTMLElement, land: Object3D, span: number, learnt: (known: string) => void, lift = 0) {
     this.canvas = canvas
     this.land = land
     this.span = span
     this.learnt = learnt
+    this.lift = lift
+    this.far = span * WIDE
     addEventListener('pointermove', this.onMove)
     addEventListener('pointerdown', this.onDown)
     addEventListener('pointerup', this.onUp)
@@ -195,10 +202,10 @@ export class View {
 
     // (The lift is a shift of the picture and not of the camera, so it is the same at every zoom, and a ray from the
     // cursor still goes where the cursor is.)
-    if (camera.view?.fullWidth !== width || camera.view.fullHeight !== height) camera.setViewOffset(width, height, 0, LIFT, width, height)
+    if (camera.view?.fullWidth !== width || camera.view.fullHeight !== height) camera.setViewOffset(width, height, 0, this.lift, width, height)
     // From further off in a tall window, so that the whole land is in it. Up close the camera comes down for a look
     // from the side, as into a diorama.
-    this.far = Math.max(64, 74 / (width / height))
+    this.far = this.span * Math.max(WIDE, TALL / (width / height))
     const dist = this.far / this.zoom
     const near = Math.min(1, Math.max(0, (34 - dist) / 20))
     this.pitch += (TILT - 0.17 * near * near * (3 - 2 * near) - this.pitch) * (1 - Math.exp(-dt * 5))

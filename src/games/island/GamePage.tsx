@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Bloom, EffectComposer, N8AO, TiltShift, ToneMapping } from '@react-three/postprocessing'
-import { BlendFunction, KernelSize, ToneMappingMode, type TiltShiftEffect } from 'postprocessing'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
-import { FINGERS, HINTS } from '../hints.ts'
+import { Back, FINGERS, Hints } from '../hints.tsx'
+import { Picture } from '../Picture.tsx'
 import { setSound, toggleSound } from '../../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
@@ -48,7 +47,7 @@ const tint = (hex: string) => {
   const strong = d === 0 ? 0 : d / (1 - Math.abs(most + least - 1))
   return `hsl(${Math.round(hue * 60)} ${Math.round(Math.min(85, strong * 140 + 12))}% var(--key))`
 }
-// (The three ways of getting about, said in a corner at the start of every island, are `HINTS` in `../hints.ts`: each
+// (The three ways of getting about, said in a corner at the start of every island, are `Hints` in `../hints.tsx`: each
 // goes the first time it is used there.)
 // The controls, under the cog, in plain words (this is where people look when they are lost): a row for each thing
 // there is to do, and across it the ways of doing it. With a mouse there are keys as well, and the two get a heading.
@@ -155,13 +154,11 @@ const Cog = () => (
   </svg>
 )
 
-const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 8], secrets: [0, 16], snails: [0, 7], friends: [], isles: [], finds: [], pairs: [], notes: [], credits: [], rolling: 0, rolled: 0, said: [], ended: false }
-
-const LIGHTEST = 2 // the last step down in how finely the picture is drawn: see `Stage`
+const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 8], secrets: [0, 16], snails: [0, 7], friends: [], isles: [], finds: [], pairs: [], notes: [], credits: [], rolling: 0, rolled: 0, said: [], ended: false, cut: false }
 
 /**
- * @param tier how finely the picture is drawn: 0 is all of it; 1 does the soft shading in the corners at half size;
- * 2 also draws no more pixels than the page has. It only ever leaves 0 on a machine that cannot keep up.
+ * The island in the picture: made here, moved on every frame, and unmade when the picture goes.
+ * @param tier the step the picture is at (see `../Picture.tsx`): the island draws its shadows to match
  */
 function Stage({
   seed,
@@ -169,7 +166,6 @@ function Stage({
   onGame,
   words,
   tier,
-  onTier,
   onShot,
 }: {
   seed: number
@@ -177,7 +173,6 @@ function Stage({
   onGame: (game: Island | null) => void
   words: RefObject<HTMLDivElement | null>
   tier: number
-  onTier: (tier: number) => void
   /** Given a way to take a picture: it draws a frame and hands over the canvas, to be copied from there and then. */
   onShot: (take: (() => HTMLCanvasElement) | null) => void
 }) {
@@ -187,27 +182,6 @@ function Stage({
   const canvas = gl.domElement
   const advance = useThree((state) => state.advance)
   const island = useRef<Island>(null)
-  const [soft, setSoft] = useState(false) // close enough for the top and bottom of the picture to go soft
-  const tilt = useRef<TiltShiftEffect>(null)
-  const composer = useRef<unknown>(null)
-  const shade = useRef<{ depthDownsampleTarget?: object } | null>(null)
-  // The shading at half size (tier 1 and up) needs a hand. The library's half-size buffer answers `texture` with the
-  // whole list of its textures, where this version of three.js wants the first of them, and drawing into it throws.
-  // (n8ao 2.0.1 with three 0.187. Harmless once that is mended: it then says what the library says.)
-  useLayoutEffect(() => {
-    const half = shade.current?.depthDownsampleTarget
-    if (half)
-      Object.defineProperty(half, 'texture', {
-        configurable: true,
-        get(this: { textures: unknown[] }) {
-          return this.textures[0]
-        },
-      })
-  })
-  const level = useRef(tier)
-  useEffect(() => {
-    level.current = tier
-  }, [tier])
   useEffect(() => {
     onShot(() => {
       advance(performance.now() / 1000)
@@ -216,57 +190,6 @@ function Stage({
     return () => onShot(null)
   }, [onShot, advance, gl])
   const begun = useRef(false)
-  useEffect(() => {
-    // In the dev server: draw a frame by hand, for when the browser is not drawing any (a tab nobody is looking at),
-    // and set how finely it is drawn.
-    if (import.meta.env.DEV) Object.assign(window, { paint: () => advance(performance.now() / 1000), tier: onTier, composer })
-  }, [advance, onTier])
-  // The frames are drawn from here. The browser offers one every time the screen redraws; on a screen that redraws more
-  // than a hundred times a second every other one is taken, which is plenty for this and half the work.
-  // It also keeps count. A machine that cannot do forty-two frames a second gets a lighter picture, a step at a time.
-  useEffect(() => {
-    let frame = 0
-    let last = 0
-    let wait = 4000 // nothing is counted while the page is still finding its feet, nor right after a step
-    let span = 0
-    let count = 0
-    let slow = 0
-    let over = false
-    const before: number[] = [] // frames a second at each step, as it was left
-    const step = (next: number) => {
-      level.current = next
-      onTier(next)
-      wait = 1500
-      slow = 0
-    }
-    const pump = (now: number) => {
-      frame = requestAnimationFrame(pump)
-      const gap = now - last
-      if (gap < 9.5) return
-      last = now
-      advance(now / 1000)
-      if (over) return
-      // A long gap is a stall, or a page nobody is looking at: not a picture that is too heavy.
-      if (gap > 250 || document.hidden) return void (span = count = 0)
-      if ((wait -= gap) > 0) return
-      span += gap
-      if (++count && span < 2000) return
-      const rate = (count * 1000) / span
-      span = count = 0
-      if (level.current === LIGHTEST) {
-        // As light as it gets. If even that made no real difference, the picture was never the trouble (a screen held
-        // to thirty frames to save its battery, say): everything goes back on, and stays on.
-        over = true
-        if (rate < before[0] * 1.2) step(0)
-      } else if (rate >= 42) slow = 0
-      else if (++slow > 1) {
-        before[level.current] = rate
-        step(level.current + 1)
-      }
-    }
-    frame = requestAnimationFrame(pump)
-    return () => cancelAnimationFrame(frame)
-  }, [advance, onTier])
   useEffect(() => {
     const created = (island.current = new Island(scene, canvas, onState, seed))
     onGame(created)
@@ -298,6 +221,8 @@ function Stage({
       onGame(null)
     }
   }, [scene, camera, gl, canvas, onState, seed, onGame, words])
+  // Its shadows go by the picture's steps. (After the island is made, so that a new one gets them too.)
+  useEffect(() => island.current?.shadows(tier), [tier])
   useFrame(({ camera, size }, dt) => {
     const game = island.current
     if (!game) return
@@ -309,20 +234,8 @@ function Stage({
       boot?.classList.add('gone')
       setTimeout(() => boot?.remove(), 700)
     }
-    // Up close, the top and the bottom of the picture go soft, as in a photograph of something small. Not on a machine
-    // that is already short of breath.
-    const near = tier ? 0 : game.near
-    if (near > 0.02 !== soft) setSoft(near > 0.02)
-    if (tilt.current) tilt.current.focusArea = 1.4 - 0.65 * near
   })
-  return (
-    <EffectComposer multisampling={4} ref={composer as never}>
-      <N8AO ref={shade as never} aoRadius={1.2} distanceFalloff={1} intensity={3} color="#5b3a66" halfRes={tier > 0} />
-      {soft && <TiltShift ref={tilt} blendFunction={BlendFunction.NORMAL} kernelSize={KernelSize.SMALL} focusArea={1.4} feather={0.35} />}
-      <Bloom mipmapBlur luminanceThreshold={1} intensity={0.4} />
-      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-    </EffectComposer>
-  )
+  return null
 }
 
 export default function GamePage() {
@@ -351,14 +264,13 @@ export default function GamePage() {
   const [tab, setTab] = useState('Map')
   const [news, setNews] = useState<string[]>([]) // the lines that were new in the log when it was last opened: they carry a dot
   const [menu, setMenu] = useState(false) // the cog's sheet is open: a new game, and how to get about
-  const [waved, setWaved] = useState(false) // the card at the end has been sent away
+  const [waved, setWaved] = useState(-1) // the card at the end has been sent away: after which roll of the ending (it comes back after the next)
   const [copied, setCopied] = useState(false)
   const [card, setCard] = useState('') // a postcard of the island, as a picture to show and to save
   const shot = useRef<(() => HTMLCanvasElement) | null>(null)
   const onShot = useCallback((take: (() => HTMLCanvasElement) | null) => {
     shot.current = take
   }, [])
-  const [tier, setTier] = useState(0) // how finely the picture is drawn: see `Stage`
   const game = useRef<Island | null>(null) // the game that is running, for the buttons that reach into it
   const onGame = useCallback((island: Island | null) => {
     game.current = island
@@ -407,7 +319,7 @@ export default function GamePage() {
     setState(START)
     setMap(false)
     setMenu(false)
-    setWaved(false)
+    setWaved(-1)
     setCopied(false)
   }
   // A new game: another island, and the one that is left is not kept.
@@ -488,37 +400,20 @@ export default function GamePage() {
 
   return (
     <>
-      <Canvas
-        key={seed}
-        flat
-        shadows="percentage"
-        frameloop="never"
-        dpr={tier < LIGHTEST ? [1, 1.5] : 1}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
-        camera={{ fov: 30, near: 1, far: 400 }}
-        style={{ position: 'fixed', inset: 0 }}
-      >
-        <Stage seed={seed} onState={setState} onGame={onGame} words={words} tier={tier} onTier={setTier} onShot={onShot} />
-      </Canvas>
+      {/* Up close, the top and the bottom of the picture go soft, as in a photograph of something small: `near`. */}
+      <Picture key={seed} flat style={{ position: 'fixed', inset: 0 }} near={() => game.current?.near ?? 0}>
+        {(tier) => <Stage seed={seed} onState={setState} onGame={onGame} words={words} tier={tier} onShot={onShot} />}
+      </Picture>
       <div className="words" ref={words} aria-hidden="true" />
 
       {/* While the cog's sheet is open, a click anywhere else only shuts it: it does not reach the world. */}
       {(menu || card) && <div className="scrim" onClick={() => (card ? away() : setMenu(false))} />}
       {/* The three ways of getting about, in the corner nobody else is using, until each has been used once on this
           island. */}
-      <ul className="hints" aria-label="How to get about">
-        {HINTS.map(([way, keys, how]) => (
-          <li key={way} data-done={state.known.includes(way) || state.ended}>
-            {how}
-            {keys && <kbd>[or {keys}]</kbd>}
-          </li>
-        ))}
-      </ul>
+      <Hints known={state.ended ? 'mzt' : state.known} />
       <header className="top">
         {/* The way back to everything else, in the corner: the castle has the same. */}
-        <a className="sound back" href="/">
-          ← Things I’ve made
-        </a>
+        <Back />
         <button className="sound icon" aria-label={sound ? 'Turn the sound off' : 'Turn the sound on'} title={sound ? 'Sound on' : 'Sound off'} onClick={loud}>
           <Speaker on={sound} />
           {/* Until somebody has said yes or no to it: a small label under the button, which asks. */}
@@ -842,7 +737,7 @@ export default function GamePage() {
         <Line text={state.tip} />
       </div>
 
-      <div className="end" data-open={state.done && state.ended && !waved && !rolling} role="dialog" aria-label="The end">
+      <div className="end" data-open={state.done && state.ended && waved !== state.rolled && !rolling} data-cut={state.cut} role="dialog" aria-label="The end">
         {/* Everybody who is up, along the top: it is their island now. */}
         <div className="crowd" aria-hidden="true">
           {friends
@@ -880,7 +775,7 @@ export default function GamePage() {
           ))}
         </ul>
         <div className="buttons">
-          <button className="btn" onClick={() => setWaved(true)}>
+          <button className="btn" onClick={() => setWaved(state.rolled)}>
             Keep looking around
           </button>
           <button className="btn" onClick={again}>

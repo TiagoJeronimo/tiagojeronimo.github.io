@@ -142,12 +142,16 @@ export const volcano: Isle = {
         rain: () => {
           if (since < 0 || w.memo.glass) return
           w.memo.glass = 1
+          w.memo.set = 1 // for as long as it is glass, nothing runs, falls or flies: see the tick below, and the falls in `Island.ts`
           const lava = w.tiles[s].filter((u) => w.filled[u])
           for (const u of lava) {
             for (let k = 0; k < 5; k++) bits.spawn(tx(u) + any(), w.h[u] + 0.5, tz(u) + any(), any(), 1 + Math.random() * 2, any(), 0.24, 0xffffff, 2.4, NEVER, 0, -0.8)
             w.solid.paint(w.pool[u], 0x3a3340)
           }
-          w.after(14, () => lava.forEach((u) => w.solid.paint(w.pool[u], LAVA, 2.2)))
+          w.after(14, () => {
+            w.memo.set = 0
+            lava.forEach((u) => w.solid.paint(w.pool[u], LAVA, 2.2))
+          })
         },
         onBreak: () => {
           w.say('The volcano clears its throat. Lava! It has been meaning to say this for a thousand years. Where it meets the sea it sets: new land, still warm.', 'volcano')
@@ -177,7 +181,7 @@ export const volcano: Isle = {
         if (!w.open[s]) return
         if (since < 0) {
           if (Math.random() < dt * 4) bits.spawn(x + any() * 0.7, top + 1.5, z + any() * 0.7, 0, 1, 0, 0.2, 0x8f8a96, 2.2, NEVER, 0, -0.6)
-        } else if (time - since < 5 || Math.random() < dt * 0.6) for (let k = 0; k < 2; k++) bits.spawn(x + any() * 0.4, top + 0.6, z + any() * 0.4, any() * 5, 8 + Math.random() * 6, any() * 5, 0.18, LAVA, 2, top - 3, 0, 22, 2)
+        } else if (!w.memo.set && (time - since < 5 || Math.random() < dt * 0.6)) for (let k = 0; k < 2; k++) bits.spawn(x + any() * 0.4, top + 0.6, z + any() * 0.4, any() * 5, 8 + Math.random() * 6, any() * 5, 0.18, LAVA, 2, top - 3, 0, 22, 2)
       })
       // Where the lava runs off the west edge, it meets the sea and sets: new land.
       w.onFill.push((mouth) => {

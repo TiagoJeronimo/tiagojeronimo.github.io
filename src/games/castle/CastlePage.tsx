@@ -1,30 +1,32 @@
-import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { PerspectiveCamera } from 'three'
-import { HINTS } from '../hints.ts'
+import { Back, Hints } from '../hints.tsx'
 import { keep, kept } from '../kept.ts'
+import { Picture } from '../Picture.tsx'
 import { Castle, REACH, WEAR, type Thing } from './Castle.ts'
-import { View } from './View.ts'
+import { View } from '../View.ts'
 
 /**
  * The picture: the world, moved on and drawn every frame, seen through a camera held like the island's. A click lets go
  * whatever is chosen, or pats an animal that is there; and a soldier the cursor rests on waves.
+ * @param tier the step the picture is at (see `../Picture.tsx`): the world draws its shadows to match
  * @param onWhose told, as the cursor moves over the land, which colour a soldier let go there would be: -1 for neither
  * @param onNews told when the castle has a new owner, and when everybody has sat down
  */
-function Stage({ thing, onWhose, onKnown, onNews }: { thing: Thing; onWhose: (team: number) => void; onKnown: (known: string) => void; onNews: (owners: number, peace: boolean) => void }) {
+function Stage({ tier, thing, onWhose, onKnown, onNews }: { tier: number; thing: Thing; onWhose: (team: number) => void; onKnown: (known: string) => void; onNews: (owners: number, peace: boolean) => void }) {
   const world = useMemo(() => new Castle(), [])
   const gl = useThree((state) => state.gl)
   const view = useRef<View>(null)
   const told = useRef('')
   useEffect(() => {
-    const held = (view.current = new View(gl.domElement, world.solid.mesh, REACH, onKnown))
+    // (The picture sits sixty pixels above the middle of the window: the soldiers' buttons are at its foot.)
+    const held = (view.current = new View(gl.domElement, world.solid.mesh, REACH, onKnown, 60))
     if (import.meta.env.DEV) Object.assign(window, { castle: world, view: held }) // at hand in the console
     return () => held.dispose()
   }, [gl, world, onKnown])
   useEffect(() => () => world.dispose(), [world])
+  useEffect(() => world.shadows(tier), [world, tier])
   useFrame(({ camera, size }, dt) => {
     world.update(Math.min(dt, 0.05))
     view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
@@ -33,31 +35,23 @@ function Stage({ thing, onWhose, onKnown, onNews }: { thing: Thing; onWhose: (te
     told.current = news
   })
   return (
-    <>
-      <primitive
-        object={world.group}
-        onClick={(event: ThreeEvent<MouseEvent>) => {
-          if (event.delta > 6) return // the end of a drag, not a click
-          event.stopPropagation()
-          const { x, y, z } = event.point
-          if (world.pat(x, y, z)) return
-          // (A hair into whatever was hit: a click on the side of a wall means that wall, not the ground beside it.)
-          const out = event.face?.normal
-          world.drop(thing, x - (out?.x ?? 0) * 0.02, z - (out?.z ?? 0) * 0.02)
-        }}
-        onPointerMove={(event: ThreeEvent<PointerEvent>) => {
-          world.hover(event.point.x, event.point.y, event.point.z)
-          onWhose(world.whose(event.point.x, event.point.z))
-        }}
-        onPointerOut={() => onWhose(-1)}
-      />
-      {/* The same finish as the island: soft shade in the corners, a little glow, gentle colours. */}
-      <EffectComposer multisampling={4}>
-        <N8AO aoRadius={1.2} distanceFalloff={1} intensity={3} color="#5b3a66" />
-        <Bloom mipmapBlur luminanceThreshold={1} intensity={0.4} />
-        <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-      </EffectComposer>
-    </>
+    <primitive
+      object={world.group}
+      onClick={(event: ThreeEvent<MouseEvent>) => {
+        if (event.delta > 6) return // the end of a drag, not a click
+        event.stopPropagation()
+        const { x, y, z } = event.point
+        if (world.pat(x, y, z)) return
+        // (A hair into whatever was hit: a click on the side of a wall means that wall, not the ground beside it.)
+        const out = event.face?.normal
+        world.drop(thing, x - (out?.x ?? 0) * 0.02, z - (out?.z ?? 0) * 0.02)
+      }}
+      onPointerMove={(event: ThreeEvent<PointerEvent>) => {
+        world.hover(event.point.x, event.point.y, event.point.z)
+        onWhose(world.whose(event.point.x, event.point.z))
+      }}
+      onPointerOut={() => onWhose(-1)}
+    />
   )
 }
 
@@ -102,25 +96,21 @@ export default function CastlePage() {
   }, [])
   return (
     <main className="castle">
-      <Canvas shadows="percentage" dpr={[1, 1.5]} gl={{ antialias: false, powerPreference: 'high-performance' }} camera={{ fov: 30, near: 1, far: 400 }}>
-        <color attach="background" args={['#cfe6f1']} />
-        <Stage key={round} thing={thing} onWhose={(team) => carry.current?.style.setProperty('--wear', team < 0 ? '' : `#${WEAR[team].toString(16)}`)} onKnown={learn} onNews={(owners, peace) => setNews({ owners, peace })} />
-      </Canvas>
+      {/* The same picture as the island's: its finish, and its lighter steps for a machine that cannot keep up. */}
+      <Picture>
+        {(tier) => (
+          <>
+            <color attach="background" args={['#cfe6f1']} />
+            <Stage key={round} tier={tier} thing={thing} onWhose={(team) => carry.current?.style.setProperty('--wear', team < 0 ? '' : `#${WEAR[team].toString(16)}`)} onKnown={learn} onNews={(owners, peace) => setNews({ owners, peace })} />
+          </>
+        )}
+      </Picture>
       {/* The three ways of getting about, as on the island: each goes the first time it is used. */}
-      <ul className="hints" aria-label="How to get about">
-        {HINTS.map(([way, keys, how]) => (
-          <li key={way} data-done={known.includes(way)}>
-            {how}
-            {keys && <kbd>[or {keys}]</kbd>}
-          </li>
-        ))}
-      </ul>
+      <Hints known={known} />
       {/* How things stand, once there is something to say: who is counting, and whether it is over. */}
       {(news.peace || news.owners > 1) && <p className="news">{news.peace ? 'Everybody sat down.' : `Owners so far: ${news.owners}`}</p>}
       <header className="top">
-        <a className="sound back" href="/">
-          ← Things I’ve made
-        </a>
+        <Back />
         <button className="sound" onClick={() => setRound(round + 1)} title="A new castle, and nobody on the field">
           Start over
         </button>

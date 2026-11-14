@@ -1,5 +1,5 @@
 import { Color, DynamicDrawUsage, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Sphere, Vector3 } from 'three'
-import { dirty, unit } from './cubes.ts'
+import { dirty, unit } from '../cubes.ts'
 
 export type Kind = 'bird' | 'bunny' | 'tortoise' | 'duck' | 'chick' | 'penguin' | 'beaver' | 'frog' | 'crab' | 'mole' | 'marmot' | 'goat' | 'dragon' | 'fish' | 'owl' | 'ghost' | 'bat' | 'snail' | 'star' | 'balloon' | 'arrow' | 'beam' | 'bottle' | 'capybara' | 'axolotl' | 'glow' | 'bubble' | 'sails' | 'snowball' | 'pebble'
 

@@ -6,8 +6,8 @@ import { Butterflies } from '../../Butterflies.ts'
 import { mute, note, thump } from '../../sound.ts'
 import { Critters, type Critter } from './critters.ts'
 import { combos } from './combos.ts'
-import { Bits, Cubes, blown } from './cubes.ts'
-import { BARK, BLOSSOM, D, FRUIT, GROUND, LAVA, LEAF, NEAR, NEVER, RING, STONE, W, WATER, WOOD, any, deal, drawn, rnd, step, tileAt, tx, tz, type Isle, type Thing, type Tree } from './grid.ts'
+import { Bits, Cubes, blown } from '../cubes.ts'
+import { BARK, BLOSSOM, D, FRUIT, GROUND, LAVA, LEAF, NEAR, NEVER, RING, STONE, W, WATER, WOOD, any, deal, drawn, rnd, shade, step, tileAt, tx, tz, type Isle, type Thing, type Tree } from './grid.ts'
 import { beach, islet } from './isles/beach.ts'
 import { garden } from './isles/garden.ts'
 import { island } from './isles/island.ts'
@@ -179,6 +179,8 @@ export interface GameState {
   said: Said[]
   /** The end has been said, or cut short: the card may come up. */
   ended: boolean
+  /** It was the player who cut it short: the card need not wait a breath first. */
+  cut: boolean
 }
 /** One secret, for the map. */
 export interface Find {
@@ -428,6 +430,7 @@ export class Island {
   private reels = 0 // how many times it has rolled: a click on the balloon rolls it again
   private ended = false // it has been said: the card may come up
   private hush?: () => void // cuts it short, while it rolls
+  private cut = false // the player did: with a click on the picture or on the balloon, or the space bar
   private gust = 0 // how hard the wind blows: 0 until the windmill turns
   private abed = new Set<Critter>() // who has yawned and turned in
   /** Who is sitting on the tortoise, if anyone is. */
@@ -475,10 +478,9 @@ export class Island {
     this.span = this.reach
 
     key.castShadow = true
-    key.shadow.mapSize.setScalar(matchMedia('(pointer: coarse)').matches ? 2048 : 4096)
     key.shadow.bias = -0.0004
     key.shadow.normalBias = 0.04
-    key.shadow.radius = 5
+    this.shadows(0)
     Object.assign(key.shadow.camera, { near: 1, far: 120 })
     const floor = new Mesh(new CircleGeometry(300, 32), new ShadowMaterial({ color: 0x6d4a7a, opacity: 0.25 }))
     floor.rotation.x = -Math.PI / 2
@@ -1119,6 +1121,11 @@ export class Island {
     return cube
   }
 
+  /** The shadows at the size that goes with a step of the picture (see `../Picture.tsx`). */
+  shadows(tier: number) {
+    shade(this.key, tier)
+  }
+
   thing(tile: number, more: Partial<Thing> = {}) {
     // Its name in a saved game: the isle, the letter it has on the map, and its turn among the things with that letter there.
     const letter = `${ISLES[this.isle[tile]].name}:${this.mark[tile]}`
@@ -1291,7 +1298,9 @@ export class Island {
       })
       if (!coming) this.after(2, () => (tries ? call(tries - 1) : gone()))
     }
-    Object.assign(thing, {
+    // An apple tree is one from the start. An oak is an orange tree only once it has oranges on it (`combos`): until
+    // then it looks like the oaks next to it, so it says nothing and answers no knock, as they do.
+    Object.assign(kind === 'fruit' ? thing : (thing.ripe = {}), {
       tip: kind === 'fruit' ? 'A fruit tree. Knock, and it lets go of things' : 'An orange tree. Knock, and it lets go of things',
       fuss: 'The tree is giving what it has. Try another tree. This one is out of fruit, not out of goodwill.',
       sound: 'rustle',
@@ -1352,7 +1361,8 @@ export class Island {
     if (c === 'T') return
     if (c === 'o') this.stones(this.thing(tile), 0.9, tile)
     else if (c === 'b') {
-      const t = this.thing(tile)
+      // A bush: twigs until its tile wakes, then leaves and two berries. It does nothing, and its label says which it is.
+      const t = this.thing(tile, { tip: 'A bush, all twigs. It is waiting for water, like the rest of us', wake: () => (this.things[t].tip = 'A bush, with two berries on it. It grew them itself') })
       this.put(t, 0, 0.2, 0, 0.5, 0.4, 0.5, 0xa58f72)
       this.put(t, 0.25, 0.12, 0.2, 0.3, 0.25, 0.3, 0x97826a)
       this.put(t, 0, 0.42, 0, 0.75, 0.6, 0.75, 0x7fca6c, true)
@@ -2056,7 +2066,7 @@ export class Island {
     this.after(1.5, () => this.epilogue(up)) // it starts on its piece almost as soon as it is in sight
     this.after(2.5, () => this.notice(up, 6)) // everybody watches it come in
     balloon.onPat = () => {
-      if (this.hush) return this.hush() // in the middle of saying its piece: that will do
+      if (this.hush) return this.stop() // in the middle of saying its piece: that will do
       this.notice(up, 3)
       this.word('thank you', balloon.x, balloon.y + 3.6, balloon.z)
       this.epilogue(up) // and it says it all again, from the top
@@ -2066,8 +2076,8 @@ export class Island {
 
   /**
    * The end, in words. Whoever is in the balloon has a few things to say, and they roll up over the island like the
-   * credits of a film, with fireworks from about where things got better. Then the card. The space bar, or a click on
-   * the balloon, cuts it short; and once it is over, a click on the balloon rolls it again.
+   * credits of a film, with fireworks from about where things got better. Then the card. The space bar, or a click
+   * anywhere on the picture, cuts it short; and once it is over, a click on the balloon rolls it again.
    * @param up where the balloon is, for those on the ground to look at
    */
   private epilogue(up: () => number[]) {
@@ -2096,13 +2106,14 @@ export class Island {
       'I will be honest, since it is only us. Somebody made this small world hoping you would think well of them.',
       'That is all anybody is doing, most days. It is just rarely this many cubes.',
       'None of it was real. All of it happened. I have never been able to explain that.',
-      'The island does not need you now. That was the point. Go and knock on something real. Gently. It may take more than three.',
+      'The island does not need you now. That was the point. Go and knock on something real. Gently.',
     ]
     // Slow enough to read every line twice as it goes by: as long, all told, as it would take to say them one by one.
     const seconds = Math.round(lines.reduce((all, line) => all + held(line), 0))
     const run = ++this.reels
     const live = () => run === this.reels && !!this.reel
     this.reel = { lines, seconds }
+    this.cut = false
     this.hush = done
     for (const line of lines) this.keep(line, ['balloon', -1, ''])
     // Those on the ground look up at it now and then, and from about where things got better there are fireworks.
@@ -2336,9 +2347,12 @@ export class Island {
   }
   private onMenu = (e: Event) => e.preventDefault()
   private onKey = (e: KeyboardEvent) => {
-    // The space bar is for the line at the bottom: read, next. (Unless a button has it: then it is that button's.)
+    // The space bar is for the line at the bottom: read, next. While the ending rolls, it cuts that short. (Unless a
+    // button has it: then it is that button's.)
     if (e.key === ' ') {
-      if (e.type === 'keydown' && !e.repeat && !(e.target as Element | null)?.closest?.('button')) this.next()
+      if (e.type !== 'keydown' || e.repeat || (e.target as Element | null)?.closest?.('button')) return
+      if (this.hush) this.stop()
+      else this.next()
       return
     }
     if (e.type === 'keydown') this.release()
@@ -2385,7 +2399,13 @@ export class Island {
     return critter.thing ?? PET + this.critters.list.indexOf(critter)
   }
 
+  /** The player has had enough of the ending. */
+  private stop() {
+    this.cut = true
+    this.hush?.()
+  }
   private click() {
+    if (this.hush) return this.stop() // the ending is rolling: a click anywhere on the picture ends it, and does nothing else
     this.jump = 0 // whatever this click brings about is said at once
     const id = this.pick()
     const now = performance.now()
@@ -2611,6 +2631,7 @@ export class Island {
       // Nothing falls where land has come up beyond the edge. And a fall nobody can see is not drawn: there are only so
       // many loose cubes to go round, and from close to, where a fall is most of the picture, it gets more of them.
       if (beyond >= 0 && this.exists[beyond]) continue
+      if (hot && this.memo.set) continue // lava that has set like glass, for the while that it has (see the volcano), does not fall
       if (this.camera && (Math.abs(_p.set(x, (top + foot) / 2, z).project(this.camera).x) > 1.2 || Math.abs(_p.y) > 1.5)) continue
       for (let n = 0; n < 2; n++)
         if (Math.random() < dt * (5 + 6 * this.near)) {
@@ -2900,12 +2921,12 @@ export class Island {
     camera.updateMatrixWorld()
     // The things still to be found stir now and then: one at a time, a small jolt, and only those in the picture. On a
     // touch screen there is no cursor to turn into a hand and no label to read: this is all that says what can be touched.
-    // Only what counts towards finishing, and only where a touch does something: what takes a knock, and the fairy
-    // ring by way of its mushrooms. Not the cactus, which wants rain and not a finger; and never scenery, toys or secrets.
+    // Only what counts towards finishing, and only where a touch does something: what takes a knock, the fairy ring by
+    // way of its mushrooms, and the cactus, which asks for its rain when it is knocked. Never scenery, toys or secrets.
     if (time >= this.twitch) {
       this.twitch = time + 2.2 + Math.random() * 2.2
       const seen = this.things.filter((thing) => {
-        if (!(thing.hits || (thing.todo && thing.touched)) || !thing.clue || !this.open[this.isle[thing.tile]]) return false
+        if (!(thing.hits || (thing.todo && (thing.touched || thing.tap))) || !thing.clue || !this.open[this.isle[thing.tile]]) return false
         _p.set(tx(thing.tile), this.h[thing.tile] + 0.5, tz(thing.tile)).project(camera)
         return Math.abs(_p.x) < 0.92 && Math.abs(_p.y) < 0.88 && _p.z < 1
       })
@@ -2995,6 +3016,7 @@ export class Island {
       rolled: this.reels,
       said: this.heard,
       ended: this.ended,
+      cut: this.cut,
     }
     const sent = JSON.stringify(state)
     if (sent !== this.sent) {
