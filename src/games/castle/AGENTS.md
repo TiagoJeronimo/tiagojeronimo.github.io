@@ -1,39 +1,74 @@
 # The castle: "Storm the castle" (a working title), at `/games/castle/`
 
-A sandbox. A castle on a hill; the player lets go archers, swordsmen or a picnic, and they get on with it by
-themselves. A soldier let go on the hill is the castle's, one let go on the flat ground is against it. The cat on the
-keep decides who owns the castle; a picnic ends the fight. No supply, no score, no end but peace.
+A war that gets nowhere, and the one who feeds both sides of it. The castle's six stand on its wall; the camp's six
+charge it and go back to their fire; nobody is hurt. With every charge both sides ask the helper for things, in
+pictures. What does not come in time makes one of them sit down under a rain cloud; what comes gets one up again. A
+side with nobody standing gives up, and the day is lost. It is won by a wedding: in the quiet after each charge the
+princess or the prince asks for something too, and when all of it has been brought and the musician is taken to the
+gate, they marry.
 
 ## Files
 
 | File | What |
 | --- | --- |
-| `Castle.ts` | The world, no React: the land (`hill`, `land`), the castle as pieces of courses, soldiers, the cat, sheep, ducks, picnics, arrows. The numbers to tune are constants at its top (`LIVES PACE RANGE TOUGH APPEAL DAWDLE` and more). |
-| `CastlePage.tsx` | The page: `Stage` (the world, the camera, the clicks), the tray of three buttons, the small figure carried at the cursor, the line of news. |
-| `castle.css` | The tray, the carried figure, the news. The corners come from `../hints.css`. |
+| `Castle.ts` | The world, no React. At its top: the numbers to tune (`FIRST LULL CHARGE WAIT ROUNDS HAT GIFTS PACE SOW BAKE SONG DAY`); `PLAN`, the castle from above, a character a tile; `lay`, which works out the land round it once (`BROOK LAKE BRIDGE` are its water); and where everything else stands (`FIELD STOVE RACK TRAY TENT BOARD WINCH SEATS POSTS` and more). Then the class. |
+| `CastlePage.tsx` | The page: `Stage` (the world, the camera, the clicks); a bubble over whoever is asking, which stays at the window's edge and points when its place is out of sight; a tag over the helper and one over each place things are put by; the sun along the top; the end of the day. |
+| `castle.css` | The bubbles, the tags, the day, the end. The corners come from `../hints.css`. |
 
 ## The world from outside
 
-`drop(thing, x, z)` lets one go, `pat(x, y, z)` pats an animal there (true if there was one), `hover(x, y, z)` makes a
-soldier wave, `whose(x, z)` says which colour a soldier let go there would be, `update(dt)`, `shadows(tier)`,
-`dispose()`. To read: `men`, `pieces`, `owner`, `owners` (how many so far), `peace`.
+`click(cube, x, z)` and `hover(cube, x, z)` are for the page; `serve(ask)` sends the helper to whoever asked.
+`order(id)` puts a thing on his list, four at most: `TREE + i`, `ROCK + i`, `PLOT + i`, `FLOWER + i`, `OVEN`,
+`LOGS`, `HEAP`, `HEARTH`, `BASKET`, `TABLE`, `PRINCESS`, `PRINCE`, `MUSIC`, `CAT`, `DUCK`, `APPLE`, `WED`. Then
+`update(dt)`, `shadows(tier)`, `dispose()`. To read: `asks`, `time`, `over` (`castle`, `camp` or `wedding`), `love`,
+`phase`, `round`, `standing(side)`, `piles`, `kept`, `doused`, `me`, `tune`, `trees`, `rocks`, `plots`, `flowers`,
+`oven`, `cat`, `ducks`, `men`. `new Castle(seed)`: the same seed, the same askings.
 
-## How a soldier decides
+## How it goes
 
-Every frame, in `duty`, the first of these that applies: a seat at a picnic; the cat (fetch it, carry it home to the top
-of the hill); a sheep to pat; the fight. With none of them, `laze`: sit, fish at the water, sleep under a tree.
-They find their way by maps of steps made afresh every 0.3 s in `plan` (`toTeam toCastle toCat toTop toPicnic toBank
-toShade`). A blow on the castle goes to `chip`: a tooth first, then the highest course; what has lost its support
-falls (`settle`, `loosen`); with the cat home, `rebuild` puts it all back and the castle may change hands.
+- The helper carries up to `HAT` things, one on another (`me.loads`, drawn by `stack`). A job is walked to (`way`,
+  `walk`); there `begin` says how long it takes, or that it cannot be done, and he shakes his head; then `finish`
+  does it. `order` refuses at once what plainly cannot work. At the basket, the table, the princess or the prince he
+  hands over everything he has that is wanted there (`hand`).
+- A side takes only what it has asked for (`takes`). At the rack, the tray and the oven's shelf a click puts by what
+  he has more of than anybody wants (`extra`), and otherwise takes one: so with two wanting wood, two clicks are two
+  logs. With a full hat he lets go of the oldest thing nobody wants (`spare`, `take`). The cat and a duck ride on his
+  hat as themselves (`me.pets`) and go home by themselves (`home`).
+- `direct` is the day: the camp charges for `CHARGE` seconds and rests for `LULL`, by turns (`phase`, `round`). With
+  each charge both sides ask at once (`burst`): the first two charges are `ROUNDS`, the same every day, and after
+  those `pick` goes by chance. An ask is waited for `CHARGE + WAIT` seconds. `want`, `give`, `tire` and `cheer` are
+  all the rules there are.
+- In each quiet one of `GIFTS` is asked for, while the last has been brought: pink, no timer, handed over in person
+  (`PRINCESS`, `PRINCE`). What the prince asks for comes from the castle, what the princess asks for does not. After
+  the last comes an ask at the gate, answered with `WED`: see `wed`.
+- From the second quiet on something happens in each (`happen`, by turns): a duck follows him (`tail`); the cat goes
+  for a loaf and a click stops it (`thief`, `nab`); rain puts the camp's fire out (`doused`), which then asks for
+  wood with no timer (`still`) and gives no soup until it has it.
+- From two gifts on the sides help each other (`lend`): in a charge, one plain ask for each gift after the first is
+  met by a throw across the wall.
+- The camp, the musician, a duck at his heels and the cat go by maps of steps (`flow`, `route`, `chase`), found
+  afresh when a tree or a rock has moved (`stamp`). Only the helper, the musician and the cat get through the gate
+  (`key`). On a stair, `foot` gives the tread.
+- The war is a show (`fight`, `shoot`, `fly`) and decides nothing. It follows what is asked for: no wood, no arrows
+  from the wall; stone wanted, teeth off the wall.
 
 ## Trying things
 
-In the dev server: `window.castle`, `window.view`. `test/castle.test.ts` fights whole battles in node with
-`update(0.05)` in a loop. It has to pass every time, not most times: run it a few times over after changing a number.
+In the dev server: `window.castle`, `window.view`. `test/castle.test.ts` proves each rule (`hold` stops the day, so
+that one can be tried at a time) and plays whole days with a bot (`play`), on fixed seeds: it passes every time or
+not at all. To tune, change a number and let the bot play a dozen days at several speeds, and for one side only.
 
 ## Settled, not to be undone unasked
 
-- Nothing grim: whoever is hit often enough pops into loose cubes.
-- No sentence says how to play. What a click will let go is carried at the cursor, in the colour it would land in.
-- Thought of and left out: flowers, a narrator, things to find, night, sound, a card at the end.
-- Still open with the owner: its name, and what the game is about.
+- Nobody is hurt: a good shot makes somebody jump.
+- No sentence in the game. A want is a picture, a refusal a shake of the head, and what would help gives a jump.
+  What he carries is on his hat, and said again with the same pictures on a tag over it. Nothing goes on the page
+  that has to be explained: a bar for how long a charge lasts was not understood, and came out again.
+- The layout is the owner's sketch: the castle at the top, the road down to the camp, the farm to the left, the winch
+  on the left wall. Seen first from the south-west, so that the winch shows.
+- The hill is heaped up to the foot of the walls, with uneven steps: no bare earth under a wall, no grey plinth, no
+  long flat cut. Stairs are stone, with small treads. The yard has lawns. The castle is drawn by hand in `PLAN` and
+  is on purpose not the same on both sides: change it there, a character at a time.
+- The brook is narrow, with grass banks, and ends in the pond. Its bridge is level with the ground at both ends.
+- The marks over what he has been told to do get darker down the list: the bright one is next.
+- Still open with the owner: the name; and the card on the front page, which still describes the game this replaced.

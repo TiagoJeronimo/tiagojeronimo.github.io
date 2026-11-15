@@ -67,11 +67,11 @@ export default function Page() {
 
 ## What a world keeps to
 
-- A cute diorama: pastel cubes, soft shadows, nothing grim. Somebody who is hit pops into loose cubes.
+- A cute diorama: pastel cubes, soft shadows, nothing grim. Nobody is hurt: in the castle an arrow makes somebody jump.
 - Nothing floats: when what held a thing up has gone, it falls. Things break in small parts, not all at once.
 - Nothing clips: no cube sits inside another.
 - Whatever answers a click has a label, and the label says what is so now: change it when the thing changes.
-- No sentence where a picture will do. The castle shows what a click will do by carrying it at the cursor.
+- No sentence where a picture will do. The castle says what each side wants in a bubble with a picture in it.
 - `rnd(n)` for what must look the same on every visit (scenery), `any()` for what may differ (a puff of leaves).
 - The games are held alike: the same gestures, the same hints, the same corners. A new one keeps in step.
 

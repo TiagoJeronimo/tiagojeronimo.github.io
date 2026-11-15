@@ -53,13 +53,16 @@ const SHAPE = [[0, 0.45, 0.3, 0.9], [-0.27, 0.5, 0.26, 0.12], [-0.34, 0.7, 0.14,
 /** What the shell's label says with the sea out, and with it in. */
 const SHELL = ['The shell that calls the tide. Blow it, and the sea comes back in. It does not ask why', 'The shell that calls the tide. The sea is in. To let it out again, there is a plug']
 /** And the plug's. */
-const PLUG = ['A plug, pulled. The shell calls the sea back, and the plug with it', 'A plug, on a chain. Knock, and out it comes. The lagoon has always had one']
+const PLUG = ['A plug, pulled, and a duck with nothing to float on. The shell calls the sea back', 'A plug, on a chain, and the duck that minds it. Knock, and out it comes']
+/** The duck, in boxes, from where it sits: across, up and along, its size, and its colour. Body, head, beak, tail. */
+const DUCK = [[0, 0.09, 0, 0.26, 0.18, 0.32, 0xffd45c], [0, 0.25, 0.1, 0.17, 0.16, 0.17, 0xffd45c], [0, 0.23, 0.22, 0.09, 0.05, 0.08, 0xf5a742], [0, 0.2, -0.18, 0.1, 0.09, 0.06, 0xffd45c]]
 
 /**
- * The lagoon has a plug, at its seaward end: it bobs up with the first tide, on a chain from a peg on the bank. A knock
- * pulls it and the sea goes out, which shows the stones to the islet; the shell calls the sea back, and the plug goes
- * in again by itself. So the shell does one thing and the plug the other, and nobody has to think of blowing a shell
- * twice. (It is on a tile of the lagoon and not on a letter of the map: wherever the lagoon lies, it has one.)
+ * The lagoon has a plug, at its seaward end, like a bath: a soft round one, on a chain of beads from a peg on the bank,
+ * and on it a rubber duck. It bobs up with the first tide. A knock pulls it and the sea goes out, which shows the
+ * stones to the islet; the shell calls the sea back, and the plug goes in again by itself. So the shell does one thing
+ * and the plug the other, and nobody has to think of blowing a shell twice. (It is on a tile of the lagoon and not on a
+ * letter of the map: wherever the lagoon lies, it has one.)
  */
 function plug(w: Island, s: number) {
   const tile = w.tiles[s].filter((u) => w.mark[u] === 'l').sort((a, b) => tz(b) - tz(a))[0]
@@ -75,36 +78,46 @@ function plug(w: Island, s: number) {
     turn(high)
     seated.forEach((cube, k) => (high ? w.solid.show(cube, 2.2 + k * 0.06) : w.solid.hide(cube)))
     pulled.forEach((cube, k) => (high ? w.solid.hide(cube) : w.solid.show(cube, 0.25 + k * 0.06)))
-    Object.assign(w.things[t], { tip: PLUG[+high], sound: high ? 'pop' : 'clunk' })
+    w.things[t].tip = PLUG[+high]
     shell.tip = SHELL[+high]
+    // The duck goes where the plug goes: afloat on it, or perched on top of it where it stands on the bank.
+    if (!high) sit(0.16, bank + 0.58, 0.5)
   }
+  /** The duck is put somewhere: so far across, up and along from the middle of the tile and the floor of the lagoon. */
+  const sit = (dx: number, dy: number, dz: number) => duck.forEach((cube, k) => w.solid.place(cube, x + dx + DUCK[k][0], floor + dy + DUCK[k][1], z + dz + DUCK[k][2]))
   const t: number = (w.memo.plug = w.thing(tile, {
     auto: false,
-    sound: 'pop',
+    sound: 'squeak', // (that is the duck)
     tip: PLUG[1],
-    fuss: 'It is out. It cannot be more out. The sea has left, as asked.',
+    fuss: 'It is out. It cannot be more out. The duck has said so six times.',
     // It is not there to be seen until the first tide brings it up (the shell does that: `grow`).
-    wake: () => [...seated, peg].forEach((cube, k) => w.solid.show(cube, k * 0.08)),
+    wake: () => [...seated, ...ashore, ...duck].forEach((cube, k) => w.solid.show(cube, k * 0.06)),
     tap: () => {
       if (!w.memo.tide) return
       thump()
+      w.word('pop', x, floor + 1.1, z)
       // The water turns once round the hole on its way down.
       for (let k = 0; k < 10; k++) w.bits.spawn(x + Math.cos(k * 0.63) * 0.4, floor + 0.46, z + Math.sin(k * 0.63) * 0.4, -Math.sin(k * 0.63) * 1.4, 0.4, Math.cos(k * 0.63) * 1.4, 0.1, 0x9fd6ff, 0.9, floor, 0, 6)
       set(false)
     },
   }))
-  // In its hole, with the sea over it: the plug with its ring up, and the chain taut to a peg on the bank. Big enough
-  // to be made out from where the camera starts, and high enough in the water for the bank not to hide it.
-  const float = [w.scar(t, 0, 0.5, 0, 0.6, 0.16, 0.6, 0x3f3a4c), w.scar(t, 0, 0.67, 0, 0.24, 0.2, 0.07, 0xc9ccd6)]
-  const seated = [...float, ...[0.25, 0.5, 0.75].map((far) => w.scar(t, -0.32 * far, 0.67 + (bank + 0.28 - 0.67) * far, 0.1 + 0.4 * far, 0.09, 0.09, 0.09, 0xb9bcc9))]
-  const peg = w.scar(t, -0.32, bank + 0.16, 0.52, 0.12, 0.32, 0.12, WOOD)
+  // In its hole, with the sea over it: a cream plug with a pink top, high enough in the water for the bank not to hide
+  // it, and a red loop for its chain, which is white and pink beads up to a peg with a red knob on the bank.
+  const afloat = [
+    [w.scar(t, 0, 0.5, 0, 0.56, 0.14, 0.56, 0xfff1dc), 0.5],
+    [w.scar(t, 0, 0.605, 0, 0.36, 0.07, 0.36, 0xff9ab0), 0.605],
+  ]
+  const seated = [...afloat.map(([cube]) => cube), w.scar(t, -0.08, 0.6, 0.27, 0.12, 0.12, 0.06, 0xe2694f), ...[0.25, 0.5, 0.75].map((far, k) => w.scar(t, -0.08 - 0.24 * far, 0.62 + (bank + 0.28 - 0.62) * far, 0.28 + 0.22 * far, 0.09, 0.09, 0.09, k % 2 ? 0xffc2d9 : 0xffffff))]
+  const ashore = [w.scar(t, -0.32, bank + 0.16, 0.52, 0.12, 0.32, 0.12, WOOD), w.scar(t, -0.32, bank + 0.36, 0.52, 0.16, 0.08, 0.16, 0xe2694f)]
+  const duck = DUCK.map(([dx, dy, dz, sx, sy, sz, color]) => w.scar(t, dx, 0.64 + dy, dz, sx, sy, sz, color))
   // Pulled: the hole it leaves in the floor, and the plug stood on its edge on the rim of the bank beside the peg,
-  // where it can be seen (the floor of the lagoon cannot, from most places), with the chain slack between the two.
+  // where it can be seen (the floor of the lagoon cannot, from most places), its pink top to the front, and the beads
+  // slack between the two.
   const pulled = [
     w.scar(t, 0, 0.015, 0, 0.36, 0.03, 0.36, 0x2a2433),
-    w.scar(t, 0.16, bank + 0.3, 0.5, 0.56, 0.56, 0.14, 0x3f3a4c),
-    w.scar(t, 0.16, bank + 0.65, 0.5, 0.22, 0.16, 0.07, 0xc9ccd6),
-    ...[0.22, 0.1, 0.22].map((dy, k) => w.scar(t, -0.24 + k * 0.05, bank + dy, 0.51, 0.07, 0.07, 0.07, 0xb9bcc9)),
+    w.scar(t, 0.16, bank + 0.3, 0.5, 0.56, 0.56, 0.14, 0xfff1dc),
+    w.scar(t, 0.16, bank + 0.3, 0.605, 0.36, 0.36, 0.07, 0xff9ab0),
+    ...[0.22, 0.1, 0.22].map((dy, k) => w.scar(t, -0.24 + k * 0.05, bank + dy, 0.51, 0.07, 0.07, 0.07, k % 2 ? 0xffc2d9 : 0xffffff)),
   ]
   // What a blow on the shell does once the tide has come in the first time: it calls the sea back, if it is out.
   shell.tap = () => {
@@ -113,10 +126,11 @@ function plug(w: Island, s: number) {
     if (!told) w.say('The shell calls. The sea is already in, and says so by doing nothing. To let it out again, the lagoon has a plug.', 'shell')
     told = true
   }
-  // In its hole it bobs, a little, with the water.
+  // In its hole it bobs, a little, with the water: and the duck on it a little more, and a moment after.
   w.ticks.push((_, time) => {
     if (!w.things[t].up || !w.memo.tide) return
-    float.forEach((cube, k) => w.solid.place(cube, x, floor + (k ? 0.67 : 0.5) + Math.sin(time * 2.1) * 0.025, z))
+    for (const [cube, high] of afloat) w.solid.place(cube, x, floor + high + Math.sin(time * 2.1) * 0.025, z)
+    sit(0, 0.64 + Math.sin(time * 2.1 - 0.5) * 0.04, 0)
   })
 }
 

@@ -41,8 +41,24 @@ One line a word. The code, its comments and the notes for agents all use them th
 
 ## The castle
 
-- **piece**: a stretch of wall, a tower, the gate or the keep. **course**: one layer of its stones. **tooth**: a
-  stone on top of a wall.
-- **team**: 0 or 1, the colour a soldier wears. **owner**: the team the castle belongs to just now.
-- **duty**: what a soldier has to do this frame. **laze**: what it does with nothing to do.
-- **seat**: a place at a picnic. **peace**: everybody is sitting, with some of each colour.
+- **helper**: the one the player sends about, by clicks. **load**: a thing he carries, up to three, one on another
+  on his **hat**. **job**: a thing he has been told to see to. **mark**: the small cube over a job.
+- **side**: 0 the castle, 1 the camp. **ask**: something that is wanted, and how long it will be waited for.
+- **charge** and **quiet**: the camp out at the wall, and back at its fire, by turns. The asks come with a charge,
+  all at once. **round**: how many charges there have been.
+- **put by**: left at the farm for later: logs on the **rack**, stones on the **tray**, loaves on the oven's **shelf**.
+- **sad**: sitting under a cloud, because an ask ran out. **standing**: not sad. A side with nobody standing gives up.
+- **thing**: what a click can be for: a tree, a rock, a plot, a flower, the oven, the rack, the tray, the pot on the
+  fire, the basket, the table, the princess, the prince, the musician, the cat, a duck, the apple tree. **plain**:
+  bread, wood and stone, which can be put by. **silly**: the rest (flower, soup, duck, cat, apple), which cannot.
+- **pet**: the cat or a duck while it is being carried: it rides on his hat, and goes home by itself.
+- **winch** and **basket**: how things get up into the castle. **table**: how they get to the camp.
+- **love**: an ask of the princess's or the prince's, shown in pink, with no timer, and brought in person; and how
+  many of those have been met. **gift**: what such an ask is for. **wedding**: how the day is won.
+- **still**: an ask with no timer that is not love: wood for a fire the rain has put out (**doused**).
+- **happening**: something small in a quiet: a duck at his heels (**tail**), the cat off with a loaf (**thief**), rain.
+- **lend**: one side throws the other something it is short of, and that ask is met with no help from the helper.
+- **tag**: a small picture on the page: of what he carries, over him; of what is kept there and how many, over a store.
+- **front** and **home**: a camp soldier's place at the wall, and by the fire.
+- **plan**: the castle from above, a character a tile. **yard**: its lower part. **ward**: the upper, round the keep.
+- **swell**: the slow chance that pushes the hill's steps in and out, so that they are not even.
