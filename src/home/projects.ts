@@ -67,7 +67,7 @@ const made: Project[] = [
     title: 'Wake the island',
     kind: 'games',
     when: '2020–2026',
-    blurb: 'A tiny voxel game: a dry little island, and a few things in the way of its water.',
+    blurb: 'A game where you poke a dry little island back to life. It’s kind of reassuring when something gets better the more you click on it.',
     body: [
       'You knock on things until they get better. That is the whole game. It is also, I have come to think, most of what I do for a living.',
       'The idea is older than the game. I started it in Unity around 2020, left it in a folder for years, and only finished it now, in the browser, with AI helping me get it to something you can actually play. The island was very patient about it.',
@@ -87,8 +87,8 @@ const made: Project[] = [
     when: '2021–2026',
     blurb: 'A castle, two colours of soldier, and a cat that both of them say is theirs.',
     body: [
-      'Nobody knows yet what this game is about, me included. There is a castle, there are soldiers, and there is a cat. We will find out.',
-      'It started in 2021: bored, in covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill. It stayed that way for years. AI helped me get it to something you can play.',
+      'Nobody knows yet what this game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. There is probably something to learn from this, but somebody needs bread.',
+      'It started in 2021: bored, during Covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill with some little people running around. It stayed that way for years. Recently, AI helped me get it to something you can play.',
     ],
     tags: ['TypeScript', 'three.js', 'react-three-fiber', 'Vite'],
     links: [{ label: 'Play', href: '/games/castle/' }],
