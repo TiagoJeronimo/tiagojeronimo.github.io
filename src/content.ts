@@ -53,7 +53,7 @@ export const chapters: Chapter[] = [
     part: 'work',
     org: 'Smallpdf · Sign.com',
     years: '2022–2026',
-    title: 'Product engineering, at scale.',
+    title: 'Building a signing product, end to end.',
     role: 'Senior Full-Stack Engineer · Zürich',
     body: [
       'Smallpdf is the most used online PDF software and one of the 200 most visited websites in the world. I started on the core product, then moved to Sign.com, its e-signature product.',
