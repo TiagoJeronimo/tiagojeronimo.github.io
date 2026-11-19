@@ -7,6 +7,7 @@ import { setSound, toggleSound } from '../../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
 import type { Friend } from './wishes.ts'
+import posthog, { isPostHogEnabled, posthogLogger } from '../../posthog.ts'
 
 // The isles by the names they have on the map. The strip of new land the lava builds has none: it is part of the volcano's story.
 const ISLES: Record<string, string> = { island: 'The island', meadow: 'The meadow', snow: 'The snow', mountain: 'The mountain', swamp: 'The swamp', beach: 'The beach', volcano: 'The volcano', garden: 'The garden', islet: 'The islet' }
@@ -267,6 +268,7 @@ export default function GamePage() {
   const [waved, setWaved] = useState(-1) // the card at the end has been sent away: after which roll of the ending (it comes back after the next)
   const [copied, setCopied] = useState(false)
   const [card, setCard] = useState('') // a postcard of the island, as a picture to show and to save
+  const completionCaptured = useRef(false)
   const shot = useRef<(() => HTMLCanvasElement) | null>(null)
   const onShot = useCallback((take: (() => HTMLCanvasElement) | null) => {
     shot.current = take
@@ -316,6 +318,7 @@ export default function GamePage() {
   const wishes = [friends.filter((friend) => friend.patted).length + friends.filter((friend) => friend.granted).length, friends.length + friends.filter((friend) => friend.more).length]
 
   const fresh = () => {
+    completionCaptured.current = false
     setState(START)
     setMap(false)
     setMenu(false)
@@ -324,6 +327,7 @@ export default function GamePage() {
   }
   // A new game: another island, and the one that is left is not kept.
   const again = () => {
+    if (isPostHogEnabled) posthog.capture('island_new_game_started')
     const next = 1 + ((seed + Math.floor(Math.random() * 9998)) % 9999) // never the same one
     forget(seed)
     history.replaceState(null, '', `?seed=${next}`)
@@ -376,6 +380,8 @@ export default function GamePage() {
     }
     canvas.toBlob((blob) => {
       if (!blob) return
+      if (isPostHogEnabled) posthog.capture('island_postcard_created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
+      posthogLogger.info('island postcard created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
       setMenu(false)
       setCard((old) => {
         if (old) URL.revokeObjectURL(old)
@@ -397,6 +403,13 @@ export default function GamePage() {
     setTab(name)
     if (name === 'Log') read()
   }
+  useEffect(() => {
+    if (state.done && !completionCaptured.current) {
+      if (isPostHogEnabled) posthog.capture('island_completed', { knocks: state.knocks, life_percent: state.life })
+      posthogLogger.info('island completed', { knocks: state.knocks, life_percent: state.life })
+      completionCaptured.current = true
+    }
+  }, [state.done, state.knocks, state.life])
 
   return (
     <>

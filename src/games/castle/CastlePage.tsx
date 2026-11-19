@@ -7,6 +7,7 @@ import { Picture } from '../Picture.tsx'
 import { toggleSound } from '../../sound.ts'
 import { View } from '../View.ts'
 import { Castle, DAY, SIGHT, type Item, type Want } from './Castle.ts'
+import posthog, { isPostHogEnabled } from '../../posthog.ts'
 
 /** What the page does after every frame: it has the world as it now is, and the camera it was drawn through. */
 type Each = (world: Castle, camera: PerspectiveCamera, width: number, height: number) => void
@@ -145,6 +146,10 @@ export default function CastlePage() {
   }, [])
   // (What he carries that nobody wants just now: the place it can be put by at says so, by not keeping still.)
   const spare = (what: string) => news.loads.includes(what as Item) && !news.asks.some(([, , wanted]) => wanted === what)
+  const restart = (source: 'end' | 'manual') => {
+    if (isPostHogEnabled) posthog.capture('castle_day_restarted', { source })
+    setRound(round + 1)
+  }
   return (
     <main className="castle">
       {/* The same picture as the island's: its finish, and its lighter steps for a machine that cannot keep up. */}
@@ -188,7 +193,7 @@ export default function CastlePage() {
       {news.over && (
         <div className="end" data-how={news.over}>
           <Icon rows={ICONS[news.over === 'wedding' ? 'heart' : 'cloud']} />
-          <button className="btn" onClick={() => setRound(round + 1)}>
+          <button className="btn" onClick={() => restart('end')}>
             Another day
           </button>
         </div>
@@ -198,7 +203,7 @@ export default function CastlePage() {
         <button className="sound" aria-pressed={loud} onClick={() => setLoud(toggleSound())}>
           {loud ? 'Sound on' : 'Sound off'}
         </button>
-        <button className="sound" onClick={() => setRound(round + 1)} title="The same morning again, from the start">
+        <button className="sound" onClick={() => restart('manual')} title="The same morning again, from the start">
           Start over
         </button>
       </header>

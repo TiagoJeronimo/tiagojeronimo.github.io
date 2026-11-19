@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { links, me, outside } from '../content.ts'
 import { ART } from './art.ts'
 import { hello, KINDS, projects, type Kind, type Project } from './projects.ts'
+import posthog, { isPostHogEnabled } from '../posthog.ts'
 
 /** A small picture drawn by hand, a character a pixel: sharp at any size. An `a` takes the card's own strong colour.
     The drawing carries its name (`art-fox`) and every pixel its ink (`i-K`), so that the styles can move a part of it. */
@@ -134,7 +135,14 @@ function Player({ project }: { project: Project }) {
   const [playing, setPlaying] = useState(false)
   if (playing) return <iframe className="shot" src={`https://www.youtube-nocookie.com/embed/${project.video}?autoplay=1`} title={project.title} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
   return (
-    <button className="play" onClick={() => setPlaying(true)} aria-label={`Play ${project.title}`}>
+    <button
+      className="play"
+      onClick={() => {
+        if (isPostHogEnabled) posthog.capture('portfolio_video_started', { project_slug: project.slug })
+        setPlaying(true)
+      }}
+      aria-label={`Play ${project.title}`}
+    >
       <Shot project={project} as="sheet" />
       <span className="btn">Play it here</span>
     </button>
@@ -152,7 +160,13 @@ function Mail({ href }: { href: string }) {
     })
   return (
     <span className="mail">
-      <a className="sound" href={href}>
+      <a
+        className="sound"
+        href={href}
+        onClick={() => {
+          if (isPostHogEnabled) posthog.capture('portfolio_link_clicked', { link_type: 'email' })
+        }}
+      >
         Email
       </a>
       <span className="tip">
@@ -310,6 +324,8 @@ export default function Home() {
   }, [])
 
   const show = (to: string) => {
+    const project = cards.find((card) => card.slug === to)
+    if (isPostHogEnabled && project) posthog.capture('portfolio_project_opened', { project_slug: project.slug, project_kind: project.kind })
     history.pushState({ card: true }, '', `#${to}`)
     setSlug(to)
   }
@@ -320,6 +336,7 @@ export default function Home() {
   }
   /** A chip is pressed: the cards slide to their new places, where the browser knows how. (Whoever is visiting is gone.) */
   const pick = (one: Kind | 'all') => {
+    if (isPostHogEnabled) posthog.capture('portfolio_filter_selected', { filter: one })
     const go = () => {
       setKind(one)
       setHop(undefined)
@@ -329,6 +346,9 @@ export default function Home() {
     document.startViewTransition(() => flushSync(go))
   }
   const find = (id: string) => setFound(found + id)
+  const trackProjectLink = (project: Project, href: string) => {
+    if (isPostHogEnabled) posthog.capture('portfolio_link_clicked', { project_slug: project.slug, project_kind: project.kind, link_type: href.startsWith('/') ? 'internal' : 'external' })
+  }
   const shown = cards.filter((project) => kind === 'all' || project.kind === kind)
   const card = (project: Project, n: number) => {
     const poster = project.wide && kind === 'all'
@@ -370,7 +390,15 @@ export default function Home() {
             card of a game, in the corner of its picture. It lies over the card and is not inside it: a link within a
             link is no link. */}
         {(poster || game) && (
-          <a className="btn now" href={project.links[0].href} {...outside(project.links[0].href)} onClick={play(project.links[0].href)}>
+          <a
+            className="btn now"
+            href={project.links[0].href}
+            {...outside(project.links[0].href)}
+            onClick={(event) => {
+              trackProjectLink(project, project.links[0].href)
+              play(project.links[0].href)(event)
+            }}
+          >
             {project.links[0].label}
           </a>
         )}
@@ -394,7 +422,15 @@ export default function Home() {
             link.href.startsWith('mailto:') ? (
               <Mail key={link.label} href={link.href} />
             ) : (
-              <a key={link.label} className="sound" href={link.href} {...outside(link.href)}>
+              <a
+                key={link.label}
+                className="sound"
+                href={link.href}
+                {...outside(link.href)}
+                onClick={() => {
+                  if (isPostHogEnabled) posthog.capture('portfolio_link_clicked', { link_type: 'social' })
+                }}
+              >
                 {link.label}
               </a>
             ),
@@ -463,7 +499,16 @@ export default function Home() {
               )}
               <div className="go">
                 {open.links.map((link, k) => (
-                  <a key={link.href} className={k ? 'sound' : 'btn'} href={link.href} {...outside(link.href)} onClick={play(link.href)}>
+                  <a
+                    key={link.href}
+                    className={k ? 'sound' : 'btn'}
+                    href={link.href}
+                    {...outside(link.href)}
+                    onClick={(event) => {
+                      trackProjectLink(open, link.href)
+                      play(link.href)(event)
+                    }}
+                  >
                     {link.label}
                   </a>
                 ))}
