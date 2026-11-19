@@ -1,17 +1,22 @@
 type Properties = Record<string, string | number | boolean>
+interface CaptureOptions { send_instantly?: boolean; transport?: 'sendBeacon' }
 interface AnalyticsClient {
-  capture(event: string, properties?: Properties): unknown
+  capture(event: string, properties?: Properties, options?: CaptureOptions): unknown
   logger: { info(message: string, attributes?: Properties): unknown }
 }
 
 /** Early clicks wait for the SDK; unavailable analytics never stop the page or its controls. */
 export function createAnalytics(load?: () => Promise<AnalyticsClient>) {
-  const ready = load ? Promise.resolve().then(load).catch(() => undefined) : undefined
+  let loaded: AnalyticsClient | undefined
+  const ready = load ? Promise.resolve().then(load).then((client) => { loaded = client; return client }).catch(() => undefined) : undefined
   const send = (run: (client: AnalyticsClient) => unknown) => {
-    void ready?.then((client) => client && run(client)).catch(() => {})
+    // Once ready, navigation events must reach the SDK before the page-leave flush runs.
+    if (loaded) {
+      try { void Promise.resolve(run(loaded)).catch(() => {}) } catch { /* Analytics failures never interrupt a link or a game. */ }
+    } else void ready?.then((client) => client && run(client)).catch(() => {})
   }
   return {
-    capture: (event: string, properties?: Properties) => send((client) => client.capture(event, properties)),
+    capture: (event: string, properties?: Properties, options?: CaptureOptions) => send((client) => client.capture(event, properties, options)),
     info: (message: string, attributes?: Properties) => send((client) => client.logger.info(message, attributes)),
   }
 }

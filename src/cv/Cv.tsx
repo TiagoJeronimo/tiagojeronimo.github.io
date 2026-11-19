@@ -1,5 +1,7 @@
-import type { CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import { chapters, links, me, outside, type Chapter } from '../content.ts'
+import { trackLink } from '../analytics.ts'
+import posthog from '../posthog.ts'
 
 /** One chapter of the CV: when, where, what it was, and what I did there. */
 function Entry({ chapter }: { chapter: Chapter }) {
@@ -34,7 +36,7 @@ function Entry({ chapter }: { chapter: Chapter }) {
         {chapter.sites && (
           <p className="sites">
             {chapter.sites.map((site) => (
-              <a key={site.href} href={site.href} {...outside(site.href)}>
+              <a key={site.href} href={site.href} {...outside(site.href)} onClick={() => trackLink(site.href, site.label, 'cv_experience', { slug: chapter.id, kind: chapter.part })}>
                 {site.label}
               </a>
             ))}
@@ -53,6 +55,11 @@ const PARTS: [title: string, parts: Chapter['part'][]][] = [
 
 /** The CV: plain, quick to load, and fit to print. */
 export default function Cv() {
+  useEffect(() => {
+    const print = () => posthog.capture('cv_print_requested')
+    addEventListener('beforeprint', print)
+    return () => removeEventListener('beforeprint', print)
+  }, [])
   return (
     <main className="cv">
       <header>
@@ -67,7 +74,7 @@ export default function Cv() {
             .filter((link) => !link.casual)
             .map((link) => (
               <li key={link.label}>
-                <a href={link.href} {...outside(link.href)}>
+                <a href={link.href} {...outside(link.href)} onClick={() => trackLink(link.href, link.label, 'cv_header')}>
                   {link.label}
                 </a>
               </li>

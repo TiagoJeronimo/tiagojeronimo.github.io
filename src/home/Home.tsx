@@ -4,6 +4,7 @@ import { links, me, outside } from '../content.ts'
 import { ART } from './art.ts'
 import { hello, KINDS, projects, type Kind, type Project } from './projects.ts'
 import posthog, { isPostHogEnabled } from '../posthog.ts'
+import { trackLink } from '../analytics.ts'
 
 /** A small picture drawn by hand, a character a pixel: sharp at any size. An `a` takes the card's own strong colour.
     The drawing carries its name (`art-fox`) and every pixel its ink (`i-K`), so that the styles can move a part of it. */
@@ -155,16 +156,17 @@ function Mail({ href }: { href: string }) {
   const [copied, setCopied] = useState(false)
   const copy = () =>
     navigator.clipboard?.writeText(address).then(() => {
+      posthog.capture('portfolio_contact_intent', { method: 'copy_email', source: 'home_header' })
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
-    })
+    }).catch(() => {})
   return (
     <span className="mail">
       <a
         className="sound"
         href={href}
         onClick={() => {
-          if (isPostHogEnabled) posthog.capture('portfolio_link_clicked', { link_type: 'email' })
+          trackLink(href, 'Email', 'home_header')
         }}
       >
         Email
@@ -242,7 +244,10 @@ export default function Home() {
   const [hop, setHop] = useState<{ slug: string; n: number }>() // the card the llama is walking behind just now,
   const [coon, setCoon] = useState<{ slug: string; n: number }>() // and the one the raccoon is visiting
   const [big, setBig] = useState<string>() // one of a sheet's small pictures, being looked at big
-  const [warned, setWarned] = useState<string>() // the game somebody has asked for on a phone, while they are told what to expect
+  const [warned, setWarned] = useState<{ href: string; source: string }>() // the game somebody has asked for on a phone, while they are told what to expect
+  const impressions = useRef(new Set<string>())
+  const viewed = useRef('')
+  const openSource = useRef('direct')
   const sheet = useRef<HTMLDialogElement>(null)
   const zoom = useRef<HTMLDialogElement>(null)
   const notice = useRef<HTMLDialogElement>(null)
@@ -252,7 +257,10 @@ export default function Home() {
 
   // The address says which project is open, so that one can be linked to, and the back button shuts it.
   useEffect(() => {
-    const follow = () => setSlug(named())
+    const follow = () => {
+      openSource.current = 'history'
+      setSlug(named())
+    }
     addEventListener('popstate', follow)
     addEventListener('hashchange', follow)
     return () => {
@@ -277,6 +285,30 @@ export default function Home() {
     if (!open && dialog.open) dialog.close()
     dialog.scrollTop = 0
   }, [open])
+  useEffect(() => {
+    if (open && viewed.current !== open.slug) {
+      posthog.capture('portfolio_project_opened', { project_slug: open.slug, project_kind: open.kind, source: openSource.current, filter: kind })
+    }
+    viewed.current = open?.slug ?? ''
+  }, [open, kind])
+  // One impression per card and visit, once at least half of it is visible. Filtering does not inflate the count.
+  useEffect(() => {
+    if (!isPostHogEnabled || !('IntersectionObserver' in window)) return
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) continue
+        const slug = (entry.target as HTMLElement).dataset.slug!
+        if (impressions.current.has(slug)) continue
+        const project = cards.find((card) => card.slug === slug)
+        if (!project) continue
+        impressions.current.add(slug)
+        posthog.capture('portfolio_project_seen', { project_slug: slug, project_kind: project.kind, filter: kind, source: entry.target.classList.contains('wide') ? 'poster' : 'grid' })
+        observer.unobserve(entry.target)
+      }
+    }, { threshold: 0.5 })
+    for (const card of document.querySelectorAll('.grid li[data-slug]')) observer.observe(card)
+    return () => observer.disconnect()
+  }, [kind])
   // A card that has been opened is stamped.
   if (open && !seen.includes(open.slug)) setSeen([...seen, open.slug])
   // A small picture that was clicked comes up big, over the sheet, until a click or the Escape key.
@@ -287,10 +319,17 @@ export default function Home() {
   }, [big])
   // A link to one of the games, clicked on a phone, does not go there at once: a word comes up first, and a button
   // that goes all the same.
-  const play = (href: string) => (event: { preventDefault(): void }) => {
-    if (!GAMES.includes(href) || !matchMedia(PHONE).matches) return
+  const play = (href: string, source: string) => (event: { preventDefault(): void }) => {
+    if (!GAMES.includes(href)) return
+    const needsWarning = matchMedia(PHONE).matches
+    posthog.capture('portfolio_game_launch_requested', { game: href.split('/')[2], source, needs_warning: needsWarning }, { send_instantly: true, transport: 'sendBeacon' })
+    if (!needsWarning) return
     event.preventDefault()
-    setWarned(href)
+    setWarned({ href, source })
+  }
+  const warningDecision = (decision: 'continue' | 'cancel' | 'dismiss') => {
+    if (warned) posthog.capture('portfolio_game_warning_decided', { game: warned.href.split('/')[2], source: warned.source, decision }, { send_instantly: true, transport: 'sendBeacon' })
+    if (decision !== 'continue') setWarned(undefined)
   }
   useEffect(() => {
     const dialog = notice.current!
@@ -324,8 +363,7 @@ export default function Home() {
   }, [])
 
   const show = (to: string) => {
-    const project = cards.find((card) => card.slug === to)
-    if (isPostHogEnabled && project) posthog.capture('portfolio_project_opened', { project_slug: project.slug, project_kind: project.kind })
+    openSource.current = 'card'
     history.pushState({ card: true }, '', `#${to}`)
     setSlug(to)
   }
@@ -346,9 +384,6 @@ export default function Home() {
     document.startViewTransition(() => flushSync(go))
   }
   const find = (id: string) => setFound(found + id)
-  const trackProjectLink = (project: Project, href: string) => {
-    if (isPostHogEnabled) posthog.capture('portfolio_link_clicked', { project_slug: project.slug, project_kind: project.kind, link_type: href.startsWith('/') ? 'internal' : 'external' })
-  }
   const shown = cards.filter((project) => kind === 'all' || project.kind === kind)
   const card = (project: Project, n: number) => {
     const poster = project.wide && kind === 'all'
@@ -395,8 +430,8 @@ export default function Home() {
             href={project.links[0].href}
             {...outside(project.links[0].href)}
             onClick={(event) => {
-              trackProjectLink(project, project.links[0].href)
-              play(project.links[0].href)(event)
+              trackLink(project.links[0].href, project.links[0].label, 'card', project)
+              play(project.links[0].href, 'card')(event)
             }}
           >
             {project.links[0].label}
@@ -415,7 +450,7 @@ export default function Home() {
           <p>{me.line} Here is some of what I’ve made, at work and for fun.</p>
         </div>
         <nav aria-label="Elsewhere">
-          <a className="btn" href="/cv/">
+          <a className="btn" href="/cv/" onClick={() => trackLink('/cv/', 'My CV', 'home_header')}>
             My CV
           </a>
           {links.map((link) =>
@@ -428,7 +463,7 @@ export default function Home() {
                 href={link.href}
                 {...outside(link.href)}
                 onClick={() => {
-                  if (isPostHogEnabled) posthog.capture('portfolio_link_clicked', { link_type: 'social' })
+                  trackLink(link.href, link.label, 'home_header')
                 }}
               >
                 {link.label}
@@ -505,8 +540,8 @@ export default function Home() {
                     href={link.href}
                     {...outside(link.href)}
                     onClick={(event) => {
-                      trackProjectLink(open, link.href)
-                      play(link.href)(event)
+                      trackLink(link.href, link.label, 'sheet', open)
+                      play(link.href, 'sheet')(event)
                     }}
                   >
                     {link.label}
@@ -526,14 +561,14 @@ export default function Home() {
       </dialog>
 
       {/* A word before a game is opened on a phone. Shut by its button, the Escape key, or a click beside it. */}
-      <dialog className="notice" ref={notice} aria-labelledby="notice-title" onClose={() => setWarned(undefined)} onClick={(event) => event.target === notice.current && setWarned(undefined)}>
+      <dialog className="notice" ref={notice} aria-labelledby="notice-title" onClose={() => warningDecision('dismiss')} onClick={(event) => event.target === notice.current && warningDecision('dismiss')}>
         <h2 id="notice-title">Made for a computer</h2>
         <p>This game is meant to be played on a computer. It will open on your phone, but it probably won’t work very well.</p>
         <div className="go">
-          <a className="btn" href={warned}>
+          <a className="btn" href={warned?.href} onClick={() => warningDecision('continue')}>
             Play anyway
           </a>
-          <button className="sound" onClick={() => setWarned(undefined)}>
+          <button className="sound" onClick={() => warningDecision('cancel')}>
             Not now
           </button>
         </div>
@@ -555,7 +590,7 @@ export default function Home() {
           <Pet name="broccoli" word={night ? 'zzz' : 'no.'} />
         </span>
         <p>
-          {me.name} · Zürich · <a href="/cv/">CV</a>
+          {me.name} · Zürich · <a href="/cv/" onClick={() => trackLink('/cv/', 'CV', 'home_footer')}>CV</a>
         </p>
         <p className="tray" aria-live="polite">
           {/* (A snail that has been found comes off like a sticker.) */}

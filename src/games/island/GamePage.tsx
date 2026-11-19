@@ -7,8 +7,8 @@ import { setSound, toggleSound } from '../../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
 import type { Friend } from './wishes.ts'
-import posthog, { isPostHogEnabled, posthogLogger } from '../../posthog.ts'
-import { gameEvents } from '../tracking.ts'
+import posthog, { posthogLogger } from '../../posthog.ts'
+import { gameEvents, gameVisit, milestones, type GameVisit } from '../tracking.ts'
 
 // The isles by the names they have on the map. The strip of new land the lava builds has none: it is part of the volcano's story.
 const ISLES: Record<string, string> = { island: 'The island', meadow: 'The meadow', snow: 'The snow', mountain: 'The mountain', swamp: 'The swamp', beach: 'The beach', volcano: 'The volcano', garden: 'The garden', islet: 'The islet' }
@@ -172,7 +172,7 @@ function Stage({
 }: {
   seed: number
   onState: (state: GameState) => void
-  onGame: (game: Island | null) => void
+  onGame: (game: Island | null, visit?: GameVisit) => void
   words: RefObject<HTMLDivElement | null>
   tier: number
   /** Given a way to take a picture: it draws a frame and hands over the canvas, to be copied from there and then. */
@@ -193,20 +193,35 @@ function Stage({
   }, [onShot, advance, gl])
   const begun = useRef(false)
   useEffect(() => {
+    const visit = gameVisit('island', posthog.capture)
+    let running = false
+    const visibility = () => visit.active(running && !document.hidden)
+    const progress = milestones([25, 50, 75, 100], (milestone) => visit.capture('island_progress_reached', { seed, milestone }))
     const report = gameEvents<GameState>(
       (state) => state.done,
-      (state) => posthog.capture(state.knocks > 0 ? 'island_game_resumed' : 'island_new_game_started', { seed }),
       (state) => {
+        running = true
+        visibility()
+        visit.capture(state.knocks > 0 ? 'island_game_resumed' : 'island_new_game_started', { seed })
+      },
+      (state) => {
+        running = false
+        visibility()
         const progress = { seed, knocks: state.knocks, life_percent: state.life }
-        posthog.capture('island_completed', progress)
+        visit.capture('island_completed', progress)
         posthogLogger.info('island completed', progress)
+      },
+      (state) => {
+        const total = state.isles.reduce((sum, isle) => sum + isle.found[1], 0)
+        if (total) progress(100 * state.found / total)
       },
     )
     const created = (island.current = new Island(scene, canvas, (state) => {
       report(state)
       onState(state)
     }, seed))
-    onGame(created)
+    onGame(created, visit)
+    addEventListener('visibilitychange', visibility)
     // The lamps of the night are not drawn by day (see `Island.lamplight`). The shaders that have them in are put together
     // now, in the background, and the way the picture is drawn (into a buffer, not straight onto the screen): otherwise the
     // first nightfall would make the page stall while they are.
@@ -230,6 +245,8 @@ function Stage({
       words.current?.append(el)
     }
     return () => {
+      removeEventListener('visibilitychange', visibility)
+      visit.active(false)
       created.dispose()
       island.current = null
       onGame(null)
@@ -286,8 +303,10 @@ export default function GamePage() {
     shot.current = take
   }, [])
   const game = useRef<Island | null>(null) // the game that is running, for the buttons that reach into it
-  const onGame = useCallback((island: Island | null) => {
+  const visit = useRef<GameVisit | null>(null)
+  const onGame = useCallback((island: Island | null, session?: GameVisit) => {
     game.current = island
+    visit.current = session ?? null
   }, [])
   const words = useRef<HTMLDivElement>(null)
   // A small label that follows the cursor and says what it is resting on.
@@ -338,6 +357,7 @@ export default function GamePage() {
   }
   // A new game: another island, and the one that is left is not kept.
   const again = () => {
+    visit.current?.capture('island_game_restarted', { progress_percent: Math.floor(100 * state.found / things) })
     const next = 1 + ((seed + Math.floor(Math.random() * 9998)) % 9999) // never the same one
     forget(seed)
     history.replaceState(null, '', `?seed=${next}`)
@@ -390,7 +410,7 @@ export default function GamePage() {
     }
     canvas.toBlob((blob) => {
       if (!blob) return
-      if (isPostHogEnabled) posthog.capture('island_postcard_created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
+      visit.current?.capture('island_postcard_created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
       posthogLogger.info('island postcard created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
       setMenu(false)
       setCard((old) => {
@@ -460,7 +480,10 @@ export default function GamePage() {
           </i>
         </button>
         {/* And a dot on this one when nothing has been found for a good while. */}
-        <button className="sound" data-dot={state.stuck} onClick={() => game.current?.nudge()} title="Shows you something you have not found yet">
+        <button className="sound" data-dot={state.stuck} onClick={() => {
+          visit.current?.capture('island_hint_requested', { progress_percent: Math.floor(100 * state.found / things) })
+          game.current?.nudge()
+        }} title="Shows you something you have not found yet">
           Tip
         </button>
         <div className="menu">

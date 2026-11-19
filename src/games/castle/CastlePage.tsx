@@ -7,29 +7,48 @@ import { Picture } from '../Picture.tsx'
 import { toggleSound } from '../../sound.ts'
 import { View } from '../View.ts'
 import { Castle, DAY, SIGHT, type Item, type Want } from './Castle.ts'
-import posthog, { isPostHogEnabled } from '../../posthog.ts'
-import { gameEvents } from '../tracking.ts'
+import posthog from '../../posthog.ts'
+import { gameEvents, gameVisit, milestones, type GameVisit } from '../tracking.ts'
 
 /** What the page does after every frame: it has the world as it now is, and the camera it was drawn through. */
 type Each = (world: Castle, camera: PerspectiveCamera, width: number, height: number) => void
+
+function castleTracking() {
+  const visit = gameVisit('castle', posthog.capture)
+  let running = false
+  const visibility = () => visit.active(running && !document.hidden)
+  const progress = milestones([1, 2, 3, 4], (gifts) => visit.capture('castle_courtship_progressed', { gifts_delivered: gifts }))
+  const report = gameEvents<Castle>(
+    (day) => !!day.over,
+    () => {
+      running = true
+      visibility()
+      visit.capture('castle_day_started')
+    },
+    (day) => {
+      running = false
+      visibility()
+      visit.capture('castle_day_ended', {
+        outcome: day.over === 'wedding' ? 'win' : 'loss',
+        ending: day.over,
+        rounds: day.round,
+        gifts_delivered: Math.min(4, day.love),
+        duration_seconds: Math.round(day.time),
+      })
+    },
+    (day) => progress(day.love),
+  )
+  return { visit, visibility, report }
+}
 
 /**
  * The picture: the world, moved on and drawn every frame, seen through a camera held like the island's. A click on
  * something of the land is one more thing for the helper to see to; on open ground, somewhere for him to go.
  * @param tier the step the picture is at (see `../Picture.tsx`): the world draws its shadows to match
  */
-function Stage({ tier, onKnown, each }: { tier: number; onKnown: (known: string) => void; each: Each }) {
+function Stage({ tier, onKnown, each, onVisit }: { tier: number; onKnown: (known: string) => void; each: Each; onVisit: (visit: GameVisit | null) => void }) {
   const world = useMemo(() => new Castle(), [])
-  const report = useMemo(() => gameEvents<Castle>(
-    (day) => !!day.over,
-    () => posthog.capture('castle_day_started'),
-    (day) => posthog.capture('castle_day_ended', {
-      outcome: day.over === 'wedding' ? 'win' : 'loss',
-      ending: day.over,
-      rounds: day.round,
-      duration_seconds: Math.round(day.time),
-    }),
-  ), [])
+  const tracking = useMemo(() => castleTracking(), [])
   const gl = useThree((state) => state.gl)
   const view = useRef<View>(null)
   useEffect(() => {
@@ -40,10 +59,19 @@ function Stage({ tier, onKnown, each }: { tier: number; onKnown: (known: string)
     return () => held.dispose()
   }, [gl, world, onKnown])
   useEffect(() => () => world.dispose(), [world])
+  useEffect(() => {
+    onVisit(tracking.visit)
+    addEventListener('visibilitychange', tracking.visibility)
+    return () => {
+      removeEventListener('visibilitychange', tracking.visibility)
+      tracking.visit.active(false)
+      onVisit(null)
+    }
+  }, [tracking, onVisit])
   useEffect(() => world.shadows(tier), [world, tier])
   useFrame(({ camera, size }, dt) => {
     world.update(Math.min(dt, 0.05))
-    report(world)
+    tracking.report(world)
     view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
     each(world, camera as PerspectiveCamera, size.width, size.height)
   })
@@ -107,6 +135,8 @@ export default function CastlePage() {
   useEffect(() => keep('castle/known', known), [known])
   const [round, setRound] = useState(0) // a new world for each: what is left of the last is thrown away
   const world = useRef<Castle>(null)
+  const visit = useRef<GameVisit | null>(null)
+  const onVisit = useCallback((session: GameVisit | null) => { visit.current = session }, [])
   const bubbles = useRef<Record<number, HTMLElement | null>>({})
   const stores = useRef<(HTMLElement | null)[]>([])
   const sun = useRef<HTMLElement>(null)
@@ -159,13 +189,13 @@ export default function CastlePage() {
   // (What he carries that nobody wants just now: the place it can be put by at says so, by not keeping still.)
   const spare = (what: string) => news.loads.includes(what as Item) && !news.asks.some(([, , wanted]) => wanted === what)
   const restart = (source: 'end' | 'manual') => {
-    if (isPostHogEnabled) posthog.capture('castle_day_restarted', { source })
+    visit.current?.capture('castle_day_restarted', { source, ending: world.current?.over ?? '', gifts_delivered: Math.min(4, world.current?.love ?? 0) })
     setRound(round + 1)
   }
   return (
     <main className="castle">
       {/* The same picture as the island's: its finish, and its lighter steps for a machine that cannot keep up. */}
-      <Picture>{(tier) => <Stage key={round} tier={tier} onKnown={learn} each={each} />}</Picture>
+      <Picture>{(tier) => <Stage key={round} tier={tier} onKnown={learn} each={each} onVisit={onVisit} />}</Picture>
       {/* The three ways of getting about, as on the island: each goes the first time it is used. */}
       <Hints known={known} />
       {/* The day: the sun goes along it to the evening, and waits there until the day is decided. */}
