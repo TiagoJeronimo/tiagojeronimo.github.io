@@ -8,6 +8,7 @@ import { toggleSound } from '../../sound.ts'
 import { View } from '../View.ts'
 import { Castle, DAY, SIGHT, type Item, type Want } from './Castle.ts'
 import posthog, { isPostHogEnabled } from '../../posthog.ts'
+import { gameEvents } from '../tracking.ts'
 
 /** What the page does after every frame: it has the world as it now is, and the camera it was drawn through. */
 type Each = (world: Castle, camera: PerspectiveCamera, width: number, height: number) => void
@@ -19,6 +20,16 @@ type Each = (world: Castle, camera: PerspectiveCamera, width: number, height: nu
  */
 function Stage({ tier, onKnown, each }: { tier: number; onKnown: (known: string) => void; each: Each }) {
   const world = useMemo(() => new Castle(), [])
+  const report = useMemo(() => gameEvents<Castle>(
+    (day) => !!day.over,
+    () => posthog.capture('castle_day_started'),
+    (day) => posthog.capture('castle_day_ended', {
+      outcome: day.over === 'wedding' ? 'win' : 'loss',
+      ending: day.over,
+      rounds: day.round,
+      duration_seconds: Math.round(day.time),
+    }),
+  ), [])
   const gl = useThree((state) => state.gl)
   const view = useRef<View>(null)
   useEffect(() => {
@@ -32,6 +43,7 @@ function Stage({ tier, onKnown, each }: { tier: number; onKnown: (known: string)
   useEffect(() => world.shadows(tier), [world, tier])
   useFrame(({ camera, size }, dt) => {
     world.update(Math.min(dt, 0.05))
+    report(world)
     view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
     each(world, camera as PerspectiveCamera, size.width, size.height)
   })

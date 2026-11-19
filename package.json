@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node test/projects.test.ts && node test/isles.test.ts && node test/play.test.ts && node test/castle.test.ts"
+    "test": "node test/analytics.test.ts && node test/projects.test.ts && node test/isles.test.ts && node test/play.test.ts && node test/castle.test.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

@@ -1,25 +1,29 @@
-import posthog from 'posthog-js'
-
-const apiKey = import.meta.env.VITE_POSTHOG_KEY
-const apiHost = import.meta.env.VITE_POSTHOG_HOST
-
-export const isPostHogEnabled = Boolean(apiKey && apiHost)
-
-export const posthogLogger = {
-  info: (message: string, attributes?: Record<string, string | number | boolean>) => {
-    if (isPostHogEnabled) posthog.logger.info(message, attributes)
-  },
+type Properties = Record<string, string | number | boolean>
+interface AnalyticsClient {
+  capture(event: string, properties?: Properties): unknown
+  logger: { info(message: string, attributes?: Properties): unknown }
 }
 
-if (!apiKey) {
-  if (import.meta.env.DEV) {
-    throw new Error('VITE_POSTHOG_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_KEY is configured')
+/** Early clicks wait for the SDK; unavailable analytics never stop the page or its controls. */
+export function createAnalytics(load?: () => Promise<AnalyticsClient>) {
+  const ready = load ? Promise.resolve().then(load).catch(() => undefined) : undefined
+  const send = (run: (client: AnalyticsClient) => unknown) => {
+    void ready?.then((client) => client && run(client)).catch(() => {})
   }
-} else if (!apiHost) {
-  if (import.meta.env.DEV) {
-    throw new Error('VITE_POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_HOST is configured')
+  return {
+    capture: (event: string, properties?: Properties) => send((client) => client.capture(event, properties)),
+    info: (message: string, attributes?: Properties) => send((client) => client.logger.info(message, attributes)),
   }
-} else {
+}
+
+const env = import.meta.env
+const apiKey = env?.VITE_POSTHOG_KEY
+const apiHost = env?.VITE_POSTHOG_HOST
+export const isPostHogEnabled = Boolean(apiKey && apiHost)
+
+const analytics = createAnalytics(isPostHogEnabled ? async () => {
+  // The front page can render while the separate analytics bundle is fetched.
+  const { default: posthog } = await import('posthog-js')
   posthog.init(apiKey, {
     api_host: apiHost,
     capture_exceptions: {
@@ -27,11 +31,11 @@ if (!apiKey) {
       capture_unhandled_rejections: true,
       capture_console_errors: false,
     },
-    logs: {
-      serviceName: 'web-cv',
-      environment: import.meta.env.MODE,
-    },
+    logs: { serviceName: 'web-cv', environment: env.MODE },
   })
-}
+  posthog.register({ environment: env.MODE })
+  return posthog
+} : undefined)
 
-export default posthog
+export const posthogLogger = { info: analytics.info }
+export default { capture: analytics.capture }
