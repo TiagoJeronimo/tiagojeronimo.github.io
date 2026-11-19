@@ -7,6 +7,8 @@ import { Picture } from '../Picture.tsx'
 import { toggleSound } from '../../sound.ts'
 import { View } from '../View.ts'
 import { Castle, DAY, SIGHT, type Item, type Want } from './Castle.ts'
+import posthog, { isPostHogEnabled } from '../../posthog.ts'
+import { gameEvents } from '../tracking.ts'
 
 /** What the page does after every frame: it has the world as it now is, and the camera it was drawn through. */
 type Each = (world: Castle, camera: PerspectiveCamera, width: number, height: number) => void
@@ -18,6 +20,16 @@ type Each = (world: Castle, camera: PerspectiveCamera, width: number, height: nu
  */
 function Stage({ tier, onKnown, each }: { tier: number; onKnown: (known: string) => void; each: Each }) {
   const world = useMemo(() => new Castle(), [])
+  const report = useMemo(() => gameEvents<Castle>(
+    (day) => !!day.over,
+    () => posthog.capture('castle_day_started'),
+    (day) => posthog.capture('castle_day_ended', {
+      outcome: day.over === 'wedding' ? 'win' : 'loss',
+      ending: day.over,
+      rounds: day.round,
+      duration_seconds: Math.round(day.time),
+    }),
+  ), [])
   const gl = useThree((state) => state.gl)
   const view = useRef<View>(null)
   useEffect(() => {
@@ -31,6 +43,7 @@ function Stage({ tier, onKnown, each }: { tier: number; onKnown: (known: string)
   useEffect(() => world.shadows(tier), [world, tier])
   useFrame(({ camera, size }, dt) => {
     world.update(Math.min(dt, 0.05))
+    report(world)
     view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
     each(world, camera as PerspectiveCamera, size.width, size.height)
   })
@@ -145,6 +158,10 @@ export default function CastlePage() {
   }, [])
   // (What he carries that nobody wants just now: the place it can be put by at says so, by not keeping still.)
   const spare = (what: string) => news.loads.includes(what as Item) && !news.asks.some(([, , wanted]) => wanted === what)
+  const restart = (source: 'end' | 'manual') => {
+    if (isPostHogEnabled) posthog.capture('castle_day_restarted', { source })
+    setRound(round + 1)
+  }
   return (
     <main className="castle">
       {/* The same picture as the island's: its finish, and its lighter steps for a machine that cannot keep up. */}
@@ -188,7 +205,7 @@ export default function CastlePage() {
       {news.over && (
         <div className="end" data-how={news.over}>
           <Icon rows={ICONS[news.over === 'wedding' ? 'heart' : 'cloud']} />
-          <button className="btn" onClick={() => setRound(round + 1)}>
+          <button className="btn" onClick={() => restart('end')}>
             Another day
           </button>
         </div>
@@ -198,7 +215,7 @@ export default function CastlePage() {
         <button className="sound" aria-pressed={loud} onClick={() => setLoud(toggleSound())}>
           {loud ? 'Sound on' : 'Sound off'}
         </button>
-        <button className="sound" onClick={() => setRound(round + 1)} title="The same morning again, from the start">
+        <button className="sound" onClick={() => restart('manual')} title="The same morning again, from the start">
           Start over
         </button>
       </header>

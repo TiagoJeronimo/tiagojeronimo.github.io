@@ -33,6 +33,34 @@ npm run build
 
 A push to `main` publishes it.
 
+## Analytics
+
+PostHog is optional. To enable it locally, copy `.env.example` to `.env`, fill in the public project token and
+ingestion host, then restart the dev server. Without those settings the site runs without analytics. The SDK loads
+separately from the page; events triggered before it is ready wait for it.
+
+The production build reads `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` from the GitHub Actions environment named
+`github-pages`. The local `.env` file is ignored by Git.
+
+The named events are:
+
+| Event | When |
+| --- | --- |
+| `portfolio_project_opened` | A project card is opened. |
+| `portfolio_filter_selected` | A category filter is pressed. |
+| `portfolio_link_clicked` | A project, email or social link is pressed. |
+| `portfolio_video_started` | An embedded video's play button is pressed. |
+| `island_new_game_started` | A fresh island first reports its playable state, including the first visit. |
+| `island_game_resumed` | An unfinished island with previous knocks is loaded. |
+| `island_completed` | An island becomes complete during this visit. Loading a finished save does not count again. |
+| `island_postcard_created` | A postcard image is created. |
+| `castle_day_started` | A new castle day starts running. |
+| `castle_day_ended` | The day ends, with `outcome` (`win` or `loss`) and `ending` (`wedding`, `castle` or `camp`). |
+| `castle_day_restarted` | The player presses Start over or Another day. |
+
+Named events include an `environment` property to distinguish local testing from production. In PostHog's Activity
+view, open a card and change a filter to check that events arrive. After publishing, repeat that check on the live site.
+
 ## If you are an AI
 
 Hello again. Read `AGENTS.md` first. It is a great deal shorter than the README you wrote last time.

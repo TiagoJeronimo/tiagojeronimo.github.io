@@ -7,6 +7,8 @@ import { setSound, toggleSound } from '../../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
 import type { Friend } from './wishes.ts'
+import posthog, { isPostHogEnabled, posthogLogger } from '../../posthog.ts'
+import { gameEvents } from '../tracking.ts'
 
 // The isles by the names they have on the map. The strip of new land the lava builds has none: it is part of the volcano's story.
 const ISLES: Record<string, string> = { island: 'The island', meadow: 'The meadow', snow: 'The snow', mountain: 'The mountain', swamp: 'The swamp', beach: 'The beach', volcano: 'The volcano', garden: 'The garden', islet: 'The islet' }
@@ -191,7 +193,19 @@ function Stage({
   }, [onShot, advance, gl])
   const begun = useRef(false)
   useEffect(() => {
-    const created = (island.current = new Island(scene, canvas, onState, seed))
+    const report = gameEvents<GameState>(
+      (state) => state.done,
+      (state) => posthog.capture(state.knocks > 0 ? 'island_game_resumed' : 'island_new_game_started', { seed }),
+      (state) => {
+        const progress = { seed, knocks: state.knocks, life_percent: state.life }
+        posthog.capture('island_completed', progress)
+        posthogLogger.info('island completed', progress)
+      },
+    )
+    const created = (island.current = new Island(scene, canvas, (state) => {
+      report(state)
+      onState(state)
+    }, seed))
     onGame(created)
     // The lamps of the night are not drawn by day (see `Island.lamplight`). The shaders that have them in are put together
     // now, in the background, and the way the picture is drawn (into a buffer, not straight onto the screen): otherwise the
@@ -376,6 +390,8 @@ export default function GamePage() {
     }
     canvas.toBlob((blob) => {
       if (!blob) return
+      if (isPostHogEnabled) posthog.capture('island_postcard_created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
+      posthogLogger.info('island postcard created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
       setMenu(false)
       setCard((old) => {
         if (old) URL.revokeObjectURL(old)

@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import '../../posthog.ts'
 import '@fontsource-variable/bricolage-grotesque'
 import '../../base.css'
 import './castle.css'
