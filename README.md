@@ -82,11 +82,21 @@ Email actions show intent, not messages sent. A missing completion may mean a la
 not prove a deliberate quit. Timing at completion describes completers, not every player. Small counts make rates
 noisy, so the dashboard includes counts alongside percentages.
 
-The dashboard specification lives in `analytics/dashboard.mjs`. Its 13 insights cover traffic, referrers, card
-exposure and open rate, project-to-contact sessions, CV interest, link destinations, email intent, the phone warning,
+The [PostHog dashboard](https://us.posthog.com/project/750403/dashboard/2388145) is defined in
+`analytics/dashboard.mjs`. This is account configuration, not code shipped to website visitors. Its 13 insights
+cover traffic, referrers, card exposure and open rate, project-to-contact sessions, CV interest, link destinations,
+email intent, the phone warning,
 Island progress and hints, Castle courtship and outcomes, and browser errors. All exclude local hosts, development
 events and visits whose URL contains `analytics_check=`. Game funnels aggregate by `play_id`; browsing funnels by
 PostHog's session ID. SQL tables use a fixed rolling 30 days, as their descriptions say.
+
+Use PostHog's **Filter out internal and test users** switch to include or exclude your own visits. The project's
+internal-user rules exclude localhost and loopback hosts, members of the **Internal / Test users** cohort, and the
+owner's confirmed anonymous browser ID. That ID is configured only in PostHog, not in this repository. Anonymous
+visitors may have no person profile, so this filter uses `distinct_id` directly; other browsers and devices need
+their own rule. Clearing site storage changes the anonymous ID. Native insights and SQL tables both honour the switch; the SQL tables pass it through
+PostHog's `{filters}` placeholder. The production-host filter stays in place when internal users are included.
+Filtering changes the view without stopping collection or deleting events. There is no website tracking switch.
 
 ```bash
 npm run analytics:dashboard           # print the reviewable definition; no account access or writes

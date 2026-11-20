@@ -9,14 +9,15 @@ const event = (name, properties = [], math = 'total') => ({ kind: 'EventsNode', 
 const live = `timestamp >= now() - INTERVAL 30 DAY
   AND properties.environment = 'production'
   AND properties.$host = 'tiagojeronimo.github.io'
-  AND properties.$current_url NOT ILIKE '%analytics_check=%'`
+  AND properties.$current_url NOT ILIKE '%analytics_check=%'
+  AND {filters}`
 const trends = (series, breakdown, display = 'ActionsLineGraph') => ({
   kind: 'InsightVizNode',
   source: {
     kind: 'TrendsQuery', interval: 'day', dateRange: { date_from: '-30d' },
     properties: liveFilters, filterTestAccounts: true, series,
     trendsFilter: { display, showLegend: true },
-    ...(breakdown ? { breakdownFilter: { breakdown, breakdown_type: 'event', breakdown_limit: 20 } } : {}),
+    ...(breakdown ? { breakdownFilter: { breakdowns: [{ property: breakdown, type: 'event' }], breakdown_limit: 20 } } : {}),
   },
 })
 const funnel = (series, aggregate = 'properties.$session_id', breakdown) => ({
@@ -31,11 +32,14 @@ const funnel = (series, aggregate = 'properties.$session_id', breakdown) => ({
     ...(breakdown ? { breakdownFilter: { breakdown, breakdown_type: 'event', breakdown_limit: 10 } } : {}),
   },
 })
-const table = (query) => ({ kind: 'DataVisualizationNode', display: 'ActionsTable', source: { kind: 'HogQLQuery', query } })
+const table = (query) => ({
+  kind: 'DataVisualizationNode', display: 'ActionsTable',
+  source: { kind: 'HogQLQuery', query, filters: { filterTestAccounts: true } },
+})
 
 export const dashboard = {
   name: 'Portfolio: interest, contact and play',
-  description: '[web-cv:portfolio-insights:v1]\n\nProduction traffic on tiagojeronimo.github.io, excluding analytics_check test visits. Browsing funnels count sessions; game funnels count play_id attempts. Email actions measure intent, not messages sent. New events populate after the analytics commit is deployed. SQL tables use a fixed rolling 30-day window. Low traffic makes rates noisy: compare counts alongside percentages.',
+  description: '[web-cv:portfolio-insights:v1]\n\nProduction portfolio traffic, with internal/test users excluded by default; toggle the filter to include your visits. Browsing funnels count sessions, games count attempts, and SQL tables show the last 30 days.',
   tags: ['web-cv', 'portfolio-insights'],
 }
 

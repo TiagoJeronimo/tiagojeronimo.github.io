@@ -8,6 +8,11 @@ for (const insight of insights) {
   assert.ok(definition.includes('production'), `${insight.id} needs a production filter`)
   assert.ok(definition.includes('tiagojeronimo.github.io'), `${insight.id} must exclude local previews`)
   assert.ok(definition.includes('analytics_check='), `${insight.id} must exclude verification traffic`)
+  const source = insight.query.source
+  if (source.kind === 'HogQLQuery') {
+    assert.ok(source.query.includes('{filters}'), `${insight.id} must apply PostHog's internal-user toggle`)
+    assert.equal(source.filters.filterTestAccounts, true)
+  } else assert.equal(source.filterTestAccounts, true)
 }
 
 // A failed query must prevent partial dashboard creation, and a second successful run must update rather than copy.
