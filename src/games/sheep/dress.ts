@@ -12,6 +12,26 @@ export type Look = { wool?: number; wear?: Wear }
 export const NAME = 24
 export const MESSAGE = 80
 
+/**
+ * A gift, in cents of a euro, between these. Stripe keeps €0.25 and a little of every payment, so less than €2 is
+ * mostly theirs; the most is there so that a slip of the finger does not cost anyone a fortune. (The owner's to judge.)
+ */
+export const LEAST = 200
+export const MOST = 10000
+export const CURRENCY = 'eur'
+
+/**
+ * A new sheep's number, picked by the page before paying: 2^32 and up, so it is never one of the made-up flock's, and
+ * up to 2^53, so it is too many to guess and still a whole number in JavaScript and in SQLite.
+ */
+export const newId = () => {
+  const [high, low] = crypto.getRandomValues(new Uint32Array(2))
+  return ((high % (2 ** 21 - 1)) + 1) * 2 ** 32 + low
+}
+export const isId = (id: unknown): id is number => Number.isSafeInteger(id) && (id as number) >= 2 ** 32
+/** The seed a sheep's number gives: the page and the server work it out alike, so what is dressed is what is kept. */
+export const seedOf = (id: number) => id % 1e9
+
 /** Plain words: no links, nothing that cannot be seen, no angle brackets, one space between words, and not too many letters. */
 const plain = (text: unknown, most: number) =>
   [...(typeof text === 'string' ? text : '')

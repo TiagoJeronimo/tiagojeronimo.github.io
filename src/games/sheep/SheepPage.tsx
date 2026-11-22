@@ -6,7 +6,7 @@ import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
 import { note } from '../../sound.ts'
-import { MESSAGE, NAME, WEARS, WOOL, tidy, type Look, type Wear } from './dress.ts'
+import { LEAST, MESSAGE, MOST, NAME, WEARS, WOOL, isId, newId, seedOf, tidy, type Look, type Wear } from './dress.ts'
 import { FLOCK, RECLUSE, type Entry } from './flock.ts'
 import { HERMIT, Sheep, SPAN } from './Sheep.ts'
 
@@ -31,16 +31,34 @@ const PICTURES: Record<Wear | '', ReactNode> = {
   flowers: squares([1, 6, 3, 3, '#ff9ec4'], [5, 3, 3, 3, '#ffd45c'], [8, 7, 3, 3, '#c4a4f0']),
 }
 
-// The sheep this browser has put in the field. TODO(step 3 of PLAN.md): these come from the server's `GET /sheep`
-// with everybody else's, and this list goes. Until then a sheep made here is seen here and nowhere else.
+/** Sheep as they come from somewhere this page does not control (this browser's storage, the server): checked over. */
+const entries = (list: unknown): Entry[] =>
+  Array.isArray(list)
+    ? list
+        .filter((one) => one && Number.isInteger(one.id) && Number.isInteger(one.seed))
+        .map((one) => ({ id: one.id, seed: one.seed, date: /^\d{4}-\d{2}-\d{2}$/.test(one.date) ? one.date : '', ...tidy(one) }))
+    : []
+
+// The sheep's server (`sheep-api/`), if this build was told where it is (`VITE_SHEEP_API`). Without it the page is
+// step 2's: the made-up flock and this browser's own, and no paying; that is how the live site is until step 5.
+const API: string = import.meta.env.VITE_SHEEP_API ?? ''
+/** Everybody's sheep, from the server; none if it cannot be reached. `fresh`, past the browser's minute of cache. */
+const herd = async (fresh = false): Promise<Entry[]> => {
+  try {
+    const answer = await fetch(`${API}/sheep`, { cache: fresh ? 'no-store' : 'default', signal: AbortSignal.timeout(5000) })
+    return answer.ok ? entries(await answer.json()) : []
+  } catch {
+    return []
+  }
+}
+/** The sheep in the address, `?sheep=<id>`: where Stripe sends a giver back to (or the fake pay of step 2). */
+const wanted = () => Number(new URLSearchParams(location.search).get('sheep'))
+
+// The sheep this browser has put in the field, with no server: a sheep made here is seen here and nowhere else.
 const MINE = 'sheep/mine'
 const mine = (): Entry[] => {
   try {
-    const list: unknown = JSON.parse(kept(MINE) || '[]')
-    if (!Array.isArray(list)) return []
-    return list
-      .filter((one) => one && Number.isInteger(one.id) && Number.isInteger(one.seed))
-      .map((one) => ({ id: one.id, seed: one.seed, date: /^\d{4}-\d{2}-\d{2}$/.test(one.date) ? one.date : '', ...tidy(one) }))
+    return entries(JSON.parse(kept(MINE) || '[]'))
   } catch {
     return []
   }
@@ -101,19 +119,33 @@ function Stage({ world, tier, mode, onView, onKnown, onSelect, onDrop, each }: {
   )
 }
 
+/** With a server, the field waits for its sheep (a few hundred milliseconds, or five seconds if it is down). */
 export default function SheepPage() {
+  const [given, setGiven] = useState<Entry[] | null>(null)
+  useEffect(() => void (API && herd(!!wanted()).then((list) => setGiven((had) => had ?? list))), []) // (once, though React in development asks twice)
+  return API ? given && <Field given={given} /> : <Field given={null} />
+}
+
+/** @param given everybody's sheep, from the server; null when there is none, and this browser keeps its own */
+function Field({ given }: { given: Entry[] | null }) {
   const [known, learn] = useReducer((had: string, more: string) => had + more, '', () => kept('sheep/known'))
   useEffect(() => keep('sheep/known', known), [known])
-  // Who is in the field: the made-up flock, and this browser's own. One that has just been "paid for" is in the
-  // address as `?sheep=<id>`, as it will be when Stripe sends its giver back: that one is not in the field yet, it
-  // waits to be put down.
+  // Who is in the field: everybody's from the server (the made-up flock if there are none), or without one the
+  // made-up flock and this browser's own. One just paid for is in the address as `?sheep=<id>`, where Stripe sends
+  // its giver back: that one is not in the field yet, it waits to be put down.
   const [world, back] = useMemo(() => {
+    const id = wanted()
+    if (given) {
+      const back = given.find((one) => one.id === id)
+      const others = given.filter((one) => one !== back)
+      const world = new Sheep(others.length ? others : FLOCK)
+      return [world, !!back && world.bring(back)] as const
+    }
     const own = mine()
-    const id = Number(new URLSearchParams(location.search).get('sheep'))
     const back = own.find((one) => one.id === id)
     const world = new Sheep([...FLOCK, ...own.filter((one) => one !== back)])
     return [world, !!back && world.bring(back)] as const
-  }, [])
+  }, [given])
   useEffect(() => () => world.dispose(), [world])
   const eye = useRef<View>(null)
   const zoomed = useRef(1) // how far in the view was before a sheep was dressed
@@ -122,6 +154,12 @@ export default function SheepPage() {
   const [look, setLook] = useState<Look>({})
   const [full, setFull] = useState(false)
   const [chosen, choose] = useState(-1)
+  // With a server: a giver back from Stripe before Stripe has told the server (`waiting`, the sheep's number), one
+  // whose sheep did not come in time (`late`), a checkout on its way (`paying`) or one that failed (`trouble`).
+  const [waiting, setWaiting] = useState(() => (given && !back && isId(wanted()) && wanted()) || 0)
+  const [late, setLate] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [trouble, setTrouble] = useState('')
   const bubble = useRef<HTMLDivElement>(null)
   const saying = useRef<HTMLElement>(null)
   const pick = useRef(-1)
@@ -138,10 +176,35 @@ export default function SheepPage() {
     if (saying.current && saying.current.textContent !== now) saying.current.textContent = now
   }, [])
 
+  // Stripe's word to the server can be a few seconds behind its giver: ask again for a while, then let it be. The
+  // sheep is in the field whenever the word comes, whether or not anybody is there to drop it.
+  useEffect(() => {
+    if (!waiting) return
+    let gone = false
+    void (async () => {
+      for (let k = 0; k < 10; k++) {
+        await new Promise((done) => setTimeout(done, 1500))
+        const found = (await herd(true)).find((one) => one.id === waiting)
+        if (gone) return
+        if (found) {
+          if (world.bring(found)) setMode('place')
+          return setWaiting(0)
+        }
+      }
+      if (gone) return
+      setWaiting(0)
+      setLate(true)
+      history.replaceState(null, '', location.pathname)
+    })()
+    return () => void (gone = true)
+  }, [waiting, world])
+
   /** A new sheep comes to be dressed: it hangs in the field where the visitor is looking, and the view goes in on it. */
   const begin = () => {
     const view = eye.current
-    const entry: Entry = { id: Date.now(), seed: Math.floor(Math.random() * 1e9), name: 'a sheep', message: '', date: new Date().toISOString().slice(0, 10), look: {} }
+    // With a server its number is one nobody can guess, and its seed comes from that, as the server's will.
+    const id = API ? newId() : Date.now()
+    const entry: Entry = { id, seed: API ? seedOf(id) : Math.floor(Math.random() * 1e9), name: 'a sheep', message: '', date: new Date().toISOString().slice(0, 10), look: {} }
     if (!world.bring(entry, view?.pan.x, view?.pan.z)) return setFull(true)
     if (view && world.guest) {
       // The view goes in on it as near as it goes (`View.ts`: 11 away, from wherever this window sees the whole land),
@@ -153,6 +216,8 @@ export default function SheepPage() {
       view.pan.set(world.guest.x, world.guest.air + (upright ? -0.5 : 0.4), world.guest.z)
     }
     choose(-1)
+    setLate(false)
+    setTrouble('')
     setLook({})
     setMode('dress')
   }
@@ -169,13 +234,30 @@ export default function SheepPage() {
     world.dress(next)
   }
   /**
-   * "Paid", which for now is nothing at all: the sheep is written down in this browser, and the page is as it will be
-   * when Stripe sends the giver back, `?sheep=<id>` and all. TODO(step 3 of PLAN.md): the checkout goes here.
+   * With a server, off to Stripe's page to pay, which sends the giver back to `?sheep=<id>`. Without one, "paid" is
+   * nothing at all: the sheep is written down in this browser, and the page is as it is when Stripe sends somebody back.
    */
-  const pay = (form: HTMLFormElement) => {
+  const pay = async (form: HTMLFormElement) => {
     const guest = world.guest
     if (!guest) return
     const given = new FormData(form)
+    if (API) {
+      setPaying(true)
+      setTrouble('')
+      try {
+        const answer = await fetch(`${API}/checkout`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: guest.entry.id, amount: Math.round(Number(given.get('amount')) * 100), name: given.get('name'), message: given.get('message'), look }),
+        })
+        const { url, error } = (await answer.json()) as { url?: unknown; error?: unknown }
+        if (answer.ok && typeof url === 'string') return location.assign(url) // (the page stays as it is until it goes)
+        setTrouble(error === 'amount' ? `From €${LEAST / 100} to €${MOST / 100}, please.` : 'That did not go through. Nothing was paid; try again in a minute.')
+      } catch {
+        setTrouble('The sheep office cannot be reached just now. Nothing was paid; try again in a minute.')
+      }
+      return setPaying(false)
+    }
     const entry: Entry = { ...guest.entry, ...tidy({ name: given.get('name'), message: given.get('message'), look }) }
     world.sign(entry)
     keep(MINE, JSON.stringify([...mine(), entry]))
@@ -211,7 +293,7 @@ export default function SheepPage() {
           className="dress"
           onSubmit={(event) => {
             event.preventDefault()
-            pay(event.currentTarget)
+            void pay(event.currentTarget)
           }}
         >
           <strong>A sheep of your own</strong>
@@ -229,9 +311,21 @@ export default function SheepPage() {
           </div>
           <input name="name" maxLength={NAME} placeholder="Its name (or none: a sheep)" autoComplete="off" />
           <input name="message" maxLength={MESSAGE} placeholder="A few words for whoever clicks it" autoComplete="off" />
-          <p>The paying part is not built yet, so this one is on the house, and lives in this browser only.</p>
+          {API ? (
+            <>
+              <label className="row gift">
+                A gift of €
+                <input name="amount" type="number" min={LEAST / 100} max={MOST / 100} step="0.01" defaultValue={3} required inputMode="decimal" />
+              </label>
+              <p>{trouble || `Paid on Stripe's page, from €${LEAST / 100}. It is a donation; the sheep is the thank-you, and it stays.`}</p>
+            </>
+          ) : (
+            <p>The paying part is not built yet, so this one is on the house, and lives in this browser only.</p>
+          )}
           <div className="row">
-            <button className="btn">Put it in the field</button>
+            <button className="btn" disabled={paying}>
+              {paying ? 'Off to Stripe…' : 'Put it in the field'}
+            </button>
             <button
               type="button"
               className="sound"
@@ -247,6 +341,8 @@ export default function SheepPage() {
         </form>
       )}
       {mode === 'place' && <p className="place">Click where it should land. It will wander off anyway.</p>}
+      {mode === 'idle' && waiting > 0 && <p className="place">Your sheep is on its way from Stripe. A moment.</p>}
+      {mode === 'idle' && late && <p className="place">Your sheep has not turned up yet. It will be in the field once Stripe says so: look again in a minute.</p>}
       <header className="top">
         <Back />
         {mode === 'idle' && (

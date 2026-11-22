@@ -170,3 +170,8 @@
     width: auto;
   }
 }
+
+/* The gift, in euros, when there is a server to pay through. */
+.dress .gift input {
+  width: 7em;
+}

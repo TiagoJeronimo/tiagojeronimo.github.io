@@ -12,7 +12,8 @@ there (each folder's `CLAUDE.md` is one line, `@AGENTS.md`).
 | any game, or a new one | `src/games/AGENTS.md`: the shared kit, the page skeleton, how to add a game, how a world looks and its creatures move, speed |
 | the island | `src/games/island/AGENTS.md`: files, `Island` methods, things, maps, settled choices |
 | the castle | `src/games/castle/AGENTS.md`: files, the world's API, the rules of a day, settled choices |
-| the sheep (step 1 built) | `src/games/sheep/AGENTS.md`: the island, the flock, how they move; `PLAN.md` beside it holds the plan |
+| the sheep (steps 1 to 3 built) | `src/games/sheep/AGENTS.md`: the island, the flock, how they move; `PLAN.md` beside it holds the plan |
+| the sheep's server | `sheep-api/AGENTS.md`: a Cloudflare Worker and D1, Stripe by `fetch`; local only so far |
 | the front page, a card | `src/home/AGENTS.md`: cards, pictures, why the page stays light, the toys |
 | a word you do not know | `CONTEXT.md`: the project's vocabulary (card, tier, pump, isle, ask, ...) |
 | analytics, PostHog | `README.md`, "Analytics": events, env vars, the dashboard script |
@@ -42,6 +43,7 @@ npx tsc -b       # types. An editor's diagnostics lag behind here: this is the t
 npx oxlint       # lint (= npm run lint): must print nothing
 npm test         # node, no browser: analytics, cards, maps, whole games played (about ten seconds)
 npm run build    # types, then the build into dist/; `npm run preview` serves it
+npm run sheep-api:dev   # the sheep's server on :8787 (see sheep-api/AGENTS.md)
 ```
 
 The four checks pass before work is called done. One test alone: `node test/castle.test.ts`.
@@ -70,6 +72,7 @@ The four checks pass before work is called done. One test alone: `node test/cast
 | `src/games/` | the shared kit (`Picture View cubes basics hints kept tracking`), and a folder per game |
 | `src/base.css`, `src/sound.ts` | colours, font and buttons for every page; small noises made in the browser |
 | `src/analytics.ts`, `src/posthog.ts` | event helpers; the lazily loaded PostHog client |
+| `sheep-api/` | the sheep's server (a Worker, not part of the site's build): its own `wrangler.toml`, tests, notes |
 | `analytics/`, `scripts/` | the PostHog dashboard definition and the script that applies it: not shipped |
 | `public/thumbs/`, `public/logos/` | card pictures (`-s` = small copy), employer logos |
 | `test/` | a file for each area, all run by `npm test` |
@@ -100,11 +103,13 @@ The four checks pass before work is called done. One test alone: `node test/cast
 
 ## Ignore
 
-`node_modules/`, `dist/`, `package-lock.json`, images in `public/`, `.env` (local PostHog keys; `.env.example` shows them).
+`node_modules/`, `dist/`, `package-lock.json`, images in `public/`, `.env` (local PostHog keys; `.env.example` shows them),
+`sheep-api/.dev.vars` (Stripe test keys) and `.wrangler/`.
 
 ## Status (2026-11-22)
 
 - Live: the front page, `/cv/`, the island. The castle is built and playable; still open with the owner: its name.
+- The sheep: steps 1 to 3 built (the server only locally, untried against Stripe itself); see its `PLAN.md`.
 - Types, lint and tests pass. No known bugs recorded.
 - Next: whatever the owner asks; ideas for the castle wait for his pick.
 

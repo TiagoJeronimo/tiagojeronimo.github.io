@@ -1,7 +1,7 @@
 # Buy me a sheep: the plan
 
-Brainstormed with the owner on 2026-11-22. Steps 1 and 2 of the build order are built (see `AGENTS.md` beside this,
-which says how); the rest is still the plan.
+Brainstormed with the owner on 2026-11-22. Steps 1 to 3 of the build order are built (see `AGENTS.md` beside this,
+and `sheep-api/AGENTS.md` for the server); the rest is still the plan.
 
 ## The idea
 
@@ -49,6 +49,18 @@ None of these was decided with him. Each is small and easy to change.
 - **Kept**: in `localStorage` (`sheep/mine`), until step 3. Eight new sheep to a visit, then "The field is full for now".
 - **The bubble** says what a sheep has on, after what it is doing.
 - A few of the made-up flock were given looks, so that the field shows them.
+
+## Step 3, as built: defaults for the owner to judge
+
+- **The gift**: €2 to €100 (`LEAST`, `MOST` in `dress.ts`), in euros only, €3 filled in. Stripe's page says "Donate".
+- **The sheep's number** is picked by the page (`newId`, 2^32 to 2^53, random) and its seed is that number's last nine
+  digits, so what is dressed is what comes back. Two checkouts with one number: the second sheep gets a new one.
+- **The field, with a server**: only the real sheep; the made-up flock only while there are none (or the server is
+  down). One real sheep means a field of one.
+- **Hidden** sheep stay in the field as "a sheep" with no message, as decided above (the brief for step 3 said to
+  leave them out: the plan won).
+- **Back from Stripe before Stripe's word**: the page asks again every 1.5 s for 15 s, then says to look again in a
+  minute. The words: "Paid on Stripe's page, from €2. It is a donation; the sheep is the thank-you, and it stays."
 
 ## Still to decide
 
@@ -107,8 +119,12 @@ owner ──/admin (behind Cloudflare Access)──▶ worker: list messages, hi
 1. (Built.) The field and sheep wandering, with made-up sheep from a local list. The owner judges whether watching
    them is fun.
 2. (Built.) Dressing a sheep, the bubble, and the drop after a fake return.
-3. The worker and D1, locally with `wrangler dev`: `GET /sheep`, `POST /checkout`, `POST /stripe` against Stripe's test
-   mode.
+3. (Built, locally; not yet tried against Stripe itself.) The worker and D1 with `wrangler dev`: `GET /sheep`,
+   `POST /checkout`, `POST /stripe`, in `sheep-api/`. The page uses it only when built with `VITE_SHEEP_API` set, so
+   the live site is still step 2's. For the owner, to try it with Stripe's test mode: make a Stripe account (test mode
+   needs no bank details), copy `sheep-api/.dev.vars.example` to `.dev.vars` and paste the test secret key, run the
+   four commands in `sheep-api/AGENTS.md`, put the `whsec_` that `stripe listen` prints into `.dev.vars` and restart
+   the worker, then buy a sheep with card 4242 4242 4242 4242. No Cloudflare account is needed for this.
 4. The admin page behind Access.
 5. Live: the owner's accounts and keys, Stripe in live mode, a card on the front page.
 

@@ -1,0 +1,7 @@
+# Copy to `.dev.vars` (never committed) and paste Stripe's TEST keys: Dashboard, in test mode, Developers, API keys.
+# The webhook secret is the one `stripe listen --forward-to localhost:8787/stripe` prints.
+STRIPE_SECRET=sk_test_paste_yours_here
+STRIPE_WEBHOOK_SECRET=whsec_paste_yours_here
+# On this machine the game calls from the dev server, and Stripe sends the giver back there.
+ORIGINS=http://localhost:5173,http://localhost:5174
+SITE=http://localhost:5173

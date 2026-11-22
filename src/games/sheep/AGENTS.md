@@ -1,11 +1,12 @@
-# The sheep: "Buy me a sheep", at `/games/sheep/` (steps 1 and 2 of `PLAN.md`: built, not yet on the front page)
+# The sheep: "Buy me a sheep", at `/games/sheep/` (steps 1 to 3 of `PLAN.md`: built, not yet on the front page)
 
 A small island in the castle's manner: a meadow with a high knoll, a pond with a duck on it, a mountain at the back
 (a lumpy heap of rock with grass round its foot), a brook that runs out of the rock and down to the pond over little
 steps, trees (some in blossom), rocks, a fence with two bales; twenty made-up sheep going about at a hop; and one
 more in a lit cave in the back of the mountain.
-A visitor can dress a sheep of their own and put it in the field, for nothing and in their own browser only: the
-paying and the server are steps 3 to 5 of `PLAN.md`, which still holds the plan. How it looks
+A visitor can dress a sheep of their own and put it in the field, for nothing and in their own browser only. Built
+with `VITE_SHEEP_API` set (the address of `sheep-api/`, the server of step 3), the page pays through Stripe and shows
+everybody's sheep instead; the live site is built without it until step 5 of `PLAN.md`, which still holds the plan. How it looks
 and how they move follows `../AGENTS.md`, "Look and movement": the first version did not, and was sent back.
 
 ## Files
@@ -13,9 +14,9 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
 | File | What |
 | --- | --- |
 | `Sheep.ts` | The world, no React. At its top: the numbers (`REACH SPAN ROUND REGROW DAY SLEEP WAKE HOP STEPS GLAD STONY SNOWY`); the water and the things by tile (`BROOK LAKE DUCK FENCE BALES CAVE FLOOR ROOF`); the land, worked out once (`LAND` heights, `ROCK` bare stone, `KIND` 1 ground 2 brook 3 pond 4 cave, `BLOCK`, `TREES ROCKS SHORE FALLS`); the parts (`EWE`, `BODY`, `HEAD`, and the scenery's). Then the class. |
-| `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words). Step 3's server is to run the same `tidy`. |
+| `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words); the gift (`LEAST MOST CURRENCY`), a new sheep's number (`newId isId`) and its seed (`seedOf`). The server (`sheep-api/`) imports all of it. |
 | `flock.ts` | The sheep there are: `{ id, seed, name, message, date, look? }`. Index in `FLOCK` is the sheep's index in `world.ewes`. And `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
-| `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`). |
+| `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`), or with a server (`API`) everybody's (`herd`), the checkout, and the wait for a sheep Stripe has not told the server about yet (`waiting`, `late`). |
 
 ## The world from outside
 
@@ -78,10 +79,15 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   place is not kept: on the next visit the sheep stands where its seed says. The field has cubes for `SPARE` (8)
   more sheep than it began with; after that the button says the field is full.
 - The day is `DAY` seconds: bright, dark in the middle (`dark`); sheep lie down above `SLEEP`, get up below `WAKE`.
+- With a server (`VITE_SHEEP_API`): the page waits for `GET /sheep` before it builds the field (the made-up flock if
+  none come back); a new sheep's number is `newId` and its seed `seedOf` it; "Put it in the field" posts the sheep and
+  the gift (an input in euros, `LEAST` to `MOST`) to `/checkout` and goes to Stripe's page; back at `?sheep=<id>`, that
+  sheep hangs to be dropped, or if it is not in the list yet the page asks again for 15 s (`waiting`) and then says
+  so (`late`). Nothing is kept in this browser then.
 
 ## Still to do
 
-Steps 3 to 5 of `PLAN.md` (each `TODO(step 3 ...)` in `SheepPage.tsx` is where the server goes in); a card on the
-front page (not until the owner says); his own sheep in `flock.ts`. For the owner to judge: every default of step 2,
+Steps 4 and 5 of `PLAN.md`; a card on the
+front page (not until the owner says); his own sheep in `flock.ts`. For the owner to judge: every default of steps 2 and 3,
 listed in `PLAN.md`.
 Not yet judged by the owner: round 3 (the heaped mountain, water as cubes, sheep without eyes, the cave). The cave sheep's line is his to write. Known and left: legs pass through blades of grass, as in the castle.
