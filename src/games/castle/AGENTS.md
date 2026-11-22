@@ -11,7 +11,7 @@ gate, they marry.
 
 | File | What |
 | --- | --- |
-| `Castle.ts` | The world, no React. At its top: the numbers to tune (`FIRST LULL CHARGE WAIT ROUNDS HAT GIFTS PACE SOW BAKE SONG DAY`); `PLAN`, the castle from above, a character a tile; `lay`, which works out the land round it once (`BROOK LAKE BRIDGE` are its water); and where everything else stands (`FIELD STOVE RACK TRAY TENT BOARD WINCH SEATS POSTS` and more). Then the class. |
+| `Castle.ts` | The world, no React. At its top: the numbers to tune (`LULL CHARGE WAIT ROUNDS HAT GIFTS PACE SOW BAKE SONG DAY`); `PLAN`, the castle from above, a character a tile; `lay`, which works out the land round it once (`BROOK LAKE BRIDGE` are its water); and where everything else stands (`FIELD STOVE RACK TRAY TENT BOARD WINCH SEATS POSTS` and more). Then the class. |
 | `CastlePage.tsx` | The page: `Stage` (the world, the camera, the clicks); a bubble over whoever is asking, which stays at the window's edge and points when its place is out of sight; a tag over the helper and one over each place things are put by; the sun along the top; the end of the day. |
 | `castle.css` | The bubbles, the tags, the day, the end. The corners come from `../hints.css`. |
 
@@ -20,7 +20,7 @@ gate, they marry.
 `click(cube, x, z)` and `hover(cube, x, z)` are for the page; `serve(ask)` sends the helper to whoever asked.
 `order(id)` puts a thing on his list, four at most: `TREE + i`, `ROCK + i`, `PLOT + i`, `FLOWER + i`, `OVEN`,
 `LOGS`, `HEAP`, `HEARTH`, `BASKET`, `TABLE`, `PRINCESS`, `PRINCE`, `MUSIC`, `CAT`, `DUCK`, `APPLE`, `WED`. Then
-`update(dt)`, `shadows(tier)`, `dispose()`. To read: `asks`, `time`, `over` (`castle`, `camp` or `wedding`), `love`,
+`update(dt)`, `shadows(tier)`, `dispose()`; `start()` ends the dawn (see below). To read: `begun`, `asks`, `time`, `over` (`castle`, `camp` or `wedding`), `love`,
 `phase`, `round`, `standing(side)`, `piles`, `kept`, `doused`, `me`, `tune`, `trees`, `rocks`, `plots`, `flowers`,
 `oven`, `cat`, `ducks`, `men`. `new Castle(seed)`: the same seed, the same askings.
 
@@ -34,9 +34,13 @@ gate, they marry.
   he has more of than anybody wants (`extra`), and otherwise takes one: so with two wanting wood, two clicks are two
   logs. With a full hat he lets go of the oldest thing nobody wants (`spare`, `take`). The cat and a duck ride on his
   hat as themselves (`me.pets`) and go home by themselves (`home`).
+- At dawn the day stands still (`begun` is false): no charge, no clock, nobody's patience running down. The castle
+  asks for wood, and the yellow arrow (`ARROW` in `../basics.ts`, as on the island) bobs over the tree nearest the
+  helper; a click on it is a click on the tree. Sending him to any tree calls `start`: the arrow goes and the camp
+  sets out at once. (Tests that do not care about dawn call `start()` themselves.)
 - `direct` is the day: the camp charges for `CHARGE` seconds and rests for `LULL`, by turns (`phase`, `round`). With
-  each charge both sides ask at once (`burst`): the first two charges are `ROUNDS`, the same every day, and after
-  those `pick` goes by chance. An ask is waited for `CHARGE + WAIT` seconds. `want`, `give`, `tire` and `cheer` are
+  each charge both sides ask at once (`burst`): the first two charges are `ROUNDS`, the same every day (the castle's
+  wood in the first is the one asked for at dawn), and after those `pick` goes by chance. An ask is waited for `CHARGE + WAIT` seconds. `want`, `give`, `tire` and `cheer` are
   all the rules there are.
 - In each quiet one of `GIFTS` is asked for, while the last has been brought: pink, no timer, handed over in person
   (`PRINCESS`, `PRINCE`). What the prince asks for comes from the castle, what the princess asks for does not. After
@@ -46,6 +50,9 @@ gate, they marry.
   wood with no timer (`still`) and gives no soup until it has it.
 - From two gifts on the sides help each other (`lend`): in a charge, one plain ask for each gift after the first is
   met by a throw across the wall.
+- The musician plays wherever he sits, and notes of three cubes rise from him (`QUAVER`, `notes`): so that he can be
+  seen to be the music. While music is asked for, or he is playing at the camp, he plays faster and they go higher.
+  He is only heard at the camp.
 - The camp, the musician, a duck at his heels and the cat go by maps of steps (`flow`, `route`, `chase`), found
   afresh when a tree or a rock has moved (`stamp`). Only the helper, the musician and the cat get through the gate
   (`key`). On a stair, `foot` gives the tread.

@@ -27,7 +27,7 @@
 // each other what the other is short of. After the last step they both ask for music, at the gate. The musician is
 // brought there, she comes out, he comes up the road, and that is the end of the war.
 import { CircleGeometry, Color, DirectionalLight, DynamicDrawUsage, Group, HemisphereLight, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Quaternion, ShadowMaterial, Vector3 } from 'three'
-import { BARK, LEAF, NEAR, NEVER, RING, STONE, WOOD, any, rnd, shade } from '../basics.ts'
+import { ARROW, BARK, LEAF, NEAR, NEVER, POINTER, RING, STONE, WOOD, any, rnd, shade } from '../basics.ts'
 import { Bits, Cubes, unit } from '../cubes.ts'
 import { note, thump } from '../../sound.ts'
 
@@ -94,12 +94,14 @@ const ROOM = 14000 // cubes there are to build with: the land takes about half o
 export const DAY = 240
 
 // How it plays: these are the numbers to tune.
-const FIRST = 8 // seconds of quiet before the camp's first charge,
-const LULL = 16 // and between one charge and the next: for filling the rack, the tray and the shelf
+const LULL = 16 // seconds of quiet between one charge and the next: for filling the rack, the tray and the shelf
 const CHARGE = 36 // how long the camp is out at the wall: when it sets out, both sides say what they want, all at once
 const WAIT = 12 // how much longer than the charge they go on waiting for it
-/** What is asked for in the first two charges, the same every day: by the castle, and by the camp. After those it goes by chance. */
-const ROUNDS: Want[][][] = [[['wood'], ['bread']], [['stone', 'bread'], ['wood', 'music']]]
+/**
+ * What is asked for in the first two charges, the same every day: by the castle, and by the camp. After those it goes
+ * by chance. (The castle's wood in the first is asked for at dawn, before the day starts: see `start`.)
+ */
+const ROUNDS: Want[][][] = [[[], ['bread']], [['stone', 'bread'], ['wood', 'music']]]
 const HAT = 3 // how many things the helper carries at once, one on another
 /**
  * What the princess and the prince ask for, by turns: where it is brought, and what. What he asks for comes from her
@@ -115,7 +117,7 @@ const BAKE = 5 // for a loaf to bake,
 const SPROUT = 10 // and for a tree that has come up to be worth felling
 
 
-const SONG = 14 // how long the musician plays
+const SONG = 14 // how long the musician plays at the camp
 const STRIDE = 1.15 // the highest step anybody takes
 const FAR = 65535 // no way there
 
@@ -366,6 +368,8 @@ const LORD = big([...man(0xc9506b, 0x7d5a3c), [0, 0.97, 0, 0.22, 0.08, 0.22, GOL
 const DRAKE: Part[] = [[0, 0, 0, 0.2, 0.14, 0.3, GOLD], [0, 0.14, 0.1, 0.13, 0.13, 0.13, GOLD], [0, 0.18, 0.2, 0.07, 0.04, 0.08, 0xf5a742]]
 /** The cat, which sits like a loaf with its tail up. */
 const PUSS: Part[] = [[0, 0, 0, 0.22, 0.2, 0.38, 0xf0a04b], [0, 0.2, 0.09, 0.24, 0.2, 0.2, 0xf0a04b], [-0.08, 0.4, 0.11, 0.07, 0.08, 0.06, 0xd98a3a], [0.08, 0.4, 0.11, 0.07, 0.08, 0.06, 0xd98a3a], [0, 0.2, -0.15, 0.06, 0.26, 0.06, 0xf0a04b]]
+/** A note of music, which rises from the musician whenever he plays: its head, its stem, and its flag. */
+const QUAVER = [[0, 0, 0, 0.17, 0.13, 0.13], [0.07, 0.17, 0, 0.04, 0.3, 0.04], [0.12, 0.28, 0, 0.1, 0.06, 0.04]]
 /** The small rain cloud over somebody who has sat down: a row of three puffs, dark underneath, and two lighter ones on top. */
 const CLOUD = [[0, 0, 0, 0.44, 0.24, 0.34, 0x97a2c2], [0.33, 0.02, 0, 0.22, 0.18, 0.26, 0xa7b1ce], [-0.33, 0.02, 0, 0.22, 0.18, 0.26, 0xa7b1ce], [0.08, 0.24, 0, 0.26, 0.16, 0.26, 0xcdd3e6], [-0.15, 0.24, 0, 0.2, 0.12, 0.22, 0xcdd3e6]]
 /** A tree, from the ground up: the middle of each box, how wide it is, and how tall. And a rock, as parts. */
@@ -521,7 +525,17 @@ export class Castle {
   private seed: number
   private count = 0
   /** Whether the camp is out at the wall or resting, and how long that lasts yet, of how long. And how many charges there have been. */
-  readonly phase = { charge: false, left: FIRST, full: FIRST }
+  readonly phase = { charge: false, left: 0, full: 0 }
+  /**
+   * Whether the day has started. At dawn it stands still: the castle asks for wood, an arrow stands over a tree, and
+   * the camp waits, until the helper is sent to a tree (or `start` is called).
+   */
+  begun = false
+  /** The arrow, and the tree it stands over: from dawn until the day starts. */
+  private arrow: number[] = []
+  private first = 0
+  /** The notes that rise from the musician as he plays: three of them, a cube each for head, stem and flag. */
+  private notes: number[][] = []
   round = 0
   /** How many good turns the two sides have done each other in this charge. */
   private lent = 0
@@ -901,6 +915,7 @@ export class Castle {
     for (const [x, z] of LAKE) on[at(x, z)] = DUCK
     this.tune = { ...body(BARD, STOOL[0], STEP, STOOL[1], MUSIC), mode: 'home', seated: true, left: 0, beat: 0, to: STAGE }
     made.get(MUSIC)!.push(...this.tune.cubes)
+    this.notes = [0, 1, 2].map(() => QUAVER.map(([, , , sx, sy, sz]) => solid.add(0, -40, 0, sx, sy, sz, 0x6b4fa8, MUSIC)))
     this.me = { ...body(HELPER, -13, 1, 6), loads: [], pets: [], rise: [], queue: [], work: 0, beat: 0, no: 0, idle: 0 }
     this.stack()
     // Over whatever he has been told to see to, a small cube: up to four of them. The one he is about is bright, and
@@ -911,6 +926,15 @@ export class Castle {
       return mark
     })
     this.store()
+    // Dawn: the castle wants wood, and an arrow stands over the tree nearest the helper. (A click on the arrow is a
+    // click on the tree.)
+    this.want(0, 'wood')
+    this.first = this.trees.reduce((a, tree, i) => (Math.hypot(across(tree.t) - this.me.x, along(tree.t) - this.me.z) < Math.hypot(across(this.trees[a].t) - this.me.x, along(this.trees[a].t) - this.me.z) ? i : a), 0)
+    this.arrow = ARROW.map(([, , , sx, sy, sz]) => {
+      const c = solid.add(0, -40, 0, sx * 1.6, sy * 1.6, sz * 1.6, POINTER, TREE + this.first)
+      solid.paint(c, POINTER, 1.7)
+      return c
+    })
 
     // The light: a low warm sun, a soft sky, and a floor that only shows the shadows that fall on it.
     const { key } = this
@@ -1027,6 +1051,13 @@ export class Castle {
     }
     me.queue.push({ id, t: this.tile(id) })
     note(0.3 + me.queue.length * 0.1, 0.05)
+    if (kind === TREE) this.start()
+  }
+  /** The day starts: the arrow goes, the camp sets out at once, and the castle's wood is waited for from now on. */
+  start() {
+    if (this.begun) return
+    this.begun = true
+    for (const c of this.arrow) this.solid.hide(c)
   }
   /**
    * Whoever asked for something is answered: the helper is sent to where it is brought, with what he has. For the
@@ -1228,7 +1259,7 @@ export class Castle {
     const up = lift + Math.abs(Math.sin(one.stride * Math.PI)) * 0.14 + (one.hop > 0 ? Math.sin(Math.min(1, one.hop / 0.5) * Math.PI) * 0.3 : 0)
     this.put(one, up, sit ? 'sit' : '', ([dx, dy, dz, sx, sy, sz, ink], k) => {
       // Sitting: on the ground, its legs out in front of it.
-      if (sit) return k < 2 ? [dx, 0, dz + 0.26, sx, sz, sy, ink] : [dx, dy - 0.286, dz, sx, sy, sz, ink]
+      if (sit) return k < 2 ? [dx, 0, dz + 0.26, sx, sz, sy, ink] : [dx, dy - 0.286 + (k === 5 ? hold : 0), dz, sx, sy, sz, ink]
       return k === 5 && hold ? [dx, dy + hold, dz + hold, sx, sy, sz, ink] : [dx, dy, dz, sx, sy, sz, ink]
     })
   }
@@ -1335,6 +1366,7 @@ export class Castle {
   /** The day goes on: patience runs out, the camp charges and rests, and things happen. */
   private direct(dt: number) {
     const { asks, phase } = this
+    if (!this.begun) return
     this.time += dt
     const song = this.tune.mode === 'play' // while there is music at the camp it wants nothing, and waits for nothing
     for (let k = asks.length - 1; k >= 0 && !this.over; k--) {
@@ -2040,7 +2072,22 @@ export class Castle {
     const floor = this.foot(tune.x, tune.z)
     if (!tune.seated && floor >= 0) tune.y += (floor - tune.y) * Math.min(1, dt * 12)
     if (tune.seated) tune.y = STEP
-    this.pose(tune, tune.seated, tune.seated ? 0.3 : 0, tune.mode === 'play' ? 0.04 * Math.sin(this.clock * 20) + 0.04 : 0)
+    // He plays wherever he sits, not only at the camp, and notes rise from him: so that it can be seen that he is the
+    // music. Wanted somewhere, or playing at the camp, he plays faster, and the notes go higher and dance.
+    const playing = tune.seated || tune.mode === 'play'
+    const lively = tune.mode === 'play' || this.asks.some((ask) => ask.what === 'music')
+    const pace = lively ? 20 : 9
+    this.pose(tune, tune.seated, tune.seated ? 0.3 : 0, playing ? 0.04 * Math.sin(this.clock * pace) + 0.04 : 0)
+    this.notes.forEach((cubes, k) => {
+      const p = (this.clock * (lively ? 0.75 : 0.4) + k / 3) % 1 // how far up this one is, 0 to 1
+      const grow = playing ? Math.sin(p * Math.PI) : 0 // it comes, and goes, by its size
+      const [sway, rise] = lively ? [0.35, 2.2] : [0.18, 1.3]
+      const [x, y, z] = [tune.x + Math.sin(p * 7 + k * 2) * sway + (k - 1) * 0.25, tune.y + 1.35 + p * rise, tune.z + Math.cos(p * 5 + k) * sway * 0.6]
+      QUAVER.forEach(([dx, dy, dz, sx, sy, sz], n) => {
+        this.solid.size(cubes[n], sx * grow, sy * grow, sz * grow)
+        this.solid.place(cubes[n], x + dx * grow, y + dy * grow, z + dz)
+      })
+    })
   }
 
   // The war.
@@ -2148,6 +2195,11 @@ export class Castle {
 
   update(dt: number) {
     this.clock += dt
+    if (!this.begun) {
+      const tree = this.trees[this.first]
+      const [x, z, y] = [across(tree.t), along(tree.t), tree.ground + 2.8 + Math.abs(Math.sin(this.clock * 4)) * 0.4]
+      ARROW.forEach(([dx, dy, dz], k) => this.solid.place(this.arrow[k], x + dx * 1.6, y + dy * 1.6, z + dz * 1.6))
+    }
     if (!this.over) this.direct(dt)
     this.help(dt)
     this.play(dt)

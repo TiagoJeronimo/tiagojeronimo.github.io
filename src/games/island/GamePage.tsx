@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
-import { Back, FINGERS, Hints } from '../hints.tsx'
+import { Back, FINGERS, Hints, Sound } from '../hints.tsx'
 import { Picture } from '../Picture.tsx'
-import { setSound, toggleSound } from '../../sound.ts'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
 import type { Friend } from './wishes.ts'
@@ -142,13 +141,7 @@ function Chart({ game, open }: { game: RefObject<Island | null>; open: boolean }
   return <canvas ref={canvas} width={35} height={34} aria-label="The world from above" />
 }
 
-/** The small pictures on two of the buttons, drawn in the colour of the words: a loudspeaker, loud or crossed out, and a cog. */
-const Speaker = ({ on }: { on: boolean }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3.5 9.5v5h3.6l4.9 4v-13l-4.9 4z" fill="currentColor" />
-    {on ? <path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.4 6.4a8 8 0 0 1 0 11.2" /> : <path d="M16 9.5l5 5m0-5l-5 5" />}
-  </svg>
-)
+/** The small picture on the cog's button, drawn in the colour of the words. (The sound's is in `../hints.tsx`.) */
 const Cog = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
     <circle cx="12" cy="12" r="8.7" strokeWidth="3.4" strokeDasharray="3.416" strokeDashoffset="1.708" />
@@ -271,23 +264,6 @@ function Stage({
 
 export default function GamePage() {
   const [state, setState] = useState(START)
-  // The sound is off whenever the game is opened, and a small label under its button asks, until the button has been
-  // pressed. (The choice used to be remembered, so that on a later visit the button said "on" from the start: but a
-  // browser lets a page make no sound before the first touch, and sometimes not after it either, so it said on and
-  // nothing played.) Once it is on, every touch and key says so again, before the game hears it: a browser can send a
-  // sound to sleep, which that wakes. A tap on the picture is not a "click" everywhere, so a finger lifting is
-  // listened for as well.
-  const [chosen, setChosen] = useState<'on' | 'off' | null>(null)
-  const sound = chosen === 'on'
-  useEffect(() => {
-    const say = () => setSound(sound)
-    const ways = ['click', 'keydown', 'pointerup', 'touchend']
-    for (const way of ways) addEventListener(way, say, true)
-    return () => {
-      for (const way of ways) removeEventListener(way, say, true)
-    }
-  }, [sound])
-  const loud = () => setChosen(toggleSound() ? 'on' : 'off')
   // Which island. 0 is the one as drawn; any other number deals the things on it out afresh, the same way every time.
   // The number sits in the link, so an island can be passed on.
   const [seed, setSeed] = useState(() => Number(new URLSearchParams(location.search).get('seed')) || 0)
@@ -450,15 +426,7 @@ export default function GamePage() {
       <header className="top">
         {/* The way back to everything else, in the corner: the castle has the same. */}
         <Back />
-        <button className="sound icon" aria-label={sound ? 'Turn the sound off' : 'Turn the sound on'} title={sound ? 'Sound on' : 'Sound off'} onClick={loud}>
-          <Speaker on={sound} />
-          {/* Until somebody has said yes or no to it: a small label under the button, which asks. */}
-          {chosen === null && (
-            <i className="ask" aria-hidden="true">
-              Sound?
-            </i>
-          )}
-        </button>
+        <Sound />
         {/* A dot on it when something has gone into the log without being said out loud. */}
         <button
           className="sound"

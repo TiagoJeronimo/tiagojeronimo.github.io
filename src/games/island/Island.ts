@@ -7,6 +7,7 @@ import { mute, note, thump } from '../../sound.ts'
 import { Critters, type Critter } from './critters.ts'
 import { combos } from './combos.ts'
 import { Bits, Cubes, blown } from '../cubes.ts'
+import { POINTER } from '../basics.ts'
 import { BARK, BLOSSOM, D, FRUIT, GROUND, LAVA, LEAF, NEAR, NEVER, RING, STONE, W, WATER, WOOD, any, deal, drawn, rnd, shade, step, tileAt, tx, tz, type Isle, type Thing, type Tree } from './grid.ts'
 import { beach, islet } from './isles/beach.ts'
 import { garden } from './isles/garden.ts'
@@ -2168,7 +2169,7 @@ export class Island {
 
   /** An arrow stands over something for a while and bobs: this one. A click on the arrow is a click on what it points at. */
   private point(at: () => number[], until: () => boolean, hit: () => void) {
-    const arrow = (this.arrow ??= this.critters.spawn('arrow', 0, -40, 0, 0xffd45c, undefined, 1.7))
+    const arrow = (this.arrow ??= this.critters.spawn('arrow', 0, -40, 0, POINTER, undefined, 1.7))
     const from = this.time
     arrow.hidden = false
     arrow.onPat = hit

@@ -1,4 +1,5 @@
 import { Color, DynamicDrawUsage, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Sphere, Vector3 } from 'three'
+import { ARROW } from '../basics.ts'
 import { dirty, unit } from '../cubes.ts'
 
 export type Kind = 'bird' | 'bunny' | 'tortoise' | 'duck' | 'chick' | 'penguin' | 'beaver' | 'frog' | 'crab' | 'mole' | 'marmot' | 'goat' | 'dragon' | 'fish' | 'owl' | 'ghost' | 'bat' | 'snail' | 'star' | 'balloon' | 'arrow' | 'beam' | 'bottle' | 'capybara' | 'axolotl' | 'glow' | 'bubble' | 'sails' | 'snowball' | 'pebble'
@@ -405,13 +406,8 @@ const SHAPES: Record<Kind, (c: number) => number[][]> = {
     [0, 0.09, 0.435, 0.12, 0.025, 0.02, shade(c, -0.18)],
     [0, 0.13, -0.36, 0.06, 0.22, 0.26, shade(c, -0.06)],
   ],
-  // An arrow pointing down at something: seen from the front, like the thought bubbles.
-  arrow: (c) => [
-    [0, 0.62, 0, 0.14, 0.44, 0.1, c],
-    [0, 0.34, 0, 0.46, 0.14, 0.1, c],
-    [0, 0.2, 0, 0.3, 0.14, 0.1, c],
-    [0, 0.06, 0, 0.14, 0.14, 0.1, c],
-  ],
+  // An arrow pointing down at something: the castle has the same one (`../basics.ts`).
+  arrow: (c) => ARROW.map((box) => [...box, c]),
   // One fat firefly, and the thought bubble that floats over an animal with a wish (its boxes are given when it is made).
   glow: (c) => [
     [0, 0, 0, 0.16, 0.14, 0.2, c],

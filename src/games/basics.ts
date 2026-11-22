@@ -18,6 +18,13 @@ export const BARK = 0x8a6d58
 export const WATER = 0xbfe6ff
 export const LAVA = 0xff7a2f
 
+/**
+ * The yellow arrow that stands over something to be clicked, and bobs: in both games the same. Its boxes, from the
+ * point up: the middle of each across, up and along, then its size. As deep as it is wide, so it reads from any side.
+ */
+export const ARROW = [[0, 0.62, 0, 0.14, 0.44, 0.14], [0, 0.34, 0, 0.46, 0.14, 0.46], [0, 0.2, 0, 0.3, 0.14, 0.3], [0, 0.06, 0, 0.14, 0.14, 0.14]]
+export const POINTER = 0xffd45c
+
 /** A repeatable random number in 0..1 from an integer, so that a world looks the same on every visit. */
 export const rnd = (n: number) => {
   let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b)

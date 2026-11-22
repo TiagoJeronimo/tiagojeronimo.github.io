@@ -19,6 +19,71 @@
 .top .sound:first-of-type {
   margin-left: auto;
 }
+/* A button can be a small picture, in the colour of the words, as tall as a line of words is. */
+.top .icon {
+  padding: 3px 6px;
+  line-height: 0;
+}
+.top .icon svg {
+  width: 1.55em;
+  height: 1.55em;
+}
+
+/* Under the sound's button, until it has been pressed once: a small label that asks, with a point on it towards the
+   button. It comes up a moment after the game has, nods for a while, and then leaves by itself. Not while a sheet is
+   open (the island's journal, or its cog's): it would lie on top of it. (Hidden, not taken away: its time goes on
+   running.) */
+.top .nudge {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 50%;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: #f0719a;
+  color: #fff;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+  translate: -50% 0;
+  animation:
+    nudge-in 0.5s 2.5s both,
+    nudge-nod 1.5s 3s ease-in-out 11,
+    nudge-out 0.5s 20s forwards;
+}
+.top .nudge::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: inherit;
+  rotate: 45deg;
+  translate: -50% 0;
+}
+.top:has([aria-expanded='true']) .nudge {
+  visibility: hidden;
+}
+@keyframes nudge-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes nudge-nod {
+  50% {
+    translate: -50% 3px;
+  }
+}
+@keyframes nudge-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
 /* And the way back to everything else, alone on the left: a button to look at, on the cream of the pages it leads
    back to, and not on a patch of sky like the rest. */
 .top .sound.back {

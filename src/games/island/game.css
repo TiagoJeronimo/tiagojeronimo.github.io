@@ -45,73 +45,9 @@ body {
   background: #f0719a;
   box-shadow: 0 0 0 2px var(--bg);
 }
-/* Under the sound's button, until it has been pressed once: a small label that asks, with a point on it towards the
-   button. It comes up a moment after the island has, nods for a while, and then leaves by itself. Not while the journal
-   or the cog's sheet is open: it would lie on top of them. (Hidden, not taken away: its time goes on running.) */
-.ask {
-  position: absolute;
-  top: calc(100% + 9px);
-  left: 50%;
-  padding: 4px 9px;
-  border-radius: 8px;
-  background: #f0719a;
-  color: #fff;
-  font-size: 0.72rem;
-  font-style: normal;
-  font-weight: 750;
-  line-height: 1.2;
-  white-space: nowrap;
-  translate: -50% 0;
-  animation:
-    ask-in 0.5s 2.5s both,
-    ask-nod 1.5s 3s ease-in-out 11,
-    ask-out 0.5s 20s forwards;
-}
-.ask::before {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  background: inherit;
-  rotate: 45deg;
-  translate: -50% 0;
-}
-.top:has([aria-expanded='true']) .ask {
-  visibility: hidden;
-}
-@keyframes ask-in {
-  from {
-    opacity: 0;
-    scale: 0.6;
-  }
-}
-@keyframes ask-nod {
-  50% {
-    translate: -50% 3px;
-  }
-}
-@keyframes ask-out {
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
 .tabs button {
   position: relative;
 }
-/* Two of them are a small picture, in the colour of the words, as tall as a line of words is. */
-.top .icon {
-  padding: 3px 6px;
-  line-height: 0;
-}
-.top .icon svg {
-  width: 1.55em;
-  height: 1.55em;
-}
-
 /* At the top of the map: the title, how much of the world is alive, and the counts. */
 .tally {
   margin-bottom: 16px;

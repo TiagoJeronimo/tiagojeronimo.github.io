@@ -27,6 +27,14 @@ const hold = (world: Castle) => {
   world.phase.left = 1e9
   for (const ask of world.asks) ask.left = 1e9
 }
+/** A morning held still from the start, with nobody wanting anything: not even the castle its wood at dawn. */
+const still = () => {
+  const world = new Castle(1)
+  world.start()
+  world.asks.length = 0
+  hold(world)
+  return world
+}
 /** Whichever of `of` is nearest to the helper. */
 const near = <T extends { t: number }>(world: Castle, of: T[]) => of.reduce<T | undefined>((a, b) => (!a || Math.hypot(across(b.t) - world.me.x, along(b.t) - world.me.z) < Math.hypot(across(a.t) - world.me.x, along(a.t) - world.me.z) ? b : a), undefined)
 const wants = (world: Castle) => world.asks.map((ask) => `${ask.side ? 'camp' : 'castle'}:${ask.what}`).join(' ')
@@ -92,6 +100,7 @@ const play = (world: Castle, lag = 1, sides = [0, 1]) => {
 /** A whole day, played that way, for ten minutes at the longest: how it ended, when, and the fewest that either side had on their feet. */
 const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle) => void) => {
   const world = new Castle(seed)
+  world.start()
   let least = 6
   run(world, 600, () => {
     if (lag !== undefined) play(world, lag, sides)
@@ -125,19 +134,23 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
   assert.equal(world['route'](tile(7, 3))[tile(5, 3)], 2, 'the bridge cannot be walked across')
 }
 
-// Wood, and the basket. With the camp's first charge the castle asks for wood, and the camp for bread. A tree and then
-// the basket: the tree is felled, the wood goes up, nobody has to sit down, and the tree comes up again somewhere else.
+// Dawn, wood, and the basket. At dawn the castle asks for wood and the day waits for it: no charge, no clock, no
+// patience running out, whatever else he is sent to, until he is sent to a tree. Then the camp sets out at once and
+// asks for bread. A tree and then the basket: the tree is felled, the wood goes up, nobody has to sit down, and the
+// tree comes up again somewhere else.
 {
   const world = new Castle(1)
-  run(world, 7)
-  assert.equal(wants(world), '', 'before the camp first sets out, nobody should want anything')
-  run(world, 2)
-  assert.equal(wants(world), 'castle:wood camp:bread', 'with the first charge the castle should want wood, and the camp bread')
   world.order(BASKET)
   assert.equal(world.me.queue.length, 0, 'with nothing on his hat he was sent to the basket, and went')
+  run(world, 120)
+  assert.equal(wants(world), 'castle:wood', 'at dawn the castle should want wood, and nobody anything else')
+  assert.ok(!world.begun && !world.phase.charge && world.time === 0 && world.asks[0].left === world.asks[0].full, 'the day should stand still until he is sent to a tree')
   const tree = near(world, world.trees)!
   const [first, was] = [world.trees.indexOf(tree), tree.t]
   world.order(TREE + first)
+  run(world, 0.1)
+  assert.ok(world.begun && world.phase.charge, 'sent to a tree, the day should start, and the camp set out')
+  assert.equal(wants(world), 'castle:wood camp:bread', 'with the first charge the camp should want bread too')
   world.order(BASKET)
   let high = 0
   run(world, 26, () => (high = Math.max(high, world['lift'].y)))
@@ -155,6 +168,7 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 // one walk to the basket and one to the table answers three askings.
 {
   const world = new Castle(1)
+  world.start()
   run(world, 9)
   hold(world)
   world.order(LOGS)
@@ -181,8 +195,7 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 // the log is on it. With nothing on his hat a click on the rack takes one, and the next puts it back. With two
 // wanting wood, two clicks are two logs. And a side takes only what it has asked for: a stone is no use to the camp.
 {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   assert.deepEqual([world.piles.wood, world.piles.stone, world.oven.ready], [1, 1, 1], 'a log, a stone and a loaf should be put by to begin with')
   world.order(TREE + world.trees.indexOf(near(world, world.trees)!))
   world.order(LOGS)
@@ -213,8 +226,7 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 
 // Bread. A loaf is on the shelf to begin with; after that it is: sow, wait, cut, into the oven, wait, out.
 {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   const bare = world.plots.findIndex((plot) => plot.age < 0)
   world.order(PLOT + bare)
   run(world, 8)
@@ -245,8 +257,7 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 // The cat for the camp rides there on his hat, sits on the table, and goes home. And an apple for the camp comes off
 // the tree in the castle's yard.
 {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   world['want'](0, 'duck')
   hold(world)
   world.order(DUCK)
@@ -274,8 +285,7 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 // Soup for the castle comes out of the pot on the camp's fire. And what the princess asks for is handed to her in
 // person, under her balcony: the basket is for the castle's own askings, and will not do.
 {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   world['want'](0, 'soup')
   hold(world)
   world.order(HEARTH)
@@ -297,7 +307,8 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 // taken to the table: he plays by the fire, those of the camp who had sat down get up, and he goes home by himself.
 {
   const world = new Castle(1)
-  run(world, 61)
+  world.start()
+  run(world, 53)
   assert.ok(wants(world).includes('camp:music'), `the camp should want music by now: ${wants(world)}`)
   world.order(MUSIC)
   world.order(TABLE)
@@ -321,8 +332,7 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
 // What happens in the quiet between two charges, each in its turn. The cat goes after the loaf on the oven's shelf:
 // left alone it is home again with the loaf gone; a click on it, once it has the loaf, and the loaf is back.
 for (const stopped of [false, true]) {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   world.round = 3
   world['happen']()
   assert.equal(world['thief'], 'out', 'the cat should be off after a loaf')
@@ -338,8 +348,7 @@ for (const stopped of [false, true]) {
 // It rains on the camp's fire: there is no soup until somebody has brought wood for it, which is waited for as long as
 // it takes, and asked for over the fire.
 {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   world.round = 4
   world['happen']()
   assert.ok(world.doused && wants(world) === 'camp:wood', `it should have rained on the fire, and the camp want wood for it: ${wants(world)}`)
@@ -358,8 +367,7 @@ for (const stopped of [false, true]) {
 }
 // And a duck takes a liking to the helper: it is at his heels for half a minute, and then back on the pond.
 {
-  const world = new Castle(1)
-  hold(world)
+  const world = still()
   world.round = 2
   world['happen']()
   const duck = world['tail']!
@@ -375,6 +383,7 @@ for (const stopped of [false, true]) {
 // is asked for in a charge is thrown across by the other side, and nobody has to bring it.
 {
   const world = new Castle(1)
+  world.start()
   world.love = 2
   run(world, 20)
   assert.equal(world.asks.length, 1, `nine seconds into the charge, one of the two things asked for should have come from the other side: ${wants(world)}`)
