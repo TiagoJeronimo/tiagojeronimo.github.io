@@ -19,12 +19,14 @@ import { Bloom, EffectComposer, N8AO, TiltShift, ToneMapping } from '@react-thre
 import { BlendFunction, KernelSize, ToneMappingMode, type TiltShiftEffect } from 'postprocessing'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { LIGHTEST } from './basics.ts'
+import { viewing } from './View.ts'
 
 let reached = 0 // the step this page has come to: a new picture on it (a new game) starts from there, not from the top
 
 /**
  * The finish, and the pump. Inside the canvas, after the game's own scene.
- * @param near for a picture that goes soft at its top and bottom from close up: how close it is, from 0 to 1
+ * @param near how close the camera is, from 0 to 1, for a game with a camera of its own (the island): from close up
+ * the top and bottom of the picture go soft. A game that uses `View.ts` need not give it: its view is asked.
  */
 function Finish({ tier, onTier, near }: { tier: number; onTier: (tier: number) => void; near?: () => number }) {
   const gl = useThree((state) => state.gl)
@@ -129,7 +131,8 @@ function Finish({ tier, onTier, near }: { tier: number; onTier: (tier: number) =
   useFrame(() => {
     // Up close, the top and the bottom of the picture go soft, as in a photograph of something small. Not on a machine
     // that is already short of breath.
-    const close = tier || !near ? 0 : near()
+    // (How close: what the game says, if it says; else what its `View` says, which every game that has one gets for nothing.)
+    const close = tier ? 0 : near ? near() : (viewing()?.near ?? 0)
     if (close > 0.02 !== soft) setSoft(close > 0.02)
     if (tilt.current) tilt.current.focusArea = 1.4 - 0.65 * close
   })

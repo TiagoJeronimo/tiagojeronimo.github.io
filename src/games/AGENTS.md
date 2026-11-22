@@ -8,8 +8,8 @@ things its own way (a camera of its own, inside `Island.ts`).
 
 | File | What it gives |
 | --- | --- |
-| `Picture.tsx` | `<Picture>{(tier) => scene}</Picture>`: the canvas, the finish (soft shading, glow, tone) and the pump that draws the frames and gives a slow machine a lighter picture. Optional `near={() => 0..1}` softens top and bottom from close up. Canvas props pass through. |
-| `View.ts` | `new View(canvas, land, span, learnt, lift?)`: the camera. Drag moves, right-drag or a twist turns, wheel or pinch zooms to the cursor, keys do all three (but never a key typed into a text field: a page with an input needs no guard of its own). `update(dt, camera, width, height)` every frame, `dispose()` at the end. |
+| `Picture.tsx` | `<Picture>{(tier) => scene}</Picture>`: the canvas, the finish (soft shading, glow, tone) and the pump that draws the frames and gives a slow machine a lighter picture. From close up the top and bottom of the picture go soft, as in a photograph of something small: by itself, for a game whose camera is a `View` (it asks the page's view how close it is). A game with a camera of its own (the island) says how close with `near={() => 0..1}`. Canvas props pass through. |
+| `View.ts` | `new View(canvas, land, span, learnt, lift?)`: the camera. Drag moves, right-drag or a twist turns, wheel or pinch zooms to the cursor, keys do all three (but never a key typed into a text field: a page with an input needs no guard of its own). `update(dt, camera, width, height)` every frame, `dispose()` at the end. `near` is how close it is, 0 to 1 (`close(dist)`, the island's measure: 0 from 34 away, 1 from 14); `viewing()` is the page's view, which `Picture` asks. |
 | `cubes.ts` | `Cubes(capacity, material, 'wind' \| 'waves'?)`: a pool of boxes in one draw call. `add` returns an index; then `show hide poke paint place size lean drop` by index, `at top on up` to ask, `update(dt)` every frame. `Bits(n)`: loose cubes, `spawn(x, y, z, vx, vy, vz, size, color, life, floor, bounce?, gravity?, gain?)`. Also `unit` (the box), `dirty`, `blown`. |
 | `basics.ts` | The palette (`LEAF STONE WOOD BARK WATER LAVA BLOSSOM FRUIT`), `NEAR` and `RING` (a tile's neighbours), `NEVER` (a floor no bit reaches), `rnd(n)` (the same every visit), `any()` (differs every time), `shade(sun, tier)`, `LIGHTEST`; `ARROW` and `POINTER`, the boxes and colour of the yellow arrow that stands over what to click. |
 | `hints.tsx`, `hints.css` | `<Back />` (the way to the front page), `<Hints known="mz" />` (how to get about, minus what has been done), `<Sound />` (the sound's button, with its "Sound?" label until pressed), `FINGERS` (a touch screen). The styles of `.top`, `.sound`, `.icon`, `.nudge`, `.hints`. |
@@ -46,7 +46,8 @@ function Stage({ tier, onKnown }: { tier: number; onKnown: (known: string) => vo
     world.update(Math.min(dt, 0.05))
     view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
   })
-  // (A `delta` over 6 is the end of a drag, not a click. What a click does is the game's own.)
+  // (A `delta` over 6 is the end of a drag, not a click. What a click does is the game's own. The softening of the
+  // picture from close up needs nothing here: `Picture` asks the `View` that was just made.)
   return <primitive object={world.group} onClick={(event: ThreeEvent<MouseEvent>) => event.delta <= 6 && world.touch(event.point)} />
 }
 
@@ -122,8 +123,43 @@ is the pattern and `sheep/Sheep.ts` the short copy of it: take the recipe from t
   else. No step or turn is made that does not fit. The test proves it on the cubes themselves: no two boxes of
   different creatures overlap, none is below the ground, through a whole day (`test/sheep.test.ts`).
 - What answers a click says so: a bubble or a tag right on it, moving with it. Pictures before sentences.
+- Two tiles of see-through water side by side, each a box of its own, show the join between them (each draws its
+  sides inside the water). Where that matters, draw the tops as one mesh and no sides between them (`pour` in
+  `sheep/Sheep.ts`); the island and the castle still use a box a tile.
+- Creatures that do things together hold each other by one link that both ends let go of together (`mate`, `part` in
+  `sheep/Sheep.ts`), and whatever play they are at is the same walk, only faster. What one thinks is a small picture
+  in a bubble over its head for a moment (see "Bubbles"), never a word.
+- Nothing marks where a click on the ground will act: no frame on a tile, no lit square, nothing at the cursor. And a
+  click that cannot act exactly where it was made acts at the nearest place that it can: nobody is told no because
+  something is in the way. (The yellow arrow is for a thing to click, and stays.)
+- The light of a day changes slowly, through a table of stops (`LIGHT` in `sheep/Sheep.ts`): no jump in strength or
+  colour from one frame to the next, a visible dawn and dusk, and the day ends as it began. A page that is loaded
+  again goes on with the time of day it had.
+- A click on the open ground does something small of its own (in the sheep's field it plants a tuft of grass, which
+  the sheep then run for): on what can take it, at once and with a bounce; on what cannot, a small puff and no
+  words. What follows is the creatures' doing, by the same walk and the same rules, and differs with who they are.
+- A creature that is shown somewhere else than in its world (a window to dress it in) is drawn by the same code from
+  the same parts (`sheep/model.ts`, used by `Sheep.ts` and `Fitting.tsx`): never a second model. A small plain
+  canvas of its own for that is cheap; it has none of the finish.
 - What a creature wears is more parts on the same model, drawn by the same code: it hops, bows and lies down with
   it, sits in none of its boxes in any pose, and is inside the rectangles `fits` goes by (`WORN` in `sheep/Sheep.ts`).
+
+**Bubbles**
+
+A bubble over a creature is a thing in the world, made of cubes, and it is the island's (`BUBBLE` and `ICONS` in
+`island/wishes.ts`; copied box for box as `BUBBLE` and `THINK` in `sheep/Sheep.ts`, where `bubbles` draws them from a
+small pool): paper white (`0xfffdf6`), a slab with its corners taken off (a wide box with a narrower one above and
+below), two crumbs of it trailing down to whoever it belongs to, and on it a picture of a few boxes that stand a
+little proud of the paper, plain enough to read from a way off. No words in it. It is lit and shadowed like
+everything else; it pops up, bobs (`sin(time * 2)`, a few hundredths) and breathes (`sin(time * 3)`, a few
+hundredths of its size) and pops away; it floats over its owner's head and goes with it. On the island it turns to
+face the camera; where it is of `Cubes`, which do not turn, it faces the quarter turn nearest the camera. It is in
+nothing: over its own creature, above everybody's head, and not there when another bubble or something flying is
+too near; a test proves it on the cubes. A handful at once at the most. Only a bubble with words in it (a sheep's
+name and message) is on the page, since words cannot be cubes: the same paper and the same two crumbs, in CSS
+(`.bubble` in `sheep/sheep.css`). The castle's asks (`.ask` in `castle/castle.css`) are older, round, on the page.
+The two recipes are a list of boxes each and a dozen lines to place them, in two worlds that draw cubes differently
+(the island's animals turn, `Cubes` do not): they are copied, not shared.
 
 **Do not** (the first field of sheep did all of these, and was sent back)
 

@@ -15,31 +15,48 @@
 /* What a sheep says: over it, with a small tail down to it. It is not for clicking; a click anywhere else puts it away. */
 .bubble {
   position: fixed;
-  z-index: 1;
   top: 0;
   left: 0;
+  background: #fffdf6; /* the paper of the island's thought bubbles */
+  color: #3d3550;
+  box-shadow: 0 3px 0 rgb(40 30 60 / 0.18);
+  translate: -200px -200px; /* (the page puts it over its sheep, every frame) */
+  pointer-events: none;
+  /* It pops up with a little bounce, and then bobs, as a thing that floats does. (Its place is `translate`, its pop
+     `scale`, its bob a margin: three things that leave each other alone.) */
+  animation:
+    say 0.35s cubic-bezier(0.3, 1.7, 0.6, 1) both,
+    bob 1.7s ease-in-out 0.35s infinite alternate;
+}
+/* Two crumbs of it trail down to whoever it belongs to, the smaller one nearer: square, as everything here is. */
+.bubble::before,
+.bubble::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  box-shadow: 0 2px 0 rgb(40 30 60 / 0.18);
+}
+.bubble::before {
+  left: calc(50% - 15px);
+  bottom: -11px;
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+}
+.bubble::after {
+  left: calc(50% - 5px);
+  bottom: -19px;
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+}
+.bubble {
+  z-index: 1;
   width: max-content;
   max-width: min(230px, 70vw);
   padding: 9px 13px 10px;
   border-radius: 14px;
-  background: #fffaf0;
-  color: #3d3550;
-  box-shadow: 0 3px 0 rgb(40 30 60 / 0.22);
-  translate: -200px -200px;
-  transform: translate(-50%, calc(-100% - 12px));
-  pointer-events: none;
-  animation: say 0.3s cubic-bezier(0.3, 1.6, 0.6, 1) both;
-}
-.bubble::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -5px;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  rotate: 45deg;
-  background: inherit;
+  transform: translate(-50%, calc(-100% - 24px));
 }
 .bubble strong {
   display: block;
@@ -73,22 +90,170 @@
   opacity: 0.6;
 }
 
-/* Dressing a sheep: a card in the corner (across the foot of a phone), cream like the bubble. The sheep is not in it:
-   it hangs in the field, and changes as the buttons are pressed. */
-.dress {
+/* Buying a sheep: one card in the middle of the window, over the field, which goes a little dim behind it. Paper
+   white, as the bubbles are. Two halves side by side: the gift on the left, the sheep and its looks on the right. */
+.veil {
   position: fixed;
-  z-index: 2;
-  left: 18px;
-  bottom: 18px;
-  width: min(330px, calc(100vw - 20px));
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  overflow-y: auto;
+  background: rgb(40 30 60 / 0.3);
+  animation: veil 0.25s both;
+}
+.dress {
+  width: min(700px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: #fffdf6;
+  color: #3d3550;
+  box-shadow: 0 5px 0 rgb(40 30 60 / 0.24);
+  outline: none;
+  animation: say 0.3s cubic-bezier(0.3, 1.6, 0.6, 1) both;
+}
+.dress section {
   display: grid;
   gap: 10px;
-  padding: 14px 16px 16px;
+  align-content: start;
+  min-width: 0;
+}
+.dress .pay {
+  order: -1; /* on the left, though it comes second: on a narrow screen it is last, under the sheep */
+  align-content: center;
+}
+.dress .pay strong {
+  font-size: 1.25rem;
+}
+/* The window the sheep stands in: a pale morning sky, and in it a very small island with the sheep on it
+   (`Fitting.tsx`). A white rim, and its corners a little dim, as a picture in a frame. It can be turned by a drag. */
+.dress .window {
+  position: relative;
+  aspect-ratio: 4 / 3;
   border-radius: 18px;
-  background: #fffaf0;
-  color: #3d3550;
-  box-shadow: 0 4px 0 rgb(40 30 60 / 0.22);
-  animation: say 0.3s cubic-bezier(0.3, 1.6, 0.6, 1) both;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 35%, #eaf7fc, #cfe9f6 60%, #f9ead9);
+  cursor: grab;
+  touch-action: pan-y;
+}
+/* (Two clouds, of a few soft white boxes each, in its sky.) */
+.dress .window::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  top: 16%;
+  width: 46px;
+  height: 14px;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow:
+    14px -8px 0 -1px #fff,
+    150px 26px 0 -2px #fff,
+    166px 19px 0 -4px #fff;
+  opacity: 0.85;
+}
+.dress .window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 4px #fff,
+    inset 0 0 0 6px rgb(61 53 80 / 0.08),
+    inset 0 0 34px rgb(92 70 120 / 0.14);
+  pointer-events: none;
+}
+/* The small quiet label over each thing to choose or to write. */
+.dress .tag {
+  display: block;
+  margin-bottom: -4px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.62;
+}
+.dress .field {
+  display: grid;
+  gap: 8px;
+}
+.dress .words {
+  position: relative;
+  display: block;
+}
+.dress .words small {
+  position: absolute;
+  right: 10px;
+  bottom: 11px;
+  font-size: 11px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.dress .words input {
+  padding-right: 3.6em;
+}
+.dress .pick {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: #f1e9dc;
+  color: inherit;
+  font: inherit;
+  font-weight: 750;
+  box-shadow: inset 0 0 0 2px rgb(61 53 80 / 0.14);
+  cursor: pointer;
+}
+.dress .pick[aria-checked='true'] {
+  background: #ffd9e6;
+  box-shadow:
+    inset 0 0 0 2px #fffdf6,
+    0 0 0 3px #3d3550;
+}
+.dress .gift {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.dress .gift input {
+  width: 5.2em;
+}
+.dress .sum {
+  opacity: 1;
+  font-size: 14px;
+  font-weight: 650;
+}
+@keyframes veil {
+  from {
+    opacity: 0;
+  }
+}
+/* A narrow screen: one under the other, the sheep first; and the button stays in reach at the foot of the card. */
+@media (max-width: 640px) {
+  .veil {
+    place-items: start center;
+  }
+  .dress {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+  .dress .pay {
+    order: 0;
+  }
+  .dress .window {
+    aspect-ratio: 3 / 2;
+  }
+  .dress .foot {
+    position: sticky;
+    bottom: -14px;
+    margin: 0 -14px -14px;
+    padding: 10px 14px 14px;
+    border-radius: 0 0 22px 22px;
+    background: #fffdf6;
+  }
 }
 .dress .row {
   display: flex;
@@ -162,16 +327,14 @@
   translate: -50% 0;
   pointer-events: none;
 }
-@media (max-aspect-ratio: 1/1) {
-  .dress {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    width: auto;
+@keyframes bob {
+  to {
+    margin-top: -4px;
   }
 }
 
-/* The gift, in euros, when there is a server to pay through. */
-.dress .gift input {
-  width: 7em;
+/* The field's own hint, in the shared style of `../hints.css`: at the foot of the window, where the others are not. */
+.hints.snack {
+  top: auto;
+  bottom: 18px;
 }

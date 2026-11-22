@@ -7,8 +7,8 @@ import assert from 'node:assert/strict'
 import { MESSAGE, NAME, WOOL, fit, tidy } from '../src/games/sheep/dress.ts'
 import { FLOCK, type Entry } from '../src/games/sheep/flock.ts'
 import { PerspectiveCamera } from 'three'
-import { View } from '../src/games/View.ts'
-import { HERMIT, REACH, SPAN, Sheep } from '../src/games/sheep/Sheep.ts'
+import { View, close, viewing } from '../src/games/View.ts'
+import { DOOR, HERMIT, REACH, SPAN, Sheep } from '../src/games/sheep/Sheep.ts'
 
 const world = new Sheep()
 const twin = new Sheep()
@@ -18,42 +18,84 @@ assert.deepEqual(told(world), told(twin), 'the seeds decide it all')
 assert.equal(new Set(world.ewes.map((e) => e.nature)).size, 4, 'all four natures turn up')
 
 /** Every cube a sheep has on show, as a box: x0 x1 y0 y1 z0 z1. (The wool of its body is its fifth.) */
-const boxes = (i: number) =>
-  world.ewes[i].cubes.map((c, k) => {
-    const [x, y, z, w, h, d] = world.flock.at(c)
-    return world.flock.on(c) ? [x - w / 2, x + w / 2, y - h / 2, y + h / 2, z - d / 2, z + d / 2, k] : []
+const boxes = (w: Sheep, i: number) =>
+  w.ewes[i].cubes.map((c, k) => {
+    const [x, y, z, wide, h, d] = w.flock.at(c)
+    return w.flock.on(c) ? [x - wide / 2, x + wide / 2, y - h / 2, y + h / 2, z - d / 2, z + d / 2, k] : []
   }).filter((box) => box.length)
-const apart = () => {
-  const all = world.ewes.map((_, i) => boxes(i))
+/** The boxes of some of the ground's cubes that are on show. */
+const shown = (w: Sheep, cubes: number[]) =>
+  cubes.filter((c) => w.ground.on(c)).map((c) => {
+    const [x, y, z, wide, h, d] = w.ground.at(c)
+    return [x - wide / 2, x + wide / 2, y - h / 2, y + h / 2, z - d / 2, z + d / 2]
+  })
+/** Every cube that is on show of the ducks, of the big grass and of the thought bubbles: no sheep is ever in one. */
+const others = (w: Sheep) => shown(w, [...w.ducks, ...w.treats.filter((tuft) => tuft.t >= 0), ...w.thoughts.filter((bubble) => bubble.owner)].flatMap((thing) => thing.cubes))
+let thought = 0 // how many thought bubbles were seen at once, at the most
+const clear = (a: number[], b: number[]) => a[1] <= b[0] || b[1] <= a[0] || a[3] <= b[2] || b[3] <= a[2] || a[5] <= b[4] || b[5] <= a[4]
+const apart = (w: Sheep) => {
+  const all = w.ewes.map((_, i) => boxes(w, i))
+  const rest = others(w)
+  // The thought bubbles: six at the most, each over a sheep that is awake with no duck on it, and no two in each other.
+  const up = w.thoughts.filter((bubble) => bubble.owner)
+  thought = Math.max(thought, up.length)
+  assert.ok(up.every((bubble) => bubble.owner!.state !== 'sleep' && bubble.owner!.rider < 0), 'a bubble over a sleeper, or over one with a duck on it')
+  up.forEach((one, i) => up.slice(i + 1).forEach((two) => shown(w, one.cubes).forEach((a) => shown(w, two.cubes).forEach((b) => assert.ok(clear(a, b), 'two thought bubbles in each other')))))
   for (let i = 0; i < all.length; i++) {
-    const e = world.ewes[i]
-    const where = `sheep ${i} (${e.state}) at ${e.x.toFixed(2)} ${e.z.toFixed(2)}`
-    for (const b of all[i])
+    const e = w.ewes[i]
+    const where = `sheep ${i} (${e.state}, ${e.goal}) at ${e.x.toFixed(2)} ${e.z.toFixed(2)}`
+    for (const b of all[i]) {
       for (const cx of [b[0], b[1]]) for (const cz of [b[4], b[5]]) {
-        const ground = world.height(cx, cz)
+        const ground = w.height(cx, cz)
         assert.ok(ground > 0 && ground <= 1, `${where}: off level ground`)
         assert.ok(b[2] >= ground - 0.001, `${where}: sunk into the ground, ${b[2].toFixed(3)} < ${ground}`)
-        assert.ok(!world.blocked(cx, cz), `${where}: over something that stands in the field`)
-        assert.ok(b[6] !== 4 || !world.pond(cx, cz), `${where}: its body over the pond`)
+        assert.ok(!w.blocked(cx, cz), `${where}: over something that stands in the field`)
+        assert.ok(b[6] !== 4 || !w.pond(cx, cz), `${where}: its body over the pond`)
       }
-    for (let j = i + 1; j < all.length; j++)
-      for (const a of all[i]) for (const b of all[j]) assert.ok(a[1] <= b[0] || b[1] <= a[0] || a[3] <= b[2] || b[3] <= a[2] || a[5] <= b[4] || b[5] <= a[4], `sheep ${i} and ${j} overlap`)
+      for (const o of rest) assert.ok(clear(b, o), `${where}: in a duck, in the big grass, or in a thought bubble`)
+    }
+    for (let j = i + 1; j < all.length; j++) for (const a of all[i]) for (const b of all[j]) assert.ok(clear(a, b), `sheep ${i} and ${j} overlap`)
   }
 }
-apart()
+apart(world)
 
 const NEW: Entry[] = [
   { id: 901, seed: 901, name: 'Hat', message: '', date: '2026-11-22', look: { wear: 'hat' } },
   { id: 902, seed: 902, name: 'Bell', message: '', date: '2026-11-22', look: { wool: 2, wear: 'bell' } },
   { id: 903, seed: 903, name: 'Scarf', message: '', date: '2026-11-22' },
 ]
+/** A tile of level ground (or, if asked, of higher) near (x, z), not too near, where a tuft of big grass can go; or null. The same answer for the same world. */
+const patch = (w: Sheep, x: number, z: number, least = 2.5, most = 5, high = false) => {
+  for (let dz = -5; dz <= 5; dz++)
+    for (let dx = -5; dx <= 5; dx++) {
+      const far = Math.hypot(dx, dz)
+      if (far >= least && far <= most && w.height(Math.round(x) + dx, Math.round(z) + dz) > 1 === high && w.plantable(Math.round(x) + dx, Math.round(z) + dz)) return [Math.round(x) + dx, Math.round(z) + dz]
+    }
+  return null
+}
+/**
+ * Somebody plants grass as the day goes: a tuft every fifteen seconds or so near one sheep or another, now and then three
+ * in a row a few steps apart (a trail), and at night one right beside a sleeper. Always the same for the same world.
+ */
+const sow = (w: Sheep, step: number) => {
+  const turn = Math.floor(step / 300)
+  const row = turn % 4 === 0 ? [0, 8, 16] : [0]
+  if (step < 100 || !row.includes(step % 300)) return
+  const sleeper = w.ewes.find((e) => e.state === 'sleep' && e.lie > 0.9)
+  if (w.dark > 0.8 && !(sleeper && turn % 2)) return // (by night only the one beside a sleeper: the rest are let sleep)
+  const e = w.ewes[(turn * 7) % w.ewes.length]
+  const at = sleeper && turn % 2 ? patch(w, sleeper.x, sleeper.z, 1.9, 2.3) : patch(w, e.x + (step % 300) / 4, e.z)
+  if (at) w.plant(at[0], 1.1, at[1], step * 0.05)
+}
 const seen = new Set<string>()
 const from = world.ewes.map((e) => [e.x, e.z])
 let [hops, turns, regrown] = [0, 0, false]
-for (let step = 0; step < 7200; step++) { // a whole day and night, 360 seconds
-  const was = world.ewes.map((e) => [e.x, e.z, e.face])
+for (let step = 0; step < 3600; step++) { // a whole day and night, 180 seconds
+  const was = world.ewes.map((e) => [e.x, e.z, e.face, e.rush])
   world.update(0.05)
   twin.update(0.05)
+  sow(world, step)
+  sow(twin, step)
   // Part of the way through the day three more sheep come, dressed: one straight into the field, one let go over the
   // middle of the pond (where no sheep can stand: it lands on the nearest grass), one dressed twice and then let go.
   if (step === 1500)
@@ -75,7 +117,7 @@ for (let step = 0; step < 7200; step++) { // a whole day and night, 360 seconds
       w.dismiss()
       assert.ok(!w.guest && w.ewes.length === n + 3 && w.room(), 'one that is sent away leaves nothing behind')
     }
-  if (step % 8 === 0) apart()
+  if (step % 8 === 0) apart(world)
   world.ewes.forEach((e, i) => {
     seen.add(e.state)
     if (!was[i]) return // (it came this very step)
@@ -87,11 +129,12 @@ for (let step = 0; step < 7200; step++) { // a whole day and night, 360 seconds
     if (!dx && !dz) return
     // Straight ahead, the way it looks (`face` 0 is along, 1 across, 2 and 3 the other way), and not by leaps.
     assert.deepEqual([Math.sign(dx), Math.sign(dz)], [[0, 1], [1, 0], [0, -1], [-1, 0]][e.face], 'a sheep goes the way it looks, never sideways')
-    assert.ok(Math.hypot(dx, dz) <= 0.85 * 0.05 + 1e-9, 'and at a calm pace')
+    assert.ok(Math.hypot(dx, dz) <= 0.85 * (was[i][3] > 1 || e.rush > 1 ? 1.9 : 1) * 0.05 + 1e-9, 'and at a calm pace, unless it is running')
     if (e.y > 1.05) hops++
   })
 }
 assert.deepEqual(told(world), told(twin), 'the same seed, the same day')
+assert.deepEqual(world.did, twin.did, 'and the same things happen in it')
 for (const state of ['walk', 'eat', 'drink', 'sleep']) assert.ok(seen.has(state), `a sheep was seen to ${state}`)
 assert.ok(world.bites > 5, 'they eat the grass')
 assert.ok(hops > 500 && turns > 20, 'they go at a hop, and turn')
@@ -122,6 +165,159 @@ for (let i = 0; i < 70 * 20; i++) {
 }
 assert.ok(regrown && empty.long(x, z), 'and it grows back')
 
+// Life in the field, on other days (other seeds): play, big grass, ducks and all, and still no cube in another. Over
+// the days everything that can happen does. And a sheep that is in the middle of a game can be clicked, and a new
+// sheep dressed and put down beside it, and the game goes on.
+const did: Record<string, number> = { ...world.did }
+let met = 0
+for (const seed of [2, 3, 4, 5]) {
+  const field = new Sheep(undefined, seed)
+  let slept = 0
+  for (let step = 0; step < 3600; step++) {
+    field.update(0.05)
+    sow(field, step)
+    if (step % 12 === 0) apart(field)
+    const player = field.ewes.findIndex((e) => e.mate && e.state === 'walk')
+    if (player >= 0 && step % 400 === 7 && field.room()) {
+      const { mate } = field.ewes[player]
+      field.glad(player)
+      assert.ok(field.ewes[player].hop > 0 && field.ewes[player].mate === mate, 'a sheep at play hops when it is clicked, and plays on')
+      const by = patch(field, field.ewes[player].x, field.ewes[player].z, 1.5)
+      field.update(0.4) // (long enough since the last tuft for another)
+      assert.ok(!by || field.plant(by[0], 1.1, by[1], 1e6 + step) >= 0, 'a tuft can be planted beside two that are playing')
+      assert.ok(field.bring({ ...NEW[1], id: 950 + met, seed: 950 + met }, field.ewes[player].x, field.ewes[player].z))
+      field.update(0.4)
+      const under = field.plant(field.guest!.x, 1.1, field.guest!.z, 2e6 + step)
+      assert.ok(under >= 0 && !field.plantable(field.guest!.x, field.guest!.z), 'and one aimed at where a new sheep is about to come down goes beside that, not under it')
+      field.dress({ wear: 'hat' })
+      assert.ok(field.drop() >= 0, 'and a new sheep can be put down beside it')
+      field.update(0.05)
+      apart(field)
+      met++
+    }
+    for (const e of field.ewes) assert.ok(!e.mate || e.mate.mate === e, 'two that play are each the other\'s')
+    slept += field.ewes.filter((e) => e.state === 'sleep').length * 0.05
+  }
+  for (const what in field.did) did[what] += field.did[what]
+  const night = slept / field.ewes.length
+  assert.ok(night > 12 && night < 35, `a sheep sleeps for up to half a minute of the day (less, woken for grass), not ${night.toFixed(0)} s`)
+  assert.ok(field.ewes.every((e) => !e.mate || e.mate.mate === e) && field.ducks.every((duck) => (duck.state === 'ride') === !!duck.on || duck.state === 'fly'), 'nothing is left half done')
+}
+assert.ok(met > 0, 'a sheep was caught at play')
+assert.ok(thought > 1 && thought <= 6, `thought bubbles come up, a few at a time: ${thought} at the most`)
+for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own test is below: that takes a tuft up a slope) */, `over five days nobody was seen to ${what}: ${JSON.stringify(did)}`)
+
+// The light of a day never jumps: from one step to the next the sun, the soft light, the sky and the height of the sun
+// change by very little, all the way round through dusk, night and dawn, and on over the end of one day into the
+// next: the day ends as it began. The night is dark, and the day bright. And a world that begins part of the way
+// through a day (a page loaded again) has the light of that time of day, and not noon's.
+{
+  const day = new Sheep([])
+  const light = (w: Sheep) => [w['sun'].intensity, w['glow'].intensity, w.sky.r, w.sky.g, w.sky.b, w['sun'].color.r, w['sun'].color.g, w['sun'].color.b, w['sun'].position.y / 30, w.dark]
+  let [was, least, most, jump] = [light(day), 9, 0, 0]
+  for (let step = 0; step < 2 * 3600 + 200; step++) {
+    day.update(0.05)
+    const now = light(day)
+    now.forEach((value, k) => {
+      jump = Math.max(jump, Math.abs(value - was[k]))
+      assert.ok(Math.abs(value - was[k]) < 0.006, `the light jumped at ${(step / 20).toFixed(1)} s: ${was[k]} to ${value}`)
+    })
+    was = now
+    least = Math.min(least, now[0])
+    most = Math.max(most, now[0])
+    if (step === 3599) light(new Sheep([])).forEach((value, k) => assert.ok(Math.abs(value - now[k]) < 0.006, 'the day ends in the light it began in'))
+  }
+  assert.ok(least <= 1.05 && most >= 2.7 && most <= 2.8, 'a dark night, and a day that is bright but never glaring')
+  const late = new Sheep([], 1, 90)
+  const there = new Sheep([])
+  for (let i = 0; i < 1800; i++) there.update(0.05)
+  light(late).forEach((value, k) => assert.ok(Math.abs(value - light(there)[k]) < 0.01, 'a world that begins at midnight is as dark as midnight'))
+  assert.ok(late.dark > 0.95)
+}
+
+// Planting: only on level grass with nothing and nobody on it; not twice in a blink; five at the most, and then the
+// oldest goes; the eighth is golden.
+{
+  const lone = new Sheep([FLOCK[0]])
+  const sheep = lone.ewes[0]
+  let tree = [0, 0]
+  for (let z = -REACH; z <= REACH; z++) for (let x = -REACH; x <= REACH; x++) if (lone.blocked(x, z) && lone.height(x, z) === 1 && !lone.pond(x, z)) tree = [x, z]
+  const wait = () => {
+    for (let i = 0; i < 9; i++) lone.update(0.05)
+  }
+  let clock = 100
+  const golden: boolean[] = [] // whether each tuft planted here, in turn, was a golden one
+  const free = patch(lone, sheep.x + 9, sheep.z, 0, 9)!
+  // A click on something that cannot take grass plants on the nearest tile that can: never under the sheep, never in
+  // the water, never on the tree. Only out at sea, with nothing near, is there a no.
+  for (const [what, x, y, z] of [['the pond', -4, 0.94, 5], ['the cave', 0, 2.1, -13], ['a tree', tree[0], 1.1, tree[1]], ['a sheep', sheep.x, 1.1, sheep.z], ['the side of a bank', free[0], 2.5, free[1]]] as const) {
+    const k = lone.plant(x, y, z, (clock += 1))
+    assert.ok(k >= 0, `a click on ${what} planted nothing`)
+    golden.push(lone.treats[k].gold)
+    const t = lone.treats[k].t
+    const [tx, tz] = [(t % (2 * REACH + 1)) - REACH, Math.floor(t / (2 * REACH + 1)) - REACH]
+    assert.ok(Math.hypot(tx - x, tz - z) < 3 && !lone.pond(tx, tz) && !lone.blocked(tx, tz) && lone.height(tx, tz) >= 1, `a click on ${what} planted on ${tx} ${tz}`)
+    lone.update(0.05)
+    apart(lone)
+  }
+  assert.equal(lone.plant(40, 0, 40, (clock += 1)), -1, 'grass was planted out at sea')
+  for (let i = 0; i < 1400 && lone.treats.some((tuft) => tuft.t >= 0); i++) lone.update(0.05) // (until those have gone)
+  const herd = new Sheep()
+  const near = herd.ewes.map((e) => patch(herd, e.x, e.z, 0, 4, true)).find((at) => at)!
+  const k = herd.plant(near[0], herd.height(near[0], near[1]) + 0.1, near[1], 5)
+  assert.ok(k >= 0 && herd.height(near[0], near[1]) > 1, 'grass goes on the hillside too')
+  herd.update(0.05)
+  for (const c of herd.treats[k].cubes) assert.ok(herd.ground.at(c)[1] - herd.ground.at(c)[4] / 2 >= herd.height(near[0], near[1]) - 0.001, 'and stands on it, not in it')
+  for (let i = 0; i < 1300 && !herd.did.gaze; i++) herd.update(0.05)
+  assert.ok(herd.did.gaze > 0 && herd.did.treat === 0, 'a sheep comes to look at what it cannot reach')
+  const first = lone.plant(free[0], 1.1, free[1], (clock += 1))
+  assert.ok(first >= 0, 'grass goes on grass')
+  golden.push(lone.treats[first].gold)
+  assert.equal(lone.plant(free[0] + 1, 1.1, free[1], clock + 0.2), -1, 'but not twice in a blink')
+  const again = lone.plant(free[0], 1.1, free[1], (clock += 1))
+  assert.ok(again >= 0 && lone.treats.filter((tuft) => tuft.t >= 0).length === 2, 'and a second click on the same tile plants beside it')
+  golden.push(lone.treats[again].gold)
+  const tiles: number[][] = [free]
+  for (let k = 0; k < 7; k++) {
+    wait()
+    const next = patch(lone, sheep.x + 9, sheep.z, 0, 9)!
+    const one = lone.plant(next[0], 1.1, next[1], (clock += 1))
+    assert.ok(one >= 0)
+    golden.push(lone.treats[one].gold)
+    tiles.push(next)
+  }
+  assert.equal(lone.treats.filter((tuft) => tuft.t >= 0).length, 5, 'five tufts at the most')
+  assert.ok(lone.plantable(tiles[0][0], tiles[0][1]) && !lone.plantable(tiles[7][0], tiles[7][1]), 'the oldest has gone, to make room')
+  assert.deepEqual(golden.map((gold, k) => (gold ? k : -1)).filter((k) => k >= 0), [6], 'and one in eight is a golden one: here, with this world\'s seed, the seventh')
+  const before = lone.did.treat
+  for (let i = 0; i < 1200 && lone.did.treat === before; i++) lone.update(0.05)
+  assert.ok(lone.did.treat > before, 'a sheep runs for the grass, and eats it')
+}
+
+// The door in the mountain is no sheep: its cubes are the ground's and say so. It is locked: a knock rattles it and
+// that is all, however often. On it is L (fifty), of two gold boxes that stand proud of the planks; no box of the door
+// is in another, and all of it stands on its step.
+{
+  const field = new Sheep()
+  const { door } = field
+  const box = (c: number) => {
+    const [x, y, z, wide, h, d] = field.ground.at(c)
+    return [x - wide / 2, x + wide / 2, y - h / 2, y + h / 2, z - d / 2, z + d / 2]
+  }
+  assert.ok(door.cubes.length === 7 && door.cubes.every((c) => field.portal(c)) && !field.portal(0) && field.pick(door.cubes[0]) !== DOOR, 'the door\'s cubes are the door\'s, and nobody else\'s')
+  for (let knocks = 0; knocks < 3; knocks++) {
+    field.glad(DOOR)
+    for (let i = 0; i < 60; i++) field.update(0.05)
+    assert.ok(door.cubes.every((c) => field.ground.on(c)) && field.latch() === 'a locked door', 'a knock rattles the door, and it stays shut')
+  }
+  const numerals = door.cubes.slice(5)
+  const planks = box(door.cubes[0])
+  assert.ok(numerals.length === 2 && numerals.every((c) => box(c)[4] >= planks[5] - 1e-4 && box(c)[0] > planks[0] && box(c)[1] < planks[1]), 'the L stands on the planks, proud of them')
+  door.cubes.forEach((a, i) => door.cubes.slice(i + 1).forEach((b) => assert.ok(clear(box(a).map((v, k) => v + (k & 1 ? -1e-4 : 1e-4)), box(b)), 'two boxes of the door in each other'))) // (to a hair: they touch)
+  for (const c of door.cubes) assert.ok(box(c)[2] >= 2 - 0.001 && field.height(field.ground.at(c)[0], field.ground.at(c)[2]) === 2, 'the door stands on its step')
+  assert.ok(field.ewes.every((e) => Math.hypot(e.x - door.x, e.z - door.z) > 1), 'and no sheep is at it')
+}
+
 // A sheep let go falls out of the sky as anything falls: from the same height in the same time, however long a frame is.
 const landing = (dt: number) => {
   const field = new Sheep([])
@@ -151,6 +347,18 @@ const press = (key: string, target: object) => {
   view['onKey']({ type: 'keyup', key, target } as unknown as KeyboardEvent)
   return [view.pan.x, view.pan.z, view.yaw, view.zoom].join() !== from
 }
+// How close the camera is, which every game's picture goes soft by from close up: nothing with the whole land in the
+// picture, all of it right up close, evenly between, by the island's own numbers; and the view on the page says it.
+assert.deepEqual([60, 34, 29, 24, 19, 14, 11].map(close), [0, 0, 0.25, 0.5, 0.75, 1, 1])
+for (let dist = 11; dist < 60; dist++) assert.ok(close(dist) >= close(dist + 1) && close(dist) === Math.min(1, Math.max(0, (34 - dist) / 20)), 'closer is never less close')
+assert.equal(viewing(), view)
+view.update(0.016, lens, 1280, 800)
+assert.equal(view.near, 0, 'from where the whole field is seen, it is not close at all')
+view.zoom = 4
+view.update(0.016, lens, 1280, 800)
+assert.ok(view.near > 0.99, 'and right in, it is')
+view.zoom = 1
+view.update(0.016, lens, 1280, 800)
 for (const key of ['w', 'a', 's', 'd', 'q', 'e', '+', '-', 'ArrowUp']) {
   for (const box of [{ tagName: 'INPUT' }, { tagName: 'TEXTAREA' }, { tagName: 'SELECT' }, { tagName: 'DIV', isContentEditable: true }]) assert.ok(!press(key, box), `${key} typed into ${box.tagName} moved the camera`)
   assert.ok(press(key, { tagName: 'BODY' }), `${key} on the page should move the camera`)

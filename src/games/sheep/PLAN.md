@@ -40,8 +40,10 @@ None of these was decided with him. Each is small and easy to change.
   the head). Or nothing. No gift unlocks anything.
 - **Name**: optional, up to 24 letters; none is "a sheep". **Message**: optional, up to 80 letters. Links, angle
   brackets and invisible characters are taken out of both (`tidy`); nothing else is judged.
-- **No amount, no minimum, no payment form**: one button, "Put it in the field", and a line that says paying is not
-  built and the sheep lives in this browser only.
+- **The card** (asked for by the owner later): one card in two halves, the gift on the left and the sheep in a
+  window with its looks under it on the right. The gift is €3, €5, €10 or a number of the giver's own; with no
+  server the amounts are there to be looked at and a line says that nothing is charged and the sheep lives in this
+  browser only.
 - **The words**: the button in the top bar is "Buy me a sheep"; the card is "A sheep of your own"; while placing,
   "Click where it should land. It will wander off anyway."
 - **Placing**: the sheep hangs over the nearest place it could stand, so what is seen is where it lands; a click

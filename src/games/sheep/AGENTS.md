@@ -14,6 +14,8 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
 | File | What |
 | --- | --- |
 | `Sheep.ts` | The world, no React. At its top: the numbers (`REACH SPAN ROUND REGROW DAY SLEEP WAKE HOP STEPS GLAD STONY SNOWY`); the water and the things by tile (`BROOK LAKE DUCK FENCE BALES CAVE FLOOR ROOF`); the land, worked out once (`LAND` heights, `ROCK` bare stone, `KIND` 1 ground 2 brook 3 pond 4 cave, `BLOCK`, `TREES ROCKS SHORE FALLS`); the parts (`EWE`, `BODY`, `HEAD`, and the scenery's). Then the class. |
+| `model.ts` | The sheep as cubes, for the field and for the window it is dressed in alike: `EWE` (its eleven boxes), `WORN` (what it can wear), `BODY HEAD NOSE LEGS` (its measures), `limbs` (its cubes in a pool), `clothe` (its look put on), `pose` (its cubes put where it is: the hop, the legs, the head, the ears); and the thought bubble: `BUBBLE`, `THINK` (the pictures), `LINES`, `speak` (its cubes put where it is). |
+| `Fitting.tsx` | The window a sheep is dressed in: a small canvas of its own, a very small island with the sheep on it, no finish. |
 | `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words); the gift (`LEAST MOST CURRENCY`), a new sheep's number (`newId isId`) and its seed (`seedOf`). The server (`sheep-api/`) imports all of it. |
 | `flock.ts` | The sheep there are: `{ id, seed, name, message, date, look? }`. Index in `FLOCK` is the sheep's index in `world.ewes`. And `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
 | `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`), or with a server (`API`) everybody's (`herd`), the checkout, and the wait for a sheep Stripe has not told the server about yet (`waiting`, `late`). |
@@ -51,8 +53,8 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
 - The mountain is a round heap inside the edge (`mount` in the land), a step at a time on every side, so no face of
   it is wide and flat and grass lies round its foot. Its stone (`ROCK`: the mountain from `STONY` up) is clean grey,
   with lumps and loose stones on it and rubble on the grass below: no moss, no grass, no flowers; snow from `SNOWY`.
-- Water is the island's (`Island.ts`, where a bed is laid): a whole tile of it to the tile, 0.44 deep on a bed, in the
-  same see-through `'waves'` material. The pond is that and the brook is that too, a tile wide, both with whole tiles for edges
+- Water is the island's (`Island.ts`, where a bed is laid): a whole tile of it to the tile, 0.44 deep on a bed, as
+  see-through and with the same waves (but drawn as one piece: see `pour` below). The pond is that and the brook is that too, a tile wide, both with whole tiles for edges
   as on the island: no small pieces of bank cut into corners (the owner asked what they were). Reeds stand in the
   water at some of the pond's outward corners, and no sheep puts its head over those tiles. The brook starts in the rock and goes down one step at a time; a tile it steps down from
   (`DEEP`) holds a whole cube of water, down to the water below, so it comes down as blocks one under the next. No
@@ -64,21 +66,105 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   glow, and a warm `PointLight`. Its sheep is drawn by the same `draw` (on `base`, its floor), hops when clicked,
   and never moves: `fits` and the flock know nothing of it.
 - A look: `wool` is a place in `WOOL` (else the seed picks), `wear` one of `WEARS`. What is worn is up to three more
-  boxes (`WORN`), on the three cubes every sheep keeps for it (`SLOTS`), drawn by the same `draw`: on the head and no
+  boxes (`WORN`), on the three cubes every sheep keeps for it (`SLOTS`), drawn by the same `pose`: on the head and no
   further back than it (hat, flowers, the bell under an ear), or on the back with the body (the scarf). `BODY` is a
   little wider than the wool, for the scarf's end. The test's whole day has all four in the field.
-- Buying, for now (`SheepPage.tsx`): the button brings a sheep to hang where the visitor is looking, up in the sky
-  (`ALOFT`, 6 over the grass), with the yellow arrow of `../basics.ts` bobbing over it and a yellow frame on the
-  ground where it would land; the view goes in on it as near as `View`
-  goes, and in an upright window looks a little under it, so that it is clear of the card. The card dresses it there.
-  (Typing in the card does not move the view: `View.ts` leaves keys typed into a text field alone.) "Put it in the field" is the stand-in for paying: `tidy`, the entry kept
-  in this browser, the address made `?sheep=<id>` as Stripe's return will make it, and the sheep hangs from the
-  cursor at the same height, the view out again and down to the grass, always over a place it could stand. A click drops it (`drop`: it falls from there under `GRAVITY`, by how long it has
-  fallen and so the same at any frame rate; then a puff, a heart, a hop), its bubble
-  opens, and the address is put back. A page loaded with `?sheep=<id>` of a kept sheep starts at the hanging. The
-  place is not kept: on the next visit the sheep stands where its seed says. The field has cubes for `SPARE` (8)
-  more sheep than it began with; after that the button says the field is full.
-- The day is `DAY` seconds: bright, dark in the middle (`dark`); sheep lie down above `SLEEP`, get up below `WAKE`.
+- Buying (`SheepPage.tsx`, `Fitting.tsx`): the button in the top bar opens one card in the middle of the window
+  (`.veil`, `.dress`: a dialogue, Escape or "Never mind" or a click beside it puts it away, Tab stays inside it),
+  in two halves. On the right the sheep in a window of its own (`Fitting`: a small plain canvas with a very small island of the field's kind, earth under grass, blades and
+  flowers in the wind, a little tree, a stone, a toadstool, all of it inside the frame; and the sheep on it, drawn
+  by `model.ts` as the field's are, hopping, nodding, hopping again and thinking something in a cube bubble when it
+  is given a thing; the picture goes slowly all the way round, and a drag turns it; the sky and two clouds are the
+  window's own, in CSS) and
+  under it, each with a small label over it ("Wool", "Wearing", "Your sheep's name", "What is the sheep thinking
+  about?"), its wool, one thing to wear, its name, and a few words with their count. On the left the gift (€3, €5,
+  €10, or a number from `LEAST` to `MOST`), a line that says plainly what it is, what the sheep has on, and the
+  button. On a narrow screen the halves are one over the other (the sheep, its looks, the gift), and the button
+  stays at the foot of the card. Nothing is in the field while a sheep is dressed, and the view does not move.
+  (Typing in the card does not move the view either: `View.ts` leaves keys typed into a text field alone.)
+- "Put it in the field": with no server (`VITE_SHEEP_API` unset) nothing is charged and the card says so; the entry
+  goes through `tidy`, is kept in this browser, the address is made `?sheep=<id>` as Stripe's return makes it, and
+  the sheep comes to hang over the field (`bring`: `ALOFT`, 6 over the grass, the yellow arrow of `../basics.ts`
+  over it, always over a place it could stand, and from the cursor). With a server the card posts to `/checkout`
+  and goes to Stripe, which sends the giver back to `?sheep=<id>` and the same hanging. A click drops it (`drop`:
+  it falls under `GRAVITY`, by how long it has fallen and so the same at any frame rate; then a puff, a heart, a
+  hop), its bubble opens, and the address is put back. The place is not kept: on the next visit the sheep stands
+  where its seed says. The field has cubes for `SPARE` (8) more sheep than it began with; after that the button
+  says the field is full.
+- Life (all of it by `chance()`, so a seed plays the same day again; `did` counts each thing as it happens):
+  - **Play**: the zoomies (`zoom`: two or three fast runs, ears up); chase (`mate`, `lead`, `fun`: one runs, the other
+    runs at it, and at every bump they hop and change over; `play` is the next move, `part` lets go of both, whichever
+    stops, and night stops it). A run is the same walk, faster (`rush`): hop, quarter turns, across then along, `fits`.
+  - **Night**: one that likes company waits to see who lies down first, then goes and lies beside it (`nap`); a nosy
+    one goes and wakes a sleeper, which starts up with a hop (`poke`). Each sheep thinks of it twice a night at most.
+  - **Big grass** is planted by the visitor, and never comes up by itself. A click anywhere on the land
+    (`plant(x, y, z, now?)`, with the point that was hit) puts a tuft on the tile that was clicked if it is
+    `plantable`, and else on the nearest tile that is, within three tiles: so a click on the pond plants on its
+    bank, one on a sheep beside the sheep, one on a tree beside the tree. `plantable`: dry ground of any height
+    (meadow, slope, knoll, rock, snow) with nothing standing on it (`bare`: no tree, rock, lump, rubble, fence or
+    bale; flowers and blades do not count, they hide while the tuft stands), no tuft, and no part of a sheep over
+    it (a sheep beside it is no matter). Only with nothing near at all does a small puff say no. The tuft stands at
+    its tile's own height. `PAUSE` (0.35 s, by the clock on the wall: `now`, which tests give) between two;
+    `TREATS` (5) at the most, and then the oldest goes; each stands `RIPE` (60) seconds; every eighth, by a count
+    and the world's seed, is golden.
+  - **What the sheep do about it**, none of it by chance beyond the world's own: the nearest three that notice run
+    for it (`after`; the greedy from further), and anybody with nothing to do who sees one goes too, up to four a
+    tuft, day or night (`scent`): so a row of tufts is a trail, followed one after another. No sheep is over a
+    tuft's tile (`fits`). The first with its nose at it eats it (`sniffs`); a nosy one sends up petals as it does;
+    one beaten by a nose bumps and hops, and the rest are put out; a golden one sets everybody near hopping, and
+    its eater has sparks round its head for a while (`crown`). One planted right beside a sleeper wakes it with a
+    start. One up a slope or on the rock cannot be got at: a sheep runs to the nearest place it can stand, looks
+    up at it with a "?" and a hop, and does not come back to it (`gazed`).
+  - **The page**: a click with a sheep's bubble open only closes the bubble; while a sheep is dressed or put down a
+    click is that flow's. The field's own hint, "Click the grass to plant a snack", is in the shared `.hints`
+    style at the foot of the window and goes once a tuft has been planted (`g` in `sheep/known`): `Hints` itself
+    has a fixed list, and is not the sheep's to change.
+  - **Nothing shows where a click will plant, or that it will**: no marker on a tile, no lit tile, nothing at the
+    cursor. The owner had a frame, then a lit tile, then a small tuft at the cursor, each taken out in turn.
+  - **Water**: in the brook a sheep splashes (`splash` state: a hop and drops at a time), and may call a friend over
+    (`ford` finds the stretch). Anybody may, swimmers often.
+  - **Ducks** (`ducks`): three go round the pond a third apart, one sits on a level stretch of the brook in the
+    rocks; each has its tail up now and then. When a sheep starts to drink, a duck may fly to its back (`rider`), ride
+    for a while (the sheep stays put, and hops), and fly home. That is how "fly to their back" was read.
+  - **Small things**: a sheep smells a flower under its nose and petals go up; two birds on the fence's end posts;
+    fireflies at night over the pond and before the cave. (A sleeper has no bubble: the bits of its dream are enough.)
+  - **Thoughts** (`say`, `said`, set by `think`): a picture in a thought bubble over a sheep's head for a moment
+    (faces: `smile blush oh gasp sweat stars`, each a round yellow face with dot eyes, pink cheeks and a mouth; and
+    things: `heart grass note spark drop bang what flower`, the heart and the drops with a glint on them). The bubble is the island's, box for box, of
+    cubes in the world (`BUBBLE`, the pictures in `THINK`, drawn by `bubbles` from a pool of `THOUGHTS`, six, in
+    the ground's cubes): paper white, a slab with its corners off, two crumbs down to the thinker, a picture of a
+    few boxes standing proud of the paper; it pops up on the cubes' own spring, bobs and breathes as the island's
+    does, and faces the quarter turn nearest the camera (`watch(yaw)`, from the page), since cubes do not turn. It
+    is over its own sheep, higher than the top of any sheep at the top of any hop, and gives way to another bubble
+    too near, to a sheep coming down out of the sky near by, and to a duck on the wing: so it is in nothing, and the
+    test says so. None over a sleeper or a sheep with a duck on it; none over the sheep whose own bubble with its
+    name in is open, and none while a sheep is dressed or put down (`hush`, from the page). The bubble with a
+    sheep's name and words in it cannot be cubes: it is on the page (`.bubble`), in the same paper and with the
+    same two crumbs.
+  - A sheep on an errand that finds its way shut tries the other way round twice (`tries`) before it gives up.
+- The water is one mesh (`pour`), not a box a tile: the top of every tile and a side only where the brook steps down.
+  Boxes of see-through water showed every join, since each drew its sides inside the water. It still is whole blocks
+  of water as far as anything else knows (`height`, wading).
+- The door in the mountain (`PORCH`, `TRAIL`, `door`, `knock`, `latch`, `portal`, `DOOR` = -3): on the side seen
+  first, to the right, a small round-topped door of planks in a frame of stone, set in a block of rock over a clean
+  step of stone, half behind a boulder, with a lantern, hoof marks on the step and a trodden path over three tiles
+  of meadow up to it (walkable, nothing grows on them, not grazed). Nobody can stand on the step. On the planks,
+  standing proud of them: a gold knob, a lock with a keyhole, and an L in gold (fifty in Roman numerals: an
+  upright and a foot; it was XX first, and the owner changed it). It is locked and never opens (the owner's word): a click (`glad(DOOR)`) rattles it on the cubes'
+  spring with a little dust, and that is all. Its cubes are the ground's, with `DOOR` for their owner; the page
+  asks `portal`, for the pointer over it and the click. It has no bubble (the owner's word): `latch()`, "a locked
+  door", is all it has to say, and nothing shows it. It is not in `ewes` or `FLOCK`.
+- The day is `DAY` seconds (180): bright, dark in the middle (`dark`, a wave squared: dusk and dawn are slow, the
+  deep of the night brief). A visit begins at `MORNING` (0.78 of the way round: a little after sunrise), not at
+  noon. The light goes by `LIGHT`, a table of stops at the top of `Sheep.ts` by how high the sun
+  stands (noon is 2.75 for the sun and 1.12 for the soft light, on purpose under the castle's 3.2 and 1.25: the
+  owner found the open meadow too bright at those): blue night, violet, rose with a low orange sun, gold, clear day, and the same way back at dusk. The sun is
+  high at noon and low at sunrise and sunset (long shadows), and nothing jumps: the test holds every light value to
+  a change of under 0.006 a step, over the end of one day into the next. Fireflies thicken and thin with the dark.
+  `new Sheep(list, seed, start)` begins at a time of day; the page keeps the time in `sessionStorage`
+  (`sheep/time`) and begins there again, so that a reload (or the dev server putting the page together again) does
+  not leap from midnight to noon. Sheep lie down above `SLEEP` (0.9) and get up below `WAKE` (0.85): each sleeps about
+  half a minute of the day, and the test holds it to between 15 and 35 seconds. Fireflies are out above 0.6.
 - With a server (`VITE_SHEEP_API`): the page waits for `GET /sheep` before it builds the field (the made-up flock if
   none come back); a new sheep's number is `newId` and its seed `seedOf` it; "Put it in the field" posts the sheep and
   the gift (an input in euros, `LEAST` to `MOST`) to `/checkout` and goes to Stripe's page; back at `?sheep=<id>`, that

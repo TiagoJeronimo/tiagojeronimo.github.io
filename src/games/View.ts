@@ -16,6 +16,14 @@ const WIDE = 64 / 26 // from how far off the whole land is in the picture, for e
 const TALL = 74 / 26 // and in a window that is as wide as it is high: further, the narrower the window
 const UP = new Vector3(0, 1, 0)
 const FLOOR = new Plane(UP, 0) // the floor the land lies on: what the cursor is on when it is on nothing of the land
+/**
+ * How close a camera is that stands `dist` from what it looks at: 0 from 34 away or more, 1 from 14 or less, evenly
+ * between. (The island's measure, with the island's numbers: the two cameras come down, and go soft, alike.)
+ */
+export const close = (dist: number) => Math.min(1, Math.max(0, (34 - dist) / 20))
+const page: { view: View | null } = { view: null }
+/** The view there is on the page just now, if a game has made one: `Picture.tsx` asks it how close it is. */
+export const viewing = () => page.view
 const _p = new Vector3()
 const _q = new Vector3()
 
@@ -24,6 +32,8 @@ export class View {
   zoom = 1
   /** Where it looks, from the middle of the land on the flat ground: across, and up when it has gone in on something high. */
   readonly pan = new Vector3()
+  /** How close it is to what it looks at, from 0 (the whole land in the picture) to 1 (right up close): see `close`. */
+  near = 0
   /** Which of the three ways of getting about have been used: m(ove), z(oom), t(urn). */
   known = ''
   private canvas: HTMLElement
@@ -54,6 +64,7 @@ export class View {
     this.learnt = learnt
     this.lift = lift
     this.far = span * WIDE
+    page.view = this
     addEventListener('pointermove', this.onMove)
     addEventListener('pointerdown', this.onDown)
     addEventListener('pointerup', this.onUp)
@@ -65,6 +76,7 @@ export class View {
     addEventListener('blur', this.onBlur)
   }
   dispose() {
+    if (page.view === this) page.view = null
     removeEventListener('pointermove', this.onMove)
     removeEventListener('pointerdown', this.onDown)
     removeEventListener('pointerup', this.onUp)
@@ -210,7 +222,7 @@ export class View {
     // from the side, as into a diorama.
     this.far = this.span * Math.max(WIDE, TALL / (width / height))
     const dist = this.far / this.zoom
-    const near = Math.min(1, Math.max(0, (34 - dist) / 20))
+    const near = (this.near = close(dist))
     this.pitch += (TILT - 0.17 * near * near * (3 - 2 * near) - this.pitch) * (1 - Math.exp(-dt * 5))
     this.eye(camera.position)
     camera.lookAt(this.pan.x, 1 + this.pan.y, this.pan.z)
