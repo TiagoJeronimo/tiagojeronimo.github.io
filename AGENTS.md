@@ -83,6 +83,8 @@ The four checks pass before work is called done. One test alone: `node test/cast
 
 - Commit or push only when asked. Leave `.github/workflows/` alone: the owner changes those on GitHub.
 - No new dependency without asking. Before writing a helper, look in `src/games/`: it is probably there.
+- Change dependencies with GitHub's npm, not this Mac's (it drops `@emnapi/*` and the publish fails at `npm ci`):
+  `npx --yes npm@11.19.1 install --package-lock-only`, then `npx --yes npm@11.19.1 ci --dry-run`.
 - Nothing about the owner goes on the site that is not already in `src/content.ts`, and no fact about his work is made up.
 - A change to how a game plays is proposed and agreed before it is built. A fix or a look is just done.
 - TypeScript is strict, with `erasableSyntaxOnly` and `verbatimModuleSyntax`: no enums, no parameter properties,
