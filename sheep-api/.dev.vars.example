@@ -5,3 +5,10 @@ STRIPE_WEBHOOK_SECRET=whsec_paste_yours_here
 # On this machine the game calls from the dev server, and Stripe sends the giver back there.
 ORIGINS=http://localhost:5173,http://localhost:5174
 SITE=http://localhost:5173
+# The owner's page on this machine, without Cloudflare Access: http://localhost:8787/admin. It works only with this
+# exact value and only on localhost; leave it out to try the page shut. Never set it in wrangler.toml or in Cloudflare.
+ADMIN_DEV_BYPASS=on-this-machine-only
+# Only to try Access itself from this machine (rarely needed): the same three values as live.
+# ACCESS_TEAM=your-team-name
+# ACCESS_AUD=paste_the_application_audience_tag
+# ADMIN_EMAILS=you@example.com

@@ -5,25 +5,13 @@
 // origins; and no secret ever comes back in an answer.
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { DatabaseSync } from 'node:sqlite'
 import { LEAST, MOST, newId, seedOf } from '../../src/games/sheep/dress.ts'
 import worker, { type Env } from '../src/index.ts'
 import { TOLERANCE, signed } from '../src/signed.ts'
-import type { Db, Statement } from '../src/sql.ts'
+import type { Db } from '../src/sql.ts'
+import { d1, fresh } from './d1.ts'
 
-/** node:sqlite dressed as the little of D1 that `sql.ts` uses. */
-function d1(db: DatabaseSync): Db {
-  const statement = (query: string, values: unknown[]): Statement => ({
-    bind: (...more) => statement(query, more),
-    all: async <T,>() => ({ results: db.prepare(query).all(...(values as never[])) as T[] }),
-    first: async <T,>() => (db.prepare(query).get(...(values as never[])) ?? null) as T | null,
-    run: async () => ({ meta: { changes: Number(db.prepare(query).run(...(values as never[])).changes) } }),
-  })
-  return { prepare: (query) => statement(query, []) }
-}
-const sqlite = new DatabaseSync(':memory:')
-sqlite.exec(readFileSync(new URL('../migrations/0001_sheep.sql', import.meta.url), 'utf8'))
+const sqlite = fresh()
 
 const SECRET = 'sk_test_not_a_real_key_0123456789'
 const HOOK = 'whsec_not_a_real_secret_0123456789'

@@ -1,4 +1,4 @@
-# The sheep: "Buy me a sheep", at `/games/sheep/` (steps 1 to 3 of `PLAN.md`: built, not yet on the front page)
+# The sheep: "Buy me a sheep", at `/games/sheep/` (steps 1 to 4 of `PLAN.md`: built, not yet on the front page)
 
 A small island in the castle's manner: a meadow with a high knoll, a pond with a duck on it, a mountain at the back
 (a lumpy heap of rock with grass round its foot), a brook that runs out of the rock and down to the pond over little
@@ -87,7 +87,7 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
 
 ## Still to do
 
-Steps 4 and 5 of `PLAN.md`; a card on the
+Step 5 of `PLAN.md` (the admin page of step 4 is in `sheep-api/`); a card on the
 front page (not until the owner says); his own sheep in `flock.ts`. For the owner to judge: every default of steps 2 and 3,
 listed in `PLAN.md`.
 Not yet judged by the owner: round 3 (the heaped mountain, water as cubes, sheep without eyes, the cave). The cave sheep's line is his to write. Known and left: legs pass through blades of grass, as in the castle.

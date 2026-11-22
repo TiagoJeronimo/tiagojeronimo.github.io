@@ -9,6 +9,11 @@ send_metrics = false
 [vars]
 ORIGINS = "https://tiagojeronimo.github.io"
 SITE = "https://tiagojeronimo.github.io"
+# The owner's page, /admin, behind Cloudflare Access, needs ACCESS_TEAM (the team's name, <team>.cloudflareaccess.com),
+# ACCESS_AUD (the Access application's audience tag) and ADMIN_EMAILS (who may in, comma-separated). They are set as
+# secrets (`wrangler secret put ...`) and not here: a deploy would wipe values set in the dashboard by these, and the
+# owner's email has no business in a public repo. Until they are set, /admin refuses everybody.
+# Never put ADMIN_DEV_BYPASS here or in Cloudflare: it belongs in .dev.vars only.
 
 [[d1_databases]]
 binding = "DB"

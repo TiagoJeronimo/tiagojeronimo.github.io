@@ -1,10 +1,12 @@
 // The sheep's server: a Cloudflare Worker with a D1 database (see `../AGENTS.md`). Plain web Requests and Responses,
 // no SDK: Stripe is spoken to with `fetch`, and its signature is checked here with Web Crypto. All SQL is in `sql.ts`.
 import { CURRENCY, LEAST, MOST, isId, newId, seedOf, tidy } from '../../src/games/sheep/dress.ts'
+import type { Gate } from './access.ts'
+import { admin } from './admin.ts'
 import { signed } from './signed.ts'
 import { flock, put, taken, type Db } from './sql.ts'
 
-export type Env = {
+export type Env = Gate & {
   DB: Db
   /** Stripe's secret key (test mode: `sk_test_...`) and the webhook's signing secret (`whsec_...`). Never sent, never logged. */
   STRIPE_SECRET: string
@@ -113,6 +115,8 @@ async function stripe(request: Request, env: Env) {
 
 async function handle(request: Request, env: Env) {
   const { pathname } = new URL(request.url)
+  // The owner's page has its own door (`admin.ts`): Access's word, no CORS, nothing cached.
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) return admin(request, env)
   const allow = cors(request, env)
   if (request.method === 'OPTIONS' && (pathname === '/sheep' || pathname === '/checkout')) {
     if (!allow['access-control-allow-origin']) return new Response(null, { status: 403, headers: allow })
@@ -134,7 +138,7 @@ export default {
     } catch (error) {
       // What went wrong stays here; the caller gets two words.
       console.error('sheep-api:', error instanceof Error ? error.message : 'unknown')
-      return no(500, 'server')
+      return no(500, 'server', { 'cache-control': 'no-store' })
     }
   },
 }

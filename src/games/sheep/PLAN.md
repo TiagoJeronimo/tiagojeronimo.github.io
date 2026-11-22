@@ -1,6 +1,6 @@
 # Buy me a sheep: the plan
 
-Brainstormed with the owner on 2026-11-22. Steps 1 to 3 of the build order are built (see `AGENTS.md` beside this,
+Brainstormed with the owner on 2026-11-22. Steps 1 to 4 of the build order are built (see `AGENTS.md` beside this,
 and `sheep-api/AGENTS.md` for the server); the rest is still the plan.
 
 ## The idea
@@ -61,6 +61,14 @@ None of these was decided with him. Each is small and easy to change.
   leave them out: the plan won).
 - **Back from Stripe before Stripe's word**: the page asks again every 1.5 s for 15 s, then says to look again in a
   minute. The words: "Paid on Stripe's page, from €2. It is a donation; the sheep is the thank-you, and it stays."
+
+## Step 4, as built: defaults for the owner to judge
+
+- **Who may in**: only the addresses in `ADMIN_EMAILS`, checked by the worker as well as by Access; none set, nobody.
+- **The page**: "The sheep's messages", newest first: name, message, date and time (UTC), amount, number, and a
+  count at the top ("3 sheep, €15.00 in all, 1 keeping quiet"). A hidden sheep stays on the page, faded and struck
+  through, with Show. No delete: a hidden sheep is as good as gone from the field, and its gift is still on record.
+- **No script** on it at all; light and dark by the device.
 
 ## Still to decide
 
@@ -125,7 +133,9 @@ owner ──/admin (behind Cloudflare Access)──▶ worker: list messages, hi
    needs no bank details), copy `sheep-api/.dev.vars.example` to `.dev.vars` and paste the test secret key, run the
    four commands in `sheep-api/AGENTS.md`, put the `whsec_` that `stripe listen` prints into `.dev.vars` and restart
    the worker, then buy a sheep with card 4242 4242 4242 4242. No Cloudflare account is needed for this.
-4. The admin page behind Access.
+4. (Built, locally.) The admin page behind Access: `/admin` on the worker, every sheep newest first with Hide and
+   Show. The worker checks Access's JWT itself as well. Locally it opens with `ADMIN_DEV_BYPASS` in `.dev.vars`;
+   live, the owner makes the Access application and sets three secrets (`sheep-api/AGENTS.md`, "Live, later").
 5. Live: the owner's accounts and keys, Stripe in live mode, a card on the front page.
 
 The owner makes the accounts, since they hold his money and identity: **Stripe** (live mode needs his details and a
