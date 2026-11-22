@@ -43,7 +43,7 @@ export const MOST = 10000
 export const CURRENCY = 'eur'
 
 /**
- * A new sheep's number, picked by the page before paying: 2^32 and up, so it is never one of the made-up flock's, and
+ * A new sheep's number, picked by the page before paying: 2^32 and up, so it is never the resident's (which is 1), and
  * up to 2^53, so it is too many to guess and still a whole number in JavaScript and in SQLite.
  */
 export const newId = () => {

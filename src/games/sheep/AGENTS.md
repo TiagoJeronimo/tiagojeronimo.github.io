@@ -2,7 +2,7 @@
 
 A small island in the castle's manner: a meadow with a high knoll, a pond with a duck on it, a mountain at the back
 (a lumpy heap of rock with grass round its foot), a brook that runs out of the rock and down to the pond over little
-steps, trees (some in blossom), rocks, a fence with two bales; twenty made-up sheep going about at a hop; and one
+steps, trees (some in blossom), rocks, a fence with two bales; the sheep going about at a hop (one resident, Claude the sheep, and whoever was given); and one
 more in a lit cave in the back of the mountain.
 A visitor can dress a sheep of their own and put it in the field, for nothing and in their own browser only. Built
 with `VITE_SHEEP_API` set (the address of `sheep-api/`, the server of step 3), the page pays through Stripe and shows
@@ -17,7 +17,8 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
 | `model.ts` | The sheep as cubes, for the field and for the window it is dressed in alike: `EWE` (its eleven boxes), `WORN` (what it can wear), `BODY HEAD NOSE LEGS` (its measures), `AGED`, `KEEPSAKES` and `GREY` (the very old sheep's), `limbs` (its cubes in a pool: eleven, three for what it wears, two for horns), `clothe` (its look put on), `pose` (its cubes put where it is: the hop, the legs, the head, the ears); and the thought bubble: `BUBBLE`, `THINK` (the pictures), `LINES`, `speak` (its cubes put where it is). |
 | `Fitting.tsx` | The window a sheep is dressed in: a small canvas of its own, a very small island with the sheep on it, no finish. |
 | `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words); the gift (`LEAST MOST CURRENCY`), a new sheep's number (`newId isId`) and its seed (`seedOf`). The server (`sheep-api/`) imports all of it. |
-| `flock.ts` | The sheep there are: `{ id, seed, name, message, date, look? }`. Index in `FLOCK` is the sheep's index in `world.ewes`. And `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
+| `flock.ts` | An `Entry` is `{ id, seed, name, message, date, look? }`. `FLOCK` is the one sheep that is always in the field and that nobody gave: Claude the sheep (id 1, the test sheep; the owner's idea and name). It is first in `world.ewes`, with every given sheep after it. Also `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
+| `crowd.ts` | `CROWD`: twenty made-up sheep. For the tests (`new Sheep(CROWD)`: play, chases, leaps, company), and in development only for `/games/sheep/?crowd`, to watch a full field. The page's use of it is behind `import.meta.env.DEV`, so it is not in what is published: keep it so. |
 | `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`), or with a server (`API`) everybody's (`herd`), the checkout, and the wait for a sheep Stripe has not told the server about yet (`waiting`, `late`). |
 
 ## The world from outside
@@ -133,7 +134,13 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   goes through `tidy`, is kept in this browser, the address is made `?sheep=<id>` as Stripe's return makes it, and
   the sheep comes to hang over the field (`bring`: `ALOFT`, 6 over the grass, the yellow arrow of `../basics.ts`
   over it, always over a place it could stand, and from the cursor). With a server the card posts to `/checkout`
-  and goes to Stripe, which sends the giver back to `?sheep=<id>` and the same hanging. A click drops it (`drop`:
+  and puts Stripe's own form where its buttons were (`till`; Stripe.js from `js.stripe.com` by a script tag, only
+  then, with the publishable key `VITE_STRIPE_PUBLISHABLE`; the card says so if there is none). The looks and the
+  gift are locked (`inert`) while it is there; "Never mind" under it, Escape or a click beside the card take it away
+  (`destroy`: one on a page at a time) and the session with it, unpaid. Paid (`onComplete`), the sheep as it was sent
+  comes to the same hanging at once, from what the page knows, with no wait for the server; Stripe tells the worker
+  in its own time, for everybody else. A way of paying that goes to a bank's own page comes back to `?sheep=<id>`,
+  and from there as before (`waiting`, `late`). The form's colours are the owner's, in Stripe's dashboard. A click drops it (`drop`:
   it falls under `GRAVITY`, by how long it has fallen and so the same at any frame rate; then a puff, a heart, a
   hop), its bubble opens, and the address is put back. The place is not kept: on the next visit the sheep stands
   where its seed says. The field has cubes for `SPARE` (8) more sheep than it began with; after that the button
@@ -224,15 +231,15 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   (`sheep/time`) and begins there again, so that a reload (or the dev server putting the page together again) does
   not leap from midnight to noon. Sheep lie down above `SLEEP` (0.9) and get up below `WAKE` (0.85): each sleeps about
   half a minute of the day, and the test holds it to between 15 and 35 seconds. Fireflies are out above 0.6.
-- With a server (`VITE_SHEEP_API`): the page waits for `GET /sheep` before it builds the field (the made-up flock if
-  none come back); a new sheep's number is `newId` and its seed `seedOf` it; "Put it in the field" posts the sheep and
-  the gift (an input in euros, `LEAST` to `MOST`) to `/checkout` and goes to Stripe's page; back at `?sheep=<id>`, that
+- With a server (`VITE_SHEEP_API`): the page waits for `GET /sheep` before it builds the field: Claude the sheep, and with it
+  every sheep that comes back (none, if the server is down: Claude is there all the same); a new sheep's number is `newId` and its seed `seedOf` it; "Put it in the field" posts the sheep and
+  the gift (an input in euros, `LEAST` to `MOST`) to `/checkout` and pays in the card (above); back at `?sheep=<id>`, that
   sheep hangs to be dropped, or if it is not in the list yet the page asks again for 15 s (`waiting`) and then says
   so (`late`). Nothing is kept in this browser then.
 
 ## Still to do
 
 Step 5 of `PLAN.md` (the admin page of step 4 is in `sheep-api/`); a card on the
-front page (not until the owner says); his own sheep in `flock.ts`. For the owner to judge: every default of steps 2 and 3,
+front page (not until the owner says); more residents in `flock.ts` (it is one, by his word). For the owner to judge: every default of steps 2 and 3,
 listed in `PLAN.md`.
 Not yet judged by the owner: round 3 (the heaped mountain, water as cubes, sheep without eyes, the cave). The cave sheep's line is his to write. Known and left: legs pass through blades of grass, as in the castle.

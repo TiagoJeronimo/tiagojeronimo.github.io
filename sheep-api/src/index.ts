@@ -17,6 +17,11 @@ export type Env = Gate & {
   SITE: string
 }
 
+/**
+ * The version of Stripe's API the worker speaks, pinned so that a change in the account's default cannot change what
+ * its words mean. (`embedded_page` is this version's name for a checkout that sits inside the game's own card.)
+ */
+const STRIPE_VERSION = '2026-11-18.endive'
 const SMALL = 4 * 1024 // a checkout is a few hundred bytes
 const LARGE = 256 * 1024 // Stripe's events are a few kilobytes
 
@@ -59,13 +64,16 @@ async function checkout(request: Request, env: Env, allow: Record<string, string
   const { name, message, look } = tidy(given)
   const form = new URLSearchParams({
     mode: 'payment',
+    ui_mode: 'embedded_page',
     submit_type: 'donate',
     'line_items[0][quantity]': '1',
     'line_items[0][price_data][currency]': CURRENCY,
     'line_items[0][price_data][unit_amount]': String(amount),
     'line_items[0][price_data][product_data][name]': 'A sheep in the field',
-    success_url: `${env.SITE}/games/sheep/?sheep=${id}`,
-    cancel_url: `${env.SITE}/games/sheep/`,
+    // Paid in the card, the page drops the sheep itself (Stripe's `onComplete`). Only a way of paying that has to go
+    // to a bank's own page comes back here, by the address, as the page has always been able to take it.
+    redirect_on_completion: 'if_required',
+    return_url: `${env.SITE}/games/sheep/?sheep=${id}`,
     // What the sheep is, for when Stripe says it is paid for. Each value is far under Stripe's 500 characters.
     'metadata[id]': String(id),
     'metadata[name]': name,
@@ -74,15 +82,17 @@ async function checkout(request: Request, env: Env, allow: Record<string, string
   })
   const answer = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
-    headers: { authorization: `Bearer ${env.STRIPE_SECRET}`, 'content-type': 'application/x-www-form-urlencoded' },
+    headers: { authorization: `Bearer ${env.STRIPE_SECRET}`, 'content-type': 'application/x-www-form-urlencoded', 'stripe-version': STRIPE_VERSION },
     body: form,
   })
   if (!answer.ok) {
     console.error('sheep-api: stripe said', answer.status) // the status only: its body may name the key
     return no(502, 'stripe', allow)
   }
-  const { url } = (await answer.json()) as { url?: unknown }
-  return typeof url === 'string' && url.startsWith('https://') ? json({ url }, 200, allow) : no(502, 'stripe', allow)
+  // The session's client secret is for the giver's browser, which Stripe.js mounts the form with: it can pay this one
+  // session and nothing else. It is not the account's secret.
+  const { client_secret: clientSecret } = (await answer.json()) as { client_secret?: unknown }
+  return typeof clientSecret === 'string' && clientSecret.startsWith('cs_') ? json({ clientSecret }, 200, allow) : no(502, 'stripe', allow)
 }
 
 type Session = { id?: unknown; payment_status?: unknown; amount_total?: unknown; metadata?: Record<string, unknown> }

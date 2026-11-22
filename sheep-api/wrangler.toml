@@ -19,5 +19,5 @@ SITE = "https://tiagojeronimo.github.io"
 binding = "DB"
 database_name = "sheep"
 # Made by the owner with `wrangler d1 create sheep` at step 5; locally any value does.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "164b03c7-8b78-40a4-a2c3-4b34366f1fb3"
 migrations_dir = "migrations"

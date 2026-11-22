@@ -22,8 +22,11 @@ CURRENCY`), the sheep's number (`newId isId`) and its seed (`seedOf`).
 - `GET /sheep`: every sheep, oldest first: `id seed look name message date`. No spot, amount or session. A hidden one
   is listed as "a sheep" with no message (the plan: hiding keeps the sheep). `cache-control: max-age=60`.
 - `POST /checkout` (JSON, from one of `ORIGINS`, 4 KB at most): `{ id, amount, name, message, look }`. `amount` in
-  cents, whole, `LEAST` to `MOST`; `id` from `newId`, not taken. Tidied, then a Stripe Checkout Session (euro, donate)
-  with the sheep in `metadata` and `success_url` `SITE/games/sheep/?sheep=<id>`. Answers `{ url }`.
+  cents, whole, `LEAST` to `MOST`; `id` from `newId`, not taken. Tidied, then a Stripe Checkout Session (euro, donate,
+  `ui_mode: embedded_page`, API version pinned by `Stripe-Version`, `STRIPE_VERSION`) with the sheep in `metadata`,
+  `redirect_on_completion: if_required` and `return_url` `SITE/games/sheep/?sheep=<id>` (only a bank with a page of its
+  own sends anybody there). Answers `{ clientSecret }`: the session's, for Stripe.js in the game's card. It pays that
+  session and nothing else; the account's secret key never leaves the worker.
 - `POST /stripe` (256 KB at most): signature first; then `checkout.session.completed` (or
   `async_payment_succeeded`) with `payment_status: 'paid'` puts the sheep in, tidied again, its seed from its number,
   `amount` from `amount_total`. `session` is unique, so the same news twice is one sheep. A number taken by another

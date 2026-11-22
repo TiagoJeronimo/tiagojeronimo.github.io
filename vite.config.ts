@@ -1,10 +1,15 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // Four pages: the front page with everything on it, the CV at /cv/, and the two games, at /games/island/ and
 // /games/castle/. Each page is a folder here with an `index.html` in it, and its address is that folder's; the code of the
 // games is in `src/games/`, in folders of the same names.
-export default defineConfig({
-  plugins: [react()],
-  build: { rolldownOptions: { input: { main: 'index.html', cv: 'cv/index.html', island: 'games/island/index.html', castle: 'games/castle/index.html', sheep: 'games/sheep/index.html' } } },
+export default defineConfig(({ mode }) => {
+  // A `VITE_` value is written into the pages for anybody to read. Stripe's publishable key is made for that; its
+  // secret and restricted keys are not, and a slip of the paste would publish one: so the build refuses them.
+  if (/^(sk|rk)_/.test(loadEnv(mode, process.cwd(), 'VITE_').VITE_STRIPE_PUBLISHABLE ?? '')) throw new Error('VITE_STRIPE_PUBLISHABLE must be the publishable key (pk_...), never a secret one')
+  return {
+    plugins: [react()],
+    build: { rolldownOptions: { input: { main: 'index.html', cv: 'cv/index.html', island: 'games/island/index.html', castle: 'games/castle/index.html', sheep: 'games/sheep/index.html' } } },
+  }
 })

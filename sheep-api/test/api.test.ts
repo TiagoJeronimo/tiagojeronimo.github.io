@@ -24,7 +24,8 @@ let stripeUp = true
 globalThis.fetch = (async (_url: string, init: RequestInit) => {
   asked = new URLSearchParams(String(init.body))
   assert.equal((init.headers as Record<string, string>).authorization, `Bearer ${SECRET}`)
-  return stripeUp ? Response.json({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' }) : new Response('{"error":{"message":"Invalid API Key provided: sk_test_****6789"}}', { status: 401 })
+  assert.equal((init.headers as Record<string, string>)['stripe-version'], '2026-11-18.endive', 'the API version is pinned')
+  return stripeUp ? Response.json({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_abc' }) : new Response('{"error":{"message":"Invalid API Key provided: sk_test_****6789"}}', { status: 401 })
 }) as typeof fetch
 
 const call = (path: string, init: RequestInit = {}) => worker.fetch(new Request(`https://sheep.example${path}`, init), env)
@@ -69,13 +70,18 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   const good = { id, amount: 300, name: 'Wooliam  <b>', message: 'Hello see https://spam.example and www.x.com or buy.cheap.io now', look: { wool: 3, wear: 'hat', crown: true } }
   const done = await buy(good)
   assert.equal(done.status, 200)
-  assert.equal(done.body.url, 'https://checkout.stripe.com/c/pay/cs_test_1')
+  assert.deepEqual(done.body, { clientSecret: 'cs_test_1_secret_abc' }, "the session's client secret, and nothing else")
   assert.equal(done.headers.get('access-control-allow-origin'), SITE)
   assert.ok(asked)
   const sent = asked as URLSearchParams
   assert.equal(sent.get('line_items[0][price_data][unit_amount]'), '300')
   assert.equal(sent.get('line_items[0][price_data][currency]'), 'eur')
-  assert.equal(sent.get('success_url'), `${SITE}/games/sheep/?sheep=${id}`)
+  assert.equal(sent.get('ui_mode'), 'embedded_page', 'paid inside the card')
+  assert.equal(sent.get('redirect_on_completion'), 'if_required')
+  assert.equal(sent.get('return_url'), `${SITE}/games/sheep/?sheep=${id}`, 'a bank that sends the giver away sends them back to the drop')
+  assert.equal(sent.get('success_url'), null, 'not allowed with an embedded checkout')
+  assert.equal(sent.get('cancel_url'), null, 'nor this')
+  assert.equal(sent.get('submit_type'), 'donate')
   assert.equal(sent.get('metadata[id]'), String(id))
   assert.equal(sent.get('metadata[name]'), 'Wooliam b', 'angle brackets out')
   assert.equal(sent.get('metadata[message]'), 'Hello see and or now', 'links out')

@@ -22,8 +22,8 @@ Working name: "Buy me a sheep". It's a coffee, but woolly.
   Pro at about $20 a month.
 - **The site stays on GitHub Pages** at `tiagojeronimo.github.io/games/sheep/`. The worker has its own address, which
   visitors never see.
-- **Order: dress, pay, place.** The sheep is dressed in the game's own UI first, then paid for on Stripe's page, and
-  placed only once the donor is back.
+- **Order: dress, pay, place.** The sheep is dressed in the game's own UI first, then paid for in Stripe's form inside the same card, and
+  placed the moment it is paid.
 - **The spot is not stored.** Placing is a moment for the donor: their sheep hangs from the cursor and drops where they
   click. For everyone else each sheep starts at a spot picked from its seed, so a crowd never piles onto one favourite.
 - **Messages show at once.** The owner reads them later on a private admin page, where delete hides the message and
@@ -50,19 +50,22 @@ None of these was decided with him. Each is small and easy to change.
   anywhere drops it there. It cannot be moved afterwards.
 - **Kept**: in `localStorage` (`sheep/mine`), until step 3. Eight new sheep to a visit, then "The field is full for now".
 - **The bubble** says what a sheep has on, after what it is doing.
-- A few of the made-up flock were given looks, so that the field shows them.
+- The resident has a look (a scarf), so that the field shows one.
 
 ## Step 3, as built: defaults for the owner to judge
 
-- **The gift**: €2 to €100 (`LEAST`, `MOST` in `dress.ts`), in euros only, €3 filled in. Stripe's page says "Donate".
+- **Paying in the card** (since 2026-11-22, the owner's word): Stripe's embedded form takes the place of the
+  card's buttons, and the sheep drops the moment it is paid; nobody leaves the game but for a bank that insists.
+- **The gift**: €2 to €100 (`LEAST`, `MOST` in `dress.ts`), in euros only, €3 filled in. Stripe's form says "Donate".
 - **The sheep's number** is picked by the page (`newId`, 2^32 to 2^53, random) and its seed is that number's last nine
   digits, so what is dressed is what comes back. Two checkouts with one number: the second sheep gets a new one.
-- **The field, with a server**: only the real sheep; the made-up flock only while there are none (or the server is
-  down). One real sheep means a field of one.
+- **The field, with a server**: Claude the sheep, always, and every real sheep with it. If the server is down, Claude
+  alone.
 - **Hidden** sheep stay in the field as "a sheep" with no message, as decided above (the brief for step 3 said to
   leave them out: the plan won).
 - **Back from Stripe before Stripe's word**: the page asks again every 1.5 s for 15 s, then says to look again in a
-  minute. The words: "Paid on Stripe's page, from €2. It is a donation; the sheep is the thank-you, and it stays."
+  minute. The words: "A gift to the person who made all this, paid through Stripe without leaving the field. The sheep is the
+  thank-you, and it stays. From €2."
 
 ## Step 4, as built: defaults for the owner to judge
 
@@ -131,7 +134,8 @@ owner ──/admin (behind Cloudflare Access)──▶ worker: list messages, hi
 - What sheep do: wander, follow each other into small flocks, drink at the river, eat grass (which goes short and
   grows back), bump, sleep at night.
 - A click on a sheep shows a bubble: the name, the message, and when it came.
-- Until money flows, a few of the owner's own sheep live there, so the field is never empty.
+- One resident lives there whoever else does, so the field is never empty: Claude the sheep, the test sheep (the
+  owner's choice: "it can be yours"). The twenty made-up sheep of the first builds are a test fixture now (`crowd.ts`).
 - A world class that steps in node, with `test/sheep.test.ts`, as the other games have.
 
 ## Build order

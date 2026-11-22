@@ -7,14 +7,15 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { BLANKETS, BLANKET_NAMES, MEMORIES, MESSAGE, NAME, REMEMBERS, WOOL, fit, plan, tidy } from '../src/games/sheep/dress.ts'
 import { AGED, GREY, KEEPSAKES } from '../src/games/sheep/model.ts'
+import { CROWD } from '../src/games/sheep/crowd.ts'
 import { FLOCK, type Entry } from '../src/games/sheep/flock.ts'
 import { PerspectiveCamera } from 'three'
 import { View, close, viewing } from '../src/games/View.ts'
 import { DOOR, HERMIT, REACH, SPAN, Sheep } from '../src/games/sheep/Sheep.ts'
 
-const world = new Sheep()
-const twin = new Sheep()
-assert.equal(world.ewes.length, FLOCK.length)
+const world = new Sheep(CROWD)
+const twin = new Sheep(CROWD)
+assert.equal(world.ewes.length, CROWD.length)
 const told = (w: Sheep) => w.ewes.map((e) => `${e.x.toFixed(3)} ${e.z.toFixed(3)} ${e.face} ${e.state} ${e.s.toFixed(3)} ${e.nature} ${e.wool}`)
 assert.deepEqual(told(world), told(twin), 'the seeds decide it all')
 assert.equal(new Set(world.ewes.map((e) => e.nature)).size, 4, 'all four natures turn up')
@@ -147,7 +148,7 @@ assert.ok(hops > 500 && turns > 20, 'they go at a hop, and turn')
 assert.ok(world.ewes.some((e, i) => Math.hypot(e.x - from[i][0], e.z - from[i][1]) > 3), 'they wander')
 
 // The sheep in the cave is none of the flock: it has cubes of its own, answers a click with a hop, and stays put.
-assert.ok(world.ewes.length === FLOCK.length + 3 && world.ewes.every((e) => e.air === 0), 'the three that came are down, and of the flock')
+assert.ok(world.ewes.length === CROWD.length + 3 && world.ewes.every((e) => e.air === 0), 'the three that came are down, and of the flock')
 for (const wear of ['hat', 'bell', 'scarf', 'flowers']) assert.ok(world.ewes.some((e) => e.entry.look?.wear === wear), `somebody in the field wears ${wear}`)
 const { hermit } = world
 assert.ok(!world.ewes.includes(hermit) && hermit.cubes.every((c) => world.pick(c) === HERMIT), 'the one in the cave is not of the flock')
@@ -177,7 +178,7 @@ assert.ok(regrown && empty.long(x, z), 'and it grows back')
 const did: Record<string, number> = { ...world.did }
 let met = 0
 for (const seed of [2, 3, 4, 5]) {
-  const field = new Sheep(undefined, seed)
+  const field = new Sheep(CROWD, seed)
   let slept = 0
   const flying = new Set<object>() // the sheep that were in the air over another at the last step
   for (let step = 0; step < 3600; step++) {
@@ -264,7 +265,7 @@ for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own t
 // Planting: only on level grass with nothing and nobody on it; not twice in a blink; five at the most, and then the
 // oldest goes; the eighth is golden.
 {
-  const lone = new Sheep([FLOCK[0]])
+  const lone = new Sheep([CROWD[0]])
   const sheep = lone.ewes[0]
   let tree = [0, 0]
   for (let z = -REACH; z <= REACH; z++) for (let x = -REACH; x <= REACH; x++) if (lone.blocked(x, z) && lone.height(x, z) === 1 && !lone.pond(x, z)) tree = [x, z]
@@ -288,7 +289,7 @@ for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own t
   }
   assert.equal(lone.plant(40, 0, 40, (clock += 1)), -1, 'grass was planted out at sea')
   for (let i = 0; i < 1400 && lone.treats.some((tuft) => tuft.t >= 0); i++) lone.update(0.05) // (until those have gone)
-  const herd = new Sheep()
+  const herd = new Sheep(CROWD)
   const near = herd.ewes.map((e) => patch(herd, e.x, e.z, 0, 4, true)).find((at) => at)!
   const k = herd.plant(near[0], herd.height(near[0], near[1]) + 0.1, near[1], 5)
   assert.ok(k >= 0 && herd.height(near[0], near[1]) > 1, 'grass goes on the hillside too')
@@ -324,7 +325,7 @@ for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own t
 // that is all, however often. On it is L (fifty), of two gold boxes that stand proud of the planks; no box of the door
 // is in another, and all of it stands on its step.
 {
-  const field = new Sheep()
+  const field = new Sheep(CROWD)
   const { door } = field
   const box = (c: number) => {
     const [x, y, z, wide, h, d] = field.ground.at(c)
@@ -367,7 +368,7 @@ assert.ok(new Set(BLANKET_NAMES).size === BLANKETS.length && BLANKET_NAMES.every
 {
   const looks = ['', ...MEMORIES].map((memory, k) => ({ id: 800 + k, seed: 800 + k, name: 'x', message: '', date: '', look: { wool: k, elder: true, ...(memory ? { memory } : {}) } })) as Entry[]
   const mixed = [{ id: 820, seed: 820, name: 'x', message: '', date: '', look: { wool: 2, wear: 'bell', elder: true } }, { id: 821, seed: 821, name: 'x', message: '', date: '', look: { wool: 2, wear: 'hat', memory: 'duck' } }] as Entry[]
-  const home = new Sheep([...looks, ...mixed, FLOCK[0]])
+  const home = new Sheep([...looks, ...mixed, CROWD[0]])
   const aged = home.ewes.slice(0, looks.length)
   const on = (e: (typeof home.ewes)[number]) => e.cubes.filter((c) => home.flock.on(c)).length
   assert.ok(aged.every((e) => e.old && on(e) === 11 + AGED.length + (e.entry.look?.memory ? KEEPSAKES[e.entry.look.memory].length : 0)), 'a very old sheep has a beard, a blanket, and what she remembers')
@@ -400,7 +401,7 @@ assert.ok(new Set(BLANKET_NAMES).size === BLANKETS.length && BLANKET_NAMES.every
 // company. Nothing is in anything, at any step; and the same seed is the same day.
 {
   const company = (seed: number, elder: boolean) => {
-    const field = new Sheep(undefined, seed)
+    const field = new Sheep(CROWD, seed)
     const k = field.add({ id: 5, seed: 5 + seed, name: 'x', message: '', date: '', look: elder ? { elder: true } : {} })
     const it = field.ewes[k]
     let [near, fast] = [0, 0]
@@ -477,4 +478,32 @@ assert.equal(tidy({ name: 'x'.repeat(99) }).name.length, NAME)
 assert.deepEqual(tidy({ name: 7, message: null, look: 'hat' }), { name: 'a sheep', message: '', look: {} })
 assert.deepEqual(fit({ wool: WOOL.length, wear: 'crown', more: 1 }), {})
 assert.deepEqual(fit({ wool: 1.5 }), {})
+
+// What is published has one sheep in it that nobody gave: Claude the sheep, as written (nothing `tidy` would change),
+// with a number no given sheep can have. A field of that one sheep goes through a day and a night with nothing going
+// wrong: it eats, drinks and sleeps, alone. And a very old sheep put with it has it for company, out of each other.
+{
+  assert.equal(FLOCK.length, 1)
+  const [claude] = FLOCK
+  assert.ok(claude.id === 1 && claude.name === 'Claude the sheep' && claude.date === '2026-11-22' && claude.message.length > 20)
+  assert.deepEqual(tidy(claude), { name: claude.name, message: claude.message, look: claude.look })
+  const alone = new Sheep()
+  assert.equal(alone.ewes.length, 1)
+  const seen = new Set<string>()
+  for (let step = 0; step < 3600; step++) {
+    alone.update(0.05)
+    seen.add(alone.ewes[0].state)
+    if (step % 12 === 0) apart(alone)
+  }
+  assert.ok(['walk', 'eat', 'drink', 'sleep'].every((state) => seen.has(state)), `a sheep alone still walks, eats, drinks and sleeps (${[...seen]})`)
+  const pair = new Sheep()
+  const old = pair.ewes[pair.add({ id: 5, seed: 9, name: 'x', message: '', date: '', look: { elder: true, memory: 'lamb' } })]
+  let near = 0
+  for (let step = 0; step < 3600; step++) {
+    pair.update(0.05)
+    apart(pair)
+    if (Math.hypot(pair.ewes[0].x - old.x, pair.ewes[0].z - old.z) < 3) near++
+  }
+  assert.ok(near > 600 && pair.fond > 3, `the one other sheep keeps a very old one company (${near} steps of 3600 near her, fond ${pair.fond} times)`)
+}
 console.log('sheep: ok')

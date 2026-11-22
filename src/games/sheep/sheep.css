@@ -422,3 +422,11 @@
     background: #f5ecdf;
   }
 }
+
+/* Stripe's form, where the buttons were, while a sheep is being paid for. Its colours are Stripe's, by the owner's
+   branding in Stripe's dashboard; this only gives it room and the card's round corners. */
+.dress .till {
+  min-height: 160px;
+  border-radius: 14px;
+  overflow: hidden;
+}
