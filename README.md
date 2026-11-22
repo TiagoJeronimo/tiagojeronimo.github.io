@@ -101,17 +101,13 @@ Filtering changes the view without stopping collection or deleting events. There
 ```bash
 npm run analytics:dashboard           # print the reviewable definition; no account access or writes
 npm run analytics:dashboard -- --apply
-npm run analytics:dashboard -- --list    # every other dashboard and insight, with a ready --clean line
-npm run analytics:dashboard -- --clean d12,i345
 ```
 
 Applying requires server-side `POSTHOG_PERSONAL_API_KEY` and `POSTHOG_PROJECT_ID` environment variables, plus
 `POSTHOG_API_HOST` for EU hosting (the default is `https://us.posthog.com`). The key needs query access and read/write
 access to dashboards and insights. Never prefix this private key with `VITE_` or commit it. The script validates all
 queries before creating anything, updates only its own marked insights, and checks that every tile exists. Repeating
-it updates the same dashboard. `--list` names everything else in the project: other dashboards, other insights, and
-insights this definition no longer has. `--clean` deletes only the keys you pass that are still on that list, so it
-cannot remove the kept dashboard or its insights; run `--list` again first if anything changed. Publishing the new event instrumentation is a separate step from creating the dashboard.
+it updates the same dashboard. Publishing the new event instrumentation is a separate step from creating the dashboard.
 
 ## If you are an AI
 

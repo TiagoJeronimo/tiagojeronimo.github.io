@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { dashboard, insights } from '../analytics/dashboard.mjs'
-import { clean, strays, syncDashboard } from '../scripts/posthog-dashboard.mjs'
+import { syncDashboard } from '../scripts/posthog-dashboard.mjs'
 
 assert.equal(new Set(insights.map(insight => insight.id)).size, insights.length)
 for (const insight of insights) {
@@ -36,19 +36,4 @@ assert.equal(board.name, dashboard.name)
 await syncDashboard(request)
 assert.equal(creates, insights.length + 1, 're-running must not create duplicate dashboards or insights')
 assert.equal(saved.length, insights.length)
-
-// Clean-up removes only approved strays: never our dashboard or its current insights, even if their keys are passed.
-const kept = { id: 1, description: `[web-cv:${insights[0].id}]` }
-const old = { id: 2, name: 'Old tile', description: '[web-cv:referrers]' }
-const removed = []
-const project = async (method, path, body) => {
-  if (path.startsWith('dashboards/?')) return { results: [{ id: 42, description: dashboard.description }, { id: 7, name: 'Web analytics' }], next: null }
-  if (path === 'dashboards/42/') return { tiles: [{ insight: kept }, { insight: old }] }
-  if (path.startsWith('insights/?')) return { results: [kept, old, { id: 3, name: 'Old trend' }], next: null }
-  if (method === 'PATCH' && body.deleted) { removed.push(path); return {} }
-  throw new Error(`Unexpected request: ${method} ${path}`)
-}
-assert.deepEqual((await strays(project)).map(item => item.key), ['d7', 'i2', 'i3'])
-assert.deepEqual(await clean(project, ['d42', 'i1', 'd7', 'i3']), ['d7', 'i3'])
-assert.deepEqual(removed, ['dashboards/7/', 'insights/3/'])
 console.log('dashboard: ok')
