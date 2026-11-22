@@ -7,7 +7,29 @@ export const WOOL = [0xfffaf0, 0xf7ecd9, 0xffd9e6, 0xe6dcf7, 0xd6f0e0, 0xd4e8fb,
 /** The things to wear. One at a time: a sheep is not a hatstand. */
 export const WEARS = ['hat', 'bell', 'scarf', 'flowers'] as const
 export type Wear = (typeof WEARS)[number]
-export type Look = { wool?: number; wear?: Wear }
+/**
+ * What a very old sheep can be remembering, one at a time: each is a keepsake she has on (`KEEPSAKES` in `model.ts`).
+ * And the colours of her blanket: a look's `wool` names one of these for her, since her own wool is past dyeing.
+ */
+export const MEMORIES = ['wedding', 'love', 'lamb', 'duck', 'hat', 'river'] as const
+export type Memory = (typeof MEMORIES)[number]
+export const BLANKETS = [0xc9b3e6, 0xf2a0a8, 0xf3c069, 0x9ed3b0, 0x9cc4f0, 0xe7a3cf, 0xc9a27c, 0xf4e3bd]
+/** What each of those colours is called, where the card says which blanket she is under. */
+export const BLANKET_NAMES = ['lilac', 'rose', 'honey', 'sage', 'sky', 'pink', 'fawn', 'cream']
+/** What she is remembering, as it is said of her in the field. */
+export const REMEMBERS: Record<Memory, string> = {
+  wedding: 'remembering her wedding',
+  love: 'remembering her first love',
+  lamb: 'remembering her baby',
+  duck: 'remembering the summer of the duck',
+  hat: 'remembering the hat',
+  river: 'remembering the river',
+}
+/**
+ * `elder` is for the very old sheep that is had for nothing (see `plan`): pale, stooped and slow. It is the page's own
+ * to say, of a sheep that lives in the page and nowhere else: `fit` leaves it out, so no server ever keeps one.
+ */
+export type Look = { wool?: number; wear?: Wear; memory?: Memory; elder?: boolean }
 /** How long a name and a message may be, in letters. */
 export const NAME = 24
 export const MESSAGE = 80
@@ -45,11 +67,20 @@ const plain = (text: unknown, most: number) =>
     .join('')
     .trim()
 
-/** A look with only what there is in it: a wool that exists, a thing that can be worn. Anything else is left out. */
+/**
+ * What comes of pressing the button, by the gift (in euros) and whether there is a server to pay through. A gift of
+ * nothing at all is the very old sheep: one that is in the page for as long as the page is open, and is written down
+ * nowhere, neither on a server nor in the browser; nothing is asked of anybody, and nothing is sent. With a gift and
+ * a server, the checkout; with a gift and none, the stand-in of step 2, kept in this browser.
+ */
+export const plan = (gift: number, server: boolean) => (gift === 0 ? 'elder' : server ? 'checkout' : 'stand-in')
+
+/** A look with only what there is in it: a wool that exists, a thing that can be worn, a memory there is. Anything else is left out. */
 export function fit(look: unknown): Look {
-  const { wool, wear } = (look && typeof look === 'object' ? look : {}) as { wool?: unknown; wear?: unknown }
+  const { wool, wear, memory } = (look && typeof look === 'object' ? look : {}) as { wool?: unknown; wear?: unknown; memory?: unknown }
   const worn = WEARS.find((one) => one === wear)
-  return { ...(typeof wool === 'number' && Number.isInteger(wool) && wool >= 0 && wool < WOOL.length ? { wool } : {}), ...(worn ? { wear: worn } : {}) }
+  const kept = MEMORIES.find((one) => one === memory)
+  return { ...(typeof wool === 'number' && Number.isInteger(wool) && wool >= 0 && wool < WOOL.length ? { wool } : {}), ...(worn ? { wear: worn } : {}), ...(kept ? { memory: kept } : {}) }
 }
 
 /** What a giver wrote, made fit to show: a short name (or "a sheep"), a message of plain words, a look that exists. */

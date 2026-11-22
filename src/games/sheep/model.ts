@@ -3,7 +3,7 @@
 // one model, so that what is dressed is what lands in the field.
 import { rnd } from '../basics.ts'
 import type { Cubes } from '../cubes.ts'
-import { WOOL, type Look, type Wear } from './dress.ts'
+import { BLANKETS, WOOL, type Look, type Memory, type Wear } from './dress.ts'
 
 /** A box of a thing: where it is from the thing's own middle (across, how high its foot is, along), its size, and its colour. */
 export type Part = number[]
@@ -37,7 +37,42 @@ export const WORN: Record<Wear, Part[]> = {
   scarf: [[0, 0.76, 0.3, 0.66, 0.06, 0.14, 0xff7a8a, 1], [0.355, 0.46, 0.3, 0.05, 0.36, 0.14, 0xff7a8a, 1]],
   flowers: [[-0.1, 0.86, 0.47, 0.09, 0.07, 0.09, 0xff9ec4], [0.02, 0.86, 0.57, 0.09, 0.07, 0.09, 0xffd45c], [0.11, 0.86, 0.46, 0.09, 0.07, 0.09, 0xc4a4f0]],
 }
-export const SLOTS = EWE.length + 3 // the cubes every sheep has: its own, and three for what it wears
+const [LACE, GOLD, LEAFY] = [0xfffdf6, 0xffc93c, 0x7fca6c]
+/**
+ * What a very old sheep remembers, as the keepsake she has on for it: six parts at the most. What is on her head or
+ * hangs from an ear goes with her head (and is no lower than her beard when her head is down); what is on her back
+ * lies on her blanket and goes with her body.
+ */
+export const KEEPSAKES: Record<Memory, Part[]> = {
+  // Her wedding: a veil of lace over her head and down each side of it, a posy at one ear, and at the other the ring.
+  wedding: [[0, 0.86, 0.52, 0.4, 0.04, 0.22, LACE], [-0.18, 0.72, 0.52, 0.04, 0.14, 0.22, LACE], [0.18, 0.72, 0.52, 0.04, 0.14, 0.22, LACE], [0.25, 0.3, 0.52, 0.1, 0.08, 0.1, 0xff9ec4], [0.25, 0.26, 0.52, 0.04, 0.04, 0.04, LEAFY], [-0.25, 0.3, 0.52, 0.08, 0.08, 0.08, GOLD]],
+  // Her first love: a pressed flower over one ear, and the letter, pink and sealed, kept on her back.
+  love: [[-0.25, 0.46, 0.52, 0.1, 0.09, 0.1, 0xff7a9c], [-0.25, 0.55, 0.52, 0.05, 0.03, 0.05, GOLD], [0.1, 0.81, -0.05, 0.22, 0.03, 0.15, 0xffc2d9, 1], [0.1, 0.84, -0.05, 0.05, 0.015, 0.05, 0xe0526e, 1]],
+  // Her baby: a very small lamb, lying on her back, which goes wherever she goes.
+  lamb: [[0, 0.81, -0.1, 0.24, 0.16, 0.3, WOOL[0], 1], [0, 0.85, 0.12, 0.16, 0.14, 0.12, FACE, 1], [0, 0.99, 0.11, 0.12, 0.05, 0.09, WOOL[0], 1], [-0.1, 0.9, 0.12, 0.04, 0.04, 0.06, FACE, 1], [0.1, 0.9, 0.12, 0.04, 0.04, 0.06, FACE, 1], [0, 0.88, -0.28, 0.07, 0.07, 0.05, WOOL[0], 1]],
+  // The summer of the duck: it is sitting on her still.
+  duck: [[0, 0.81, -0.08, 0.2, 0.12, 0.26, 0xffe07a, 1], [0, 0.93, 0, 0.13, 0.11, 0.12, 0xffe07a, 1], [0, 0.96, 0.085, 0.07, 0.035, 0.05, 0xff9a3c, 1], [0, 0.93, -0.18, 0.1, 0.05, 0.05, 0xffe07a, 1]],
+  // The hat, with which there was a brief affair.
+  hat: WORN.hat,
+  // The river: a blue stone from it, on a string from her ear.
+  river: [[0.25, 0.34, 0.52, 0.02, 0.04, 0.02, LACE], [0.25, 0.26, 0.52, 0.1, 0.08, 0.1, 0x5fb4f0]],
+}
+/**
+ * What a very old sheep has that no other has: a small white beard under her chin (it goes with her head), and a
+ * knitted blanket over her back and down both her sides, with a pale fringe along the foot of it (they go with her
+ * body). A part with no colour here is of the blanket's colour, which is hers to choose.
+ */
+export const AGED: Part[] = [
+  [0, 0.26, 0.6, 0.14, 0.08, 0.12, 0xfbf8f2],
+  [0, 0.76, -0.06, 0.7, 0.05, 0.56, 0, 1], [-0.355, 0.56, -0.06, 0.04, 0.2, 0.56, 0, 1], [0.355, 0.56, -0.06, 0.04, 0.2, 0.56, 0, 1],
+  [-0.355, 0.5, -0.06, 0.04, 0.06, 0.56, 0xfff6e0, 1], [0.355, 0.5, -0.06, 0.04, 0.06, 0.56, 0xfff6e0, 1],
+]
+const SPARE = 6 // how many cubes a sheep has for what it wears (or remembers): and as many again for what great age adds
+export const SLOTS = EWE.length + SPARE + AGED.length
+export const GREY = 0xe9e6e1 // the wool of a very old sheep: pale, and past dyeing
+const DROOP = 0.1 // how far lower an old sheep's ears hang,
+const STOOP = 0.05 // how far down she holds her head when she is doing nothing,
+const REACH = 0.25 // and how far down it goes at the most: her beard is at the grass by then
 export const BODY = [0.38, -0.5, 0.4]
 export const HEAD = [0.31, 0.4, 0.75]
 export const NOSE = 0.56 // how far ahead of its middle the middle of its head is
@@ -60,24 +95,33 @@ export type Body = {
   nod: number // how far its head is down, 0 to 1,
   lie: number // and how far it has lain down
   air: number // how high over the ground it hangs
-  wear: Part[] // what it has on
+  wear: Part[] // what it has on, or remembers, in the first six of its places; and what great age adds, in the rest
+  old?: boolean // whether it is a very old sheep: it stoops, its ears hang, and it goes slowly
   wool: number
-  cubes: number[] // one for each part of `EWE`, and three for what it wears
+  cubes: number[] // one for each part of `EWE`, and `SLOTS` in all
   mark: number // what it was last drawn as
   sized: number
 }
 
 /** The cubes of one sheep, in a pool: `owner` is whose the pool is to say they are. What it wears is not on show yet. */
-export const limbs = (flock: Cubes, owner: number) => [...EWE.map(([, , , , , , ink]) => flock.add(0, 0, 0, 1, 1, 1, ink || WOOL[0], owner)), ...[0, 1, 2].map(() => flock.add(0, 0, 0, 1, 1, 1, WOOL[0], owner, false))]
+export const limbs = (flock: Cubes, owner: number) => [...EWE.map(([, , , , , , ink]) => flock.add(0, 0, 0, 1, 1, 1, ink || WOOL[0], owner)), ...AGED.concat(AGED).map(() => flock.add(0, 0, 0, 1, 1, 1, WOOL[0], owner, false))]
 
-/** A sheep's look is put on it: its wool in its colour (its look's, or else its seed's), and what it wears on the three cubes kept for that. */
+/** Which wool a sheep has (or which blanket, a very old one): the one its look names, or else the one its seed gives. */
+export const woolOf = (seed: number, look: Look = {}) => look.wool ?? Math.floor(rnd(seed * 7 + 1) * WOOL.length)
+
+/** A sheep's look is put on it: its wool in its colour (its look's, or else its seed's), and what it wears on the cubes kept for that. */
 export function clothe(flock: Cubes, e: Body, seed: number, look: Look = {}) {
-  e.wool = WOOL[look.wool ?? Math.floor(rnd(seed * 7 + 1) * WOOL.length)]
-  e.wear = look.wear ? WORN[look.wear] : []
+  e.old = !!look.elder
+  const pick = woolOf(seed, look)
+  e.wool = e.old ? GREY : WOOL[pick]
+  // What it wears, in the first places. A very old sheep has on what she remembers, and nothing else; and in the last
+  // places her beard and her blanket, which is of the colour that would have been her wool's.
+  e.wear = e.old ? (look.memory ? [...KEEPSAKES[look.memory]] : []) : look.wear ? [...WORN[look.wear]] : []
+  if (e.old) AGED.forEach((part, k) => (e.wear[SPARE + k] = part[6] ? part : [...part.slice(0, 6), BLANKETS[pick], 1]))
   EWE.forEach(([, , , , , , ink], k) => {
     if (!ink) flock.paint(e.cubes[k], e.wool)
   })
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < SPARE + AGED.length; k++) {
     const c = e.cubes[EWE.length + k]
     if (e.wear[k]) flock.paint(c, e.wear[k][6])
     if (e.wear[k]) flock.show(c)
@@ -96,9 +140,9 @@ export function clothe(flock: Cubes, e: Body, seed: number, look: Look = {}) {
  */
 export function pose(flock: Cubes, e: Body, time: number, floor: number, under: (x: number, z: number, half: number) => number) {
   const { s, cubes } = e
-  const lift = (Math.abs(Math.sin(e.stride * Math.PI)) * HOP * (e.rush > 1 ? 1.5 : 1) + (e.hop > 0 ? Math.sin(Math.min(1, e.hop / GLAD) * Math.PI) * 0.3 : 0)) * s + e.air
+  const lift = (Math.abs(Math.sin(e.stride * Math.PI)) * HOP * (e.old ? 0.45 : e.rush > 1 ? 1.5 : 1) + (e.hop > 0 ? Math.sin(Math.min(1, e.hop / GLAD) * Math.PI) * 0.3 : 0)) * s + e.air
   const chew = (e.state === 'eat' || e.state === 'drink') && e.nod > 0.9 ? Math.max(0, Math.sin(time * 7 + s * 40)) * 0.06 : 0
-  const flick = e.rush > 1 || (time * 0.23 + s * 11) % 1 < 0.05 ? 0.05 : 0 // (its ears go up for a moment; and stay up when it runs)
+  const flick = e.old ? -DROOP : e.rush > 1 || (time * 0.23 + s * 11) % 1 < 0.05 ? 0.05 : 0 // (its ears go up for a moment; and stay up when it runs)
   const mark = e.x * 13 + e.z * 7 + lift * 5 + e.nod * 3 + e.lie + e.face + chew + flick + floor
   if (mark === e.mark) return
   e.mark = mark
@@ -106,7 +150,7 @@ export function pose(flock: Cubes, e: Body, time: number, floor: number, under: 
   const [a, b, c, d] = TURNS[e.face]
   const odd = e.face & 1
   const sink = LEGS * e.lie
-  const bow = Math.max(e.nod * (BOW - chew), e.lie * TUCK)
+  const bow = e.old ? Math.max(STOOP, e.nod * (REACH - chew), e.lie * REACH) : Math.max(e.nod * (BOW - chew), e.lie * TUCK)
   for (let k = 0; k < SLOTS; k++) {
     const part = k < EWE.length ? EWE[k] : e.wear[k - EWE.length]
     if (!part) continue

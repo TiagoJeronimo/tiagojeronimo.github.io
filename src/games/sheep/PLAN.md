@@ -72,6 +72,16 @@ None of these was decided with him. Each is small and easy to change.
   through, with Show. No delete: a hidden sheep is as good as gone from the field, and its gift is still on record.
 - **No script** on it at all; light and dark by the device.
 
+## The very old sheep (decided with the owner, built)
+
+A gift of nothing is allowed, and is a different thing: a very old sheep. (An earlier, darker idea for the free sheep was
+replaced whole by the owner.) She is client-only and free: no server, no checkout, nothing kept in the
+browser. She lives in the page's memory for as long as the tab is open, and a reload or a closed tab ends her; the
+card says so, wistfully and once. She is pale, stooped, bearded, under a blanket, and slow; and the other sheep come and
+keep her company, with hearts. Her card offers a blanket colour and a memory (her wedding, her first love, her
+baby, the summer of the duck, the hat, the river) where the others offer a wool and a thing to wear. The card never
+says why she is the one on offer, and has no line about a better gift. One to a visit. The server's least gift (`LEAST`) is unchanged, and never sees her.
+
 ## Still to decide
 
 - **The choices when dressing**: a few colours and three or four things to wear (hat, bell, scarf, ...)? Does a bigger

@@ -14,7 +14,7 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
 | File | What |
 | --- | --- |
 | `Sheep.ts` | The world, no React. At its top: the numbers (`REACH SPAN ROUND REGROW DAY SLEEP WAKE HOP STEPS GLAD STONY SNOWY`); the water and the things by tile (`BROOK LAKE DUCK FENCE BALES CAVE FLOOR ROOF`); the land, worked out once (`LAND` heights, `ROCK` bare stone, `KIND` 1 ground 2 brook 3 pond 4 cave, `BLOCK`, `TREES ROCKS SHORE FALLS`); the parts (`EWE`, `BODY`, `HEAD`, and the scenery's). Then the class. |
-| `model.ts` | The sheep as cubes, for the field and for the window it is dressed in alike: `EWE` (its eleven boxes), `WORN` (what it can wear), `BODY HEAD NOSE LEGS` (its measures), `limbs` (its cubes in a pool), `clothe` (its look put on), `pose` (its cubes put where it is: the hop, the legs, the head, the ears); and the thought bubble: `BUBBLE`, `THINK` (the pictures), `LINES`, `speak` (its cubes put where it is). |
+| `model.ts` | The sheep as cubes, for the field and for the window it is dressed in alike: `EWE` (its eleven boxes), `WORN` (what it can wear), `BODY HEAD NOSE LEGS` (its measures), `AGED`, `KEEPSAKES` and `GREY` (the very old sheep's), `limbs` (its cubes in a pool: eleven, three for what it wears, two for horns), `clothe` (its look put on), `pose` (its cubes put where it is: the hop, the legs, the head, the ears); and the thought bubble: `BUBBLE`, `THINK` (the pictures), `LINES`, `speak` (its cubes put where it is). |
 | `Fitting.tsx` | The window a sheep is dressed in: a small canvas of its own, a very small island with the sheep on it, no finish. |
 | `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words); the gift (`LEAST MOST CURRENCY`), a new sheep's number (`newId isId`) and its seed (`seedOf`). The server (`sheep-api/`) imports all of it. |
 | `flock.ts` | The sheep there are: `{ id, seed, name, message, date, look? }`. Index in `FLOCK` is the sheep's index in `world.ewes`. And `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
@@ -72,16 +72,63 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
 - Buying (`SheepPage.tsx`, `Fitting.tsx`): the button in the top bar opens one card in the middle of the window
   (`.veil`, `.dress`: a dialogue, Escape or "Never mind" or a click beside it puts it away, Tab stays inside it),
   in two halves. On the right the sheep in a window of its own (`Fitting`: a small plain canvas with a very small island of the field's kind, earth under grass, blades and
-  flowers in the wind, a little tree, a stone, a toadstool, all of it inside the frame; and the sheep on it, drawn
+  flowers in the wind, a little tree, a stone, a toadstool, all of it inside the frame and in the middle of it (the camera is fitted to a ball round the island, by the
+  window's shape, and goes round the ball's middle; the canvas is measured by its own size, since the card pops up
+  from small); and the sheep on it, drawn
   by `model.ts` as the field's are, hopping, nodding, hopping again and thinking something in a cube bubble when it
   is given a thing; the picture goes slowly all the way round, and a drag turns it; the sky and two clouds are the
   window's own, in CSS) and
-  under it, each with a small label over it ("Wool", "Wearing", "Your sheep's name", "What is the sheep thinking
-  about?"), its wool, one thing to wear, its name, and a few words with their count. On the left the gift (€3, €5,
+  under it its wool and one thing to wear (each row with a small label over it, "Wool", "Wearing"), its name ("Your sheep's
+  name") and a few words with their count ("What is the sheep thinking about?"), each with its label over it and
+  a sheep's noise in the box for a hint ("Baa-a-a", "Baaa… meh"). On the left, from the top of the card, the gift (€3, €5,
   €10, or a number from `LEAST` to `MOST`), a line that says plainly what it is, what the sheep has on, and the
   button. On a narrow screen the halves are one over the other (the sheep, its looks, the gift), and the button
   stays at the foot of the card. Nothing is in the field while a sheep is dressed, and the view does not move.
   (Typing in the card does not move the view either: `View.ts` leaves keys typed into a text field alone.)
+- The very old sheep (`plan` in `dress.ts`, `elder` in a `Look`, `AGED`, `KEEPSAKES` and `GREY` in `model.ts`; all
+  of its words are in the card and nowhere else): a gift of nothing, by the quiet "€0" (the first of the amounts) or
+  a 0 in the box. The card goes the colour of the end of an afternoon (`.dress.elder`: faded cream and lilac paper,
+  a little gold round it), its window a dusk of peach and lavender with a small low sun, a wooden bench where the
+  tree was, and the sheep in it old. The left half is "A very old sheep": five short paragraphs, dry first and kind
+  at the end (who she is; her good life: grass, a river, a duck, a brief affair with a hat; tired, as after a nice
+  day out; she dies, said once and softly, when the tab closes, because nothing keeps her: not a server, not this
+  browser's memory; and the offer, on which it ends). By the owner's word the text never says that she is what a
+  gift of nothing gets, never says what she will do in the field, and has no line about a better gift: a test
+  reads the card for all three. The button is "Take her in". It never goes to `/checkout`, never to `localStorage`
+  or `sessionStorage`, and leaves the address alone: the sheep is `bring`'s and the world's, in memory. One to a
+  visit. `fit` leaves `elder` out of any look that comes from outside, so no server keeps one.
+  - Her card has other rows than the others': "Blanket" for "Wool" (`BLANKETS`, eight colours; a look's `wool`
+    names one for her: her own wool is `GREY` whatever is picked) and "Memories" for "Wearing" (`MEMORIES`, one at
+    a time or none; a look's `memory`, which `fit` lets through if it is one there is). The bold line under the text says both, live: "A sheep, very old,
+    keeping her memories to herself, under a lilac blanket." (`BLANKET_NAMES`; the name is real text, drawn in the
+    blanket's colour made a little deeper so it reads on the paper; `woolOf` in `model.ts` says which blanket an
+    unpicked one is). `give` in the page empties
+    the look when the gift goes to or from nothing, since the rows are not the same rows. A memory is only ever
+    drawn on a very old sheep, and a thing to wear never on her (`clothe`).
+  - The memories, each a keepsake of six boxes at the most (`KEEPSAKES`): `wedding` (a veil of lace on her head, a
+    posy at one ear, a gold ring at the other), `love` (a pressed flower over an ear, a pink sealed letter on her
+    back), `lamb` (a very small lamb lying on her back: it rides, so that nothing of her is outside the two
+    rectangles `fits` knows of), `duck` (a small duck sitting on her back; the pond's ducks do not land on her),
+    `hat` (the straw hat), `river` (a blue stone on a string from her ear). Selected in the field, she is said to
+    be "remembering her wedding" and so on (`REMEMBERS`), where another sheep is said to be in a hat.
+  - How she looks (`clothe` sets `old` on the body; `pose` reads it): grey wool; a white beard under her chin; a
+    knitted blanket over her back and down both sides with a pale fringe (`AGED`: six boxes, in the last places
+    of `wear`, after the six for a keepsake); ears hung low (`DROOP`), head held a little down (`STOOP`) and never
+    lower than her beard reaches the grass (`REACH`), hops less than half as high. No box of her is in another,
+    in any memory, standing, hopping, head down or asleep: the test tries them all.
+  - How she goes (`potter`): at 0.3 of her pace, long stands, a mouthful, a few steps to somewhere near; asleep
+    where she is by night. She starts no game, runs nowhere, leaps nothing, is not leapt (`still`), chased or
+    poked awake. A small gold glint over her now and then.
+  - The others like her, which is the one special thing (`call`, `beside`, `fondly`, `BESIDE`, goal `visit`,
+    `fond` counts it): a sheep with nothing to do goes and stands a step or two off her (from far off, a few tiles
+    at a time), gives a small hop, and thinks a heart, a smile or a blush; one beside her mostly stays; six at
+    the most, so she is not crowded; nobody runs within `BESIDE` of her (`haste` in `walk`); at night, once, a
+    sheep goes to lie down near her. All of it by `chance()`, and none of it in a field with no old sheep in it.
+  - Not to be added, by the owner's word: anything outside the card but the sheep herself, changes to the tab's
+    title or icon, sound, or anything that gets in the way of closing the tab (no `beforeunload`). The earlier,
+    darker idea for the free sheep (others ran from it) is gone, words and all: do not bring it back.
+- The card's two buttons (`.dress .foot`): small (36 px), side by side on one line at every width, as tall as each
+  other and on the same 3 px lip. If a label will not fit, the label is made shorter: they never stack.
 - "Put it in the field": with no server (`VITE_SHEEP_API` unset) nothing is charged and the card says so; the entry
   goes through `tidy`, is kept in this browser, the address is made `?sheep=<id>` as Stripe's return makes it, and
   the sheep comes to hang over the field (`bring`: `ALOFT`, 6 over the grass, the yellow arrow of `../basics.ts`
@@ -95,6 +142,18 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   - **Play**: the zoomies (`zoom`: two or three fast runs, ears up); chase (`mate`, `lead`, `fun`: one runs, the other
     runs at it, and at every bump they hop and change over; `play` is the next move, `part` lets go of both, whichever
     stops, and night stops it). A run is the same walk, faster (`rush`): hop, quarter turns, across then along, `fits`.
+  - **Leaping** (`leap`, `vault`, `still`, `blocker`; `did.leap`, and of those `cross` and `lark`, and `frog`): a
+    sheep goes over another, up on to its back (`UP`), a moment on top with a bounce (`ATOP`), and down the far
+    side (`DOWN`), by how long it has been at it, so the same at any frame rate. Out of impatience: one whose way is
+    shut a second time by a sheep that is only standing there stamps, pulls a face (`vexed`) and goes over, and on
+    with its errand. For the fun of it (`lark`): a playful one goes and stands square on to a friend (`vault`) and
+    leaps it; and sometimes the one leapt takes its turn over the leaper, and so on: leapfrog (`frogs`). Only over
+    one that is `still` (on its feet, standing or head down, nothing else going on, no duck), straight ahead, with a
+    place just beyond where the leaper `fits` and nothing else on the way; one leap at a time in the field, none
+    while a duck is on the wing. While it is in the air the leaper keeps the whole stretch from where it left to
+    where it lands (its `rect` is that), the one underneath is `pinned` (it stays as it is, and does not hop), and
+    wherever any of the leaper is over the other it is no lower than the top of the other (hat and all). The test
+    checks every cube at every step of every leap.
   - **Night**: one that likes company waits to see who lies down first, then goes and lies beside it (`nap`); a nosy
     one goes and wakes a sleeper, which starts up with a hop (`poke`). Each sheep thinks of it twice a night at most.
   - **Big grass** is planted by the visitor, and never comes up by itself. A click anywhere on the land

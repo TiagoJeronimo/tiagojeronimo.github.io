@@ -25,6 +25,8 @@ export const MORNING = 0.78 * DAY
 const SLEEP = 0.9 // how dark it is when sheep lie down; they get up again at WAKE: about half a minute later
 const WAKE = 0.85
 const STEPS = 1.5 // how many hops a sheep takes to a tile
+const BESIDE = 2.6 // how near to a very old sheep is beside her
+const [UP, ATOP, DOWN] = [0.55, 0.4, 0.55] // a leap over another sheep: how long it takes to get up on it, how long it is on top, and how long to get down
 const GRASS = [0x8fd16b, 0x9fd872, 0xb4de6e] // the castle's greens: a tile takes one by chance
 const SHORT = 0xd6e8a4 // grass that has been eaten
 const SOIL = 0xba936d
@@ -237,8 +239,8 @@ type Ewe = {
   base: number // how high the ground it stands on is: 1 in the field
   y: number // how high its feet are now: the ground, and whatever hop it is in
   face: number // which quarter turn it looks: see `TURNS`
-  state: 'idle' | 'walk' | 'eat' | 'drink' | 'sleep' | 'splash'
-  goal: 'wander' | 'graze' | 'drink' | 'wade' | 'follow' | 'nose' | 'zoom' | 'flee' | 'chase' | 'treat' | 'nap' | 'poke'
+  state: 'idle' | 'walk' | 'eat' | 'drink' | 'sleep' | 'splash' | 'leap'
+  goal: 'wander' | 'graze' | 'drink' | 'wade' | 'follow' | 'nose' | 'zoom' | 'flee' | 'chase' | 'treat' | 'nap' | 'poke' | 'vault' | 'visit'
   timer: number
   tx: number // where it is going,
   tz: number
@@ -248,6 +250,7 @@ type Ewe = {
   thirst: number
   blocked: number // how many times running its way has been shut,
   tries: number // and how many more times it will try another way round before it gives the errand up
+  old?: boolean // whether it is a very old sheep (`clothe` says): slow, and liked
   pace: number // how fast it likes to go,
   v: number // and how fast it is going
   stride: number // how far along its stride it is: it goes at a hop
@@ -273,6 +276,13 @@ type Ewe = {
   rider: number // which duck is on its back, or on its way there; or -1
   napped: number // how many times tonight it has thought about lying by a friend, or waking one: twice is enough
   sniff: boolean // whether its head is down to smell a flower, and not to eat
+  over: Ewe | null // the sheep it is leaping over, while it is,
+  leapt: number // for how long it has been at it,
+  from: number[] // from where to where (x, z, x, z), and how far along the way the other one is
+  lark: boolean // and whether it is for the fun of it
+  vexed: Ewe | null // the sheep in its way that it is about to leap over, once it has stamped
+  frogs: number // how many more leaps a game of leapfrog has in it
+  pinned: number // for how long it is to stay just as it is: somebody is in the air over it, or about to be
   say: string // what is in the small bubble over its head,
   said: number // and for how much longer
   wool: number
@@ -311,7 +321,7 @@ export class Sheep {
   /** The tufts of big grass: the tile each stands on (-1 if it does not), how long it has left, and its cubes. */
   readonly treats: { t: number; left: number; born: number; gold: boolean; cubes: number[] }[] = []
   /** How many times each of the things that can happen has happened: for whoever wants to know that they do. */
-  readonly did: Record<string, number> = { zoom: 0, chase: 0, bump: 0, nap: 0, poke: 0, treat: 0, sigh: 0, splash: 0, join: 0, ride: 0, sniff: 0, wake: 0, trail: 0, tussle: 0, posy: 0, gold: 0, gaze: 0 }
+  readonly did: Record<string, number> = { zoom: 0, chase: 0, bump: 0, nap: 0, poke: 0, treat: 0, sigh: 0, splash: 0, join: 0, ride: 0, sniff: 0, leap: 0, cross: 0, lark: 0, frog: 0, wake: 0, trail: 0, tussle: 0, posy: 0, gold: 0, gaze: 0 }
   private treat = new Uint8Array(N * N) // where a tuft stands: no sheep is over it, body or head
   private bloomy = new Uint8Array(N * N) // where a flower grows
   private planted = 0 // how many have been, ever (every eighth is a golden one),
@@ -325,6 +335,9 @@ export class Sheep {
   private mute = false // and whether nobody has one: a sheep is being dressed, or put down
   private bare = new Uint8Array(N * N) // where nothing stands on a dry tile: a tuft can go there
   private birds: number[][] = []
+  private elders: Ewe[] = [] // the very old sheep that are in the field: the others like to be by them
+  /** How many times a sheep has come up to one of them, or stood by her, and shown that it is fond of her. */
+  fond = 0
   private most = 0 // how many cubes the flock has room for
   /** A sheep that is being dressed, or is about to be put down: it hangs in the air, and is not of the flock yet. */
   guest: Ewe | null = null
@@ -586,8 +599,9 @@ export class Sheep {
    * Whether a sheep of this size can be there, looking that way: all of it over level ground or the brook, its body
    * not over the pond (its head may be: that is how it drinks), clear of whatever stands in the field, and clear of
    * every other sheep. This is the one rule of where a sheep is: a step or a turn is only made if it fits.
+   * @param but one sheep that does not count: the one that is being leapt over
    */
-  fits(self: Ewe | null, s: number, face: number, x: number, z: number) {
+  fits(self: Ewe | null, s: number, face: number, x: number, z: number, but: Ewe | null = null) {
     const r = this.scratch
     this.rects(s, face, x, z, r)
     for (let o = 0; o < 8; o += 4) {
@@ -596,7 +610,7 @@ export class Sheep {
         if (t < 0 || LAND[t] !== 1 || BLOCK[t] || this.treat[t] || (KIND[t] === 3 && !o)) return false
       }
       for (const e of this.ewes) {
-        if (e === self) continue
+        if (e === self || e === but) continue
         for (let p = 0; p < 8; p += 4) if (r[o] < e.rect[p + 1] + 0.04 && r[o + 1] > e.rect[p] - 0.04 && r[o + 2] < e.rect[p + 3] + 0.04 && r[o + 3] > e.rect[p + 2] - 0.04) return false
       }
     }
@@ -610,7 +624,7 @@ export class Sheep {
     const e: Ewe = {
       entry, s, nature: NATURES[Math.floor(rnd(seed * 7 + 3) * 4)], x, z, base: 1, y: 1, face, state: 'idle', goal: 'wander',
       timer: 0.5 + this.chance() * 5, tx: 0, tz: 0, sideways: false, want: -1, hunger: this.chance(), thirst: this.chance(), blocked: 0, tries: 0, pace: 0.6 + 0.25 * rnd(seed * 7 + 7), v: 0,
-      stride: 0, hop: 0, wait: 0, nod: 0, lie: 0, air: 0, fall: 0, high: 0, wear: [], friend: null, mate: null, lead: false, fun: 0, cool: 0, rush: 1, laps: 0, prize: -1, gazed: -1, ate: 0, crown: 0, rider: -1, napped: 0, sniff: false, say: '', said: 0, wool: 0, cubes, rect: new Float64Array(8), mark: NaN, sized: -1,
+      stride: 0, hop: 0, wait: 0, nod: 0, lie: 0, air: 0, fall: 0, high: 0, wear: [], friend: null, mate: null, lead: false, fun: 0, cool: 0, rush: 1, laps: 0, prize: -1, gazed: -1, ate: 0, crown: 0, rider: -1, napped: 0, sniff: false, over: null, leapt: 0, from: [0, 0, 0, 0, 0.5], lark: false, vexed: null, frogs: 0, pinned: 0, say: '', said: 0, wool: 0, cubes, rect: new Float64Array(8), mark: NaN, sized: -1,
     }
     this.rects(s, face, x, z, e.rect)
     clothe(this.flock, e, seed, entry.look)
@@ -618,8 +632,8 @@ export class Sheep {
   }
 
   /** The place nearest to (x, z) where a sheep of this size, looking this way, fits; or null, if there is none. */
-  private spot(self: Ewe | null, s: number, face: number, x: number, z: number): [number, number] | null {
-    for (let k = 0; k < 900; k++) {
+  private spot(self: Ewe | null, s: number, face: number, x: number, z: number, tries = 900): [number, number] | null {
+    for (let k = 0; k < tries; k++) {
       const px = x + Math.cos(k * 2.4) * k * 0.06
       const pz = z + Math.sin(k * 2.4) * k * 0.06
       if (this.fits(self, s, face, px, pz)) return [px, pz]
@@ -634,6 +648,7 @@ export class Sheep {
     const [x, z] = this.spot(null, s, face, (rnd(seed * 7 + 4) * 2 - 1) * 12, -3 + rnd(seed * 7 + 5) * 16) ?? [0, 0]
     const e = this.ewe(entry, this.ewes.length, s, x, z, face)
     this.ewes.push(e)
+    if (e.entry.look?.elder) this.elders.push(e)
     this.draw(e)
     return this.ewes.length - 1
   }
@@ -704,6 +719,7 @@ export class Sheep {
     for (const c of e.cubes) this.flock.owner[c] = this.ewes.length
     Object.assign(e, { state: 'idle', goal: 'wander', timer: 2 + this.chance() * 2, air: Math.max(e.air, 0.01), high: Math.max(e.air, 0.01), fall: 0 })
     this.ewes.push(e)
+    if (e.entry.look?.elder) this.elders.push(e)
     return this.ewes.length - 1
   }
 
@@ -725,7 +741,7 @@ export class Sheep {
   glad(i: number) {
     if (i === DOOR) return this.knock()
     const e = i === HERMIT ? this.hermit : this.ewes[i]
-    if (e && e.state !== 'sleep' && e.lie < 0.05 && e.hop <= 0) e.hop = GLAD
+    if (e && e.state !== 'sleep' && e.lie < 0.05 && e.hop <= 0 && !e.pinned) e.hop = GLAD // (not with somebody in the air over it)
   }
 
   /** Whether a cube of the ground is the door's. */
@@ -750,10 +766,12 @@ export class Sheep {
     if (e.state === 'sleep') return 'asleep'
     if (e.state === 'eat') return e.sniff ? 'smelling a flower' : 'grazing'
     if (e.state === 'splash') return 'splashing about'
+    if (e.state === 'leap') return 'leaping over a friend'
+    if (e.vexed) return 'losing patience'
     if (e.rider >= 0) return 'minding a duck'
     if (e.state === 'drink') return 'having a drink'
     if (e.state === 'idle') return 'standing about'
-    return { wander: 'wandering', graze: 'off to graze', drink: 'off for a drink', wade: 'off for a paddle', follow: 'following a friend', nose: 'being nosy', zoom: 'having the zoomies', flee: 'being chased', chase: 'chasing a friend', treat: 'after the good grass', nap: 'off to nap by a friend', poke: 'off to wake somebody' }[e.goal]
+    return { wander: 'wandering', graze: 'off to graze', drink: 'off for a drink', wade: 'off for a paddle', follow: 'following a friend', nose: 'being nosy', zoom: 'having the zoomies', flee: 'being chased', chase: 'chasing a friend', treat: 'after the good grass', nap: 'off to nap by a friend', poke: 'off to wake somebody', vault: 'off to leap over a friend', visit: 'off to keep the old one company' }[e.goal]
   }
 
   /** The highest the ground is under a square of ground. */
@@ -763,11 +781,14 @@ export class Sheep {
 
   /** Puts a sheep's cubes where it is (see `pose` in `model.ts`): on the ground it stands on, or, all of it in the brook, in the water up to its wool and not over it on stilts. */
   private draw(e: Ewe) {
+    // (One that is leaping is in the air over a stretch of ground it keeps for itself, feet tucked: see `leap`.)
+    if (e.over) return pose(this.flock, e, this.time, e.base, this.level)
     let wading = e.base === 1
     for (let k = 0; k < 8; k++) if (KIND[at(e.rect[(k & 4) + (k & 1)], e.rect[(k & 4) + 2 + ((k >> 1) & 1)])] !== 2) wading = false
     pose(this.flock, e, this.time, e.base - (wading ? 0.3 : 0), this.foot)
   }
   private foot = (x: number, z: number, half: number) => this.under(x, z, half)
+  private level = () => 1
 
   /** The other sheep nearest to this one, within a distance. */
   private neighbour(e: Ewe, within: number) {
@@ -794,8 +815,16 @@ export class Sheep {
       this.think(friend, 'gasp')
       this.think(e, 'smile')
       this.did.poke++
-    } else if (friend && e.state === 'walk' && Math.hypot(friend.x - e.x, friend.z - e.z) < 1.8 && friend.state !== 'sleep') {
-      e.hop = friend.hop = GLAD
+    } else if (friend?.old && e.goal === 'visit') {
+      // It came to be with a very old sheep, and is: a small hop, and what it thinks of her. It stays a good while.
+      if (Math.hypot(friend.x - e.x, friend.z - e.z) < BESIDE + 0.6) {
+        e.hop = GLAD
+        this.fondly(e)
+        least += 2.5
+      }
+    } else if (friend && e.state === 'walk' && Math.hypot(friend.x - e.x, friend.z - e.z) < 1.8 && friend.state !== 'sleep' && !friend.pinned && !friend.over) {
+      e.hop = GLAD
+      if (!friend.old) friend.hop = GLAD
       this.bits.spawn((e.x + friend.x) / 2, 2, (e.z + friend.z) / 2, any() * 0.2, 0.9, any() * 0.2, 0.13, 0xff8fb0, 1.2, NEVER, 0, -0.4)
     }
     e.friend = null
@@ -803,6 +832,13 @@ export class Sheep {
     e.goal = 'wander'
     e.rush = 1
     e.timer = least + this.chance() * this.chance() * 4.5
+  }
+
+  /** A sheep by a very old one shows that it is fond of her: a heart, more often than not. */
+  private fondly(e: Ewe) {
+    const roll = this.chance()
+    this.think(e, roll < 0.55 ? 'heart' : roll < 0.8 ? 'smile' : 'blush', 2)
+    this.fond++
   }
 
   /** A sheep sets off for a place: across and then along, or the other way about, since it goes the way it looks. */
@@ -815,14 +851,93 @@ export class Sheep {
     e.sideways = want >= 0 ? !(want & 1) : Math.abs(x - e.x) > Math.abs(z - e.z)
     e.state = 'walk'
     e.blocked = 0
+    e.vexed = null
     // (One that is only wandering gives up at the first thing in its way; one on an errand tries round it, twice.)
     e.tries = goal === 'wander' || goal === 'follow' || goal === 'nose' || goal === 'zoom' || goal === 'flee' || goal === 'chase' ? 0 : 2
     e.timer = 8 + (Math.abs(x - e.x) + Math.abs(z - e.z)) / 0.45 // what it may take to get there, and no longer
   }
 
+  /** Whether a sheep is beside a very old one (and is not her). */
+  private beside(e: Ewe) {
+    for (const old of this.elders) if (old !== e && !old.air && Math.abs(old.x - e.x) < BESIDE && Math.abs(old.z - e.z) < BESIDE) return true
+    return false
+  }
+
+  /**
+   * A very old sheep is near, and a sheep with nothing to do may go and keep her company: to somewhere it can stand,
+   * a step or two off her, at a walk. Not if six are with her or on their way already: she is not to be crowded.
+   */
+  private call(e: Ewe, goal: 'visit' | 'nap') {
+    for (const old of this.elders) {
+      if (old.air || Math.hypot(old.x - e.x, old.z - e.z) > 16) continue
+      let about = 0
+      for (const o of this.ewes) if (o !== old && o !== e && (o.friend === old ? o.goal === 'visit' || o.goal === 'nap' : Math.hypot(o.x - old.x, o.z - old.z) < BESIDE)) about++
+      if (about >= 6) continue
+      // (From a long way off it comes a few tiles at a time, by whatever way is open: a field is full of things.)
+      const gap = Math.hypot(old.x - e.x, old.z - e.z)
+      for (let k = 0; k < 8; k++) {
+        const [turn, far] = [this.chance() * Math.PI * 2, 1.25 + this.chance() * 0.9]
+        const [x, z] = gap > 6 ? [e.x + ((old.x - e.x) / gap) * 4 + Math.sin(turn) * 2, e.z + ((old.z - e.z) / gap) * 4 + Math.cos(turn) * 2] : [old.x + Math.sin(turn) * far, old.z + Math.cos(turn) * far]
+        if (!this.fits(e, e.s, e.face, x, z)) continue
+        this.go(e, x, z, goal)
+        e.friend = old
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * What a very old sheep does, which is not much, and slowly: a long stand, a mouthful of the grass under her nose,
+   * a few steps to somewhere near. By night she sleeps where she is. Now and then she thinks well of everybody.
+   */
+  private potter(e: Ewe) {
+    if (this.dark > SLEEP) return void (e.state = 'sleep')
+    const roll = this.chance()
+    if (roll < 0.3) this.think(e, roll < 0.15 ? 'heart' : 'smile', 2.2)
+    const [, fx, , fz] = TURNS[e.face]
+    if (roll > 0.75 && this.long(e.x + fx * NOSE * e.s, e.z + fz * NOSE * e.s)) return this.graze(e)
+    if (roll > 0.55)
+      for (let k = 0; k < 4; k++) {
+        const [x, z] = [e.x + (this.chance() - 0.5) * 4, e.z + (this.chance() - 0.5) * 4]
+        if (this.fits(e, e.s, e.face, x, z)) return this.go(e, x, z, 'wander')
+      }
+    e.timer = 4 + this.chance() * 7
+  }
+
   /** A sheep that has nothing to do thinks of something. */
   private choose(e: Ewe) {
     if (e.mate && this.play(e)) return
+    // Something to leap over, for the fun of it: whoever is standing or eating near by. The playful ones often,
+    // anybody now and then. It goes and stands square on to its friend first, a step off; and of three or four that
+    // do, one makes a game of leapfrog of it.
+    // (A very old sheep goes her own way. The others, if she is near, may well go and be with her: by day to stand
+    // by her, and one that is by her already as often as not stays; by night, once, to lie down near her.)
+    if (e.old) return this.potter(e)
+    if (this.elders.length && this.dark <= SLEEP) {
+      if (this.beside(e)) {
+        if (this.chance() < 0.75) {
+          if (this.chance() < 0.5) this.fondly(e)
+          return void (e.timer = 2 + this.chance() * 4)
+        }
+      } else if (this.chance() < 0.7 && this.call(e, 'visit')) return
+    }
+    if (this.elders.length && this.dark > SLEEP && !e.napped && !this.beside(e) && this.call(e, 'nap')) return void (e.napped = 2)
+    if (this.dark < SLEEP && e.hunger < 1 && this.chance() < (e.nature === 'swimmer' ? 0.08 : 0.24)) {
+      const friend = this.neighbour(e, 4.5)
+      if (friend && this.still(friend)) {
+        const face = turned(friend.x - e.x, friend.z - e.z)
+        const [, fx, , fz] = TURNS[face]
+        const [low, high] = fx ? [Math.min(friend.rect[0], friend.rect[4]), Math.max(friend.rect[1], friend.rect[5])] : [Math.min(friend.rect[2], friend.rect[6]), Math.max(friend.rect[3], friend.rect[7])]
+        const along = fx + fz > 0 ? low - HEAD[2] * e.s - 0.1 : high + HEAD[2] * e.s + 0.1
+        const [x, z] = fx ? [along, friend.z] : [friend.x, along]
+        if (this.fits(e, e.s, face, x, z)) {
+          this.go(e, x, z, 'vault', face)
+          Object.assign(e, { friend, frogs: this.chance() < 0.45 ? 2 : 0 })
+          return
+        }
+      }
+    }
     // A tuft of big grass in sight (by night, right beside it): off after it.
     const prize = this.scent(e)
     if (prize >= 0) return this.after(e, prize)
@@ -834,7 +949,7 @@ export class Sheep {
       // (One that likes company, with nobody near asleep yet, stays up a little to see who lies down first.)
       if (!friend && !e.napped++ && (e.nature === 'follower' || e.nature === 'nosy')) return void (e.timer = 2.5 + this.chance() * 2)
       e.napped = 2
-      if (friend?.state === 'sleep' && e.nature === 'nosy' && roll < 0.6) {
+      if (friend?.state === 'sleep' && !friend.old && e.nature === 'nosy' && roll < 0.6) {
         e.friend = friend
         return this.go(e, friend.x + (this.chance() - 0.5) * 2.4, friend.z + (this.chance() - 0.5) * 2.4, 'poke')
       }
@@ -889,7 +1004,7 @@ export class Sheep {
       // A game of chase with whoever is near and has nothing better to do: it runs, this one runs after it, and at
       // every bump they change over.
       const friend = this.neighbour(e, 7)
-      if (friend && !friend.mate && friend.rider < 0 && !friend.air && (friend.state === 'idle' || (friend.state === 'walk' && friend.goal === 'wander')) && !friend.lie && !friend.nod) {
+      if (friend && !friend.old && !friend.mate && !friend.pinned && friend.rider < 0 && !friend.air && (friend.state === 'idle' || (friend.state === 'walk' && friend.goal === 'wander')) && !friend.lie && !friend.nod) {
         Object.assign(e, { mate: friend, lead: false, fun: 7 + this.chance() * 4, cool: 0 })
         Object.assign(friend, { mate: e, lead: true, fun: e.fun, cool: 0, friend: null })
         this.think(e, 'note')
@@ -954,7 +1069,7 @@ export class Sheep {
     const { ground, thoughts } = this
     const by = (e: Ewe, x: number, z: number, near: number) => Math.abs(e.x - x) < near && Math.abs(e.z - z) < near
     const barred = (e: Ewe) => {
-      if (e.said <= 0 || e.rider >= 0 || e.air > 0 || e.state === 'sleep' || this.mute || this.ewes[this.shy] === e) return true
+      if (e.said <= 0 || e.pinned || e.rider >= 0 || e.air > 0 || e.state === 'sleep' || this.mute || this.ewes[this.shy] === e) return true
       for (const bubble of thoughts) if (bubble.owner && bubble.owner !== e && by(e, bubble.owner.x, bubble.owner.z, 0.85) && (bubble.owner.said >= e.said || !thoughts.some((own) => own.owner === e))) return true
       for (const o of this.ewes) if (o.air > 0 && by(e, o.x, o.z, 1.3)) return true
       for (const duck of this.ducks) if ((duck.state === 'fly' || duck.state === 'home') && by(e, duck.x, duck.z, 1.4)) return true
@@ -982,6 +1097,129 @@ export class Sheep {
       speak(ground, bubble.cubes, e.say, bubble.say !== e.say, e.x, foot, e.z, this.facing, grow)
       bubble.say = e.say
     }
+  }
+
+  /** Whether a sheep is one that can be leapt over: on its feet, standing or with its head down, with nothing else going on and nobody on it. */
+  private still(o: Ewe) {
+    return (o.state === 'idle' || o.state === 'eat' || o.state === 'drink') && !o.old && !o.over && !o.pinned && !o.vexed && !o.mate && o.rider < 0 && !o.air && !o.hop && !o.stride && !o.lie
+  }
+
+  /** The sheep that is in the way of a sheep that would be at (x, z), looking that way; or null. */
+  private blocker(e: Ewe, face: number, x: number, z: number) {
+    const r = this.scratch
+    this.rects(e.s, face, x, z, r)
+    for (const o of this.ewes) {
+      if (o === e) continue
+      for (let k = 0; k < 8; k += 4) for (let p = 0; p < 8; p += 4) if (r[k] < o.rect[p + 1] + 0.04 && r[k + 1] > o.rect[p] - 0.04 && r[k + 2] < o.rect[p + 3] + 0.04 && r[k + 3] > o.rect[p + 2] - 0.04) return o
+    }
+    return null
+  }
+
+  /**
+   * A sheep leaps over another: up on to its back, a moment there, and down on the far side. Only over one that is
+   * `still`, straight ahead (or nearly), with a place to come down just beyond it where the leaper fits and nothing
+   * else on the way; one leap at a time in the whole field, and none while a duck is on the wing. From here until it
+   * is down the leaper keeps the whole stretch of ground from where it is to where it lands (nobody walks in under
+   * it), and the one underneath is `pinned`: it stays as it is.
+   * @param lark whether it is for the fun of it (and not because the other was in the way)
+   * @returns whether it has set off
+   */
+  private leap(e: Ewe, o: Ewe, lark: boolean) {
+    if (!this.still(o) || e.rider >= 0 || e.mate || this.ewes.some((one) => one.over) || this.ducks.some((duck) => duck.state === 'fly' || duck.state === 'home')) return false
+    const face = turned(o.x - e.x, o.z - e.z)
+    const [, fx, , fz] = TURNS[face]
+    // (How far to one side of its way the other is: with more than half a sheep of that, it is not in the way at all.)
+    if (Math.abs((o.x - e.x) * fz - (o.z - e.z) * fx) > 0.45) return false
+    if (face !== e.face && !this.fits(e, e.s, face, e.x, e.z)) return false
+    const [low, high] = fx ? [Math.min(o.rect[0], o.rect[4]), Math.max(o.rect[1], o.rect[5])] : [Math.min(o.rect[2], o.rect[6]), Math.max(o.rect[3], o.rect[7])]
+    const here = fx ? e.x : e.z
+    const there = fx + fz > 0 ? high - BODY[1] * e.s + 0.1 : low + BODY[1] * e.s - 0.1
+    const [x, z] = fx ? [there, e.z] : [e.x, there]
+    if (Math.abs(there - here) > 3.4 || !this.fits(e, e.s, face, x, z)) return false
+    for (let k = 1; k < 6; k++) if (!this.fits(e, e.s, face, e.x + ((x - e.x) * k) / 6, e.z + ((z - e.z) * k) / 6, o)) return false
+    if (face !== e.face) this.turn(e, face)
+    // The ground it keeps: all of it, from here to there.
+    const r = this.scratch
+    this.rects(e.s, face, x, z, r)
+    for (let k = 0; k < 8; k += 4) {
+      e.rect[k] = e.rect[k + 4 - 2 * k] = Math.min(e.rect[0], e.rect[4], r[0], r[4])
+      e.rect[k + 1] = Math.max(e.rect[1], e.rect[5], r[1], r[5])
+      e.rect[k + 2] = Math.min(e.rect[2], e.rect[6], r[2], r[6])
+      e.rect[k + 3] = Math.max(e.rect[3], e.rect[7], r[3], r[7])
+    }
+    e.rect.copyWithin(4, 0, 4)
+    Object.assign(e, { state: 'leap', over: o, leapt: 0, v: 0, stride: 0, wait: 0, lark })
+    e.from[0] = e.x
+    e.from[1] = e.z
+    e.from[2] = x
+    e.from[3] = z
+    e.from[4] = Math.min(0.8, Math.max(0.2, ((fx ? o.x : o.z) - here) / (there - here)))
+    o.pinned = UP + ATOP + DOWN + 0.3
+    this.did.leap++
+    this.did[lark ? 'lark' : 'cross']++
+    return true
+  }
+
+  /**
+   * A leap, as it goes: by how long it has been going, so it is the same at any frame rate. Up (a crouch, straight up
+   * to the height of the other's back and a little over before it goes forward at all, then on to it), a moment on
+   * top with a bounce or two, and down the far side the same way about. However that works out, while any of it is
+   * over the other it is no lower than the top of the other: it is never in it.
+   */
+  private vault(e: Ewe, dt: number) {
+    const o = e.over!
+    const ease = (t: number) => Math.min(1, Math.max(0, t)) ** 2 * (3 - 2 * Math.min(1, Math.max(0, t)))
+    const top = o.y - 1 + (o.entry.look?.wear === 'hat' || o.entry.look?.wear === 'flowers' ? 1.06 : 0.9) * o.s + 0.03
+    const was = e.leapt
+    e.leapt += dt
+    let [way, high] = [1, 0]
+    e.lie = 0
+    if (e.leapt < UP) {
+      const u = e.leapt / UP
+      way = e.from[4] * ease((u - 0.3) / 0.7)
+      high = top * ease(u / 0.34) + 0.32 * Math.sin(Math.PI * u)
+      e.lie = u < 0.2 ? 0.4 * Math.sin((Math.PI * u) / 0.2) : 0 // (the crouch)
+    } else if (e.leapt < UP + ATOP) {
+      way = e.from[4]
+      high = top + 0.1 * Math.abs(Math.sin(((e.leapt - UP) / ATOP) * Math.PI * 2))
+      if (was < UP) for (let k = 0; k < 4; k++) this.bits.spawn(e.x + any() * 0.4, o.y + o.s, e.z + any() * 0.4, any() * 1.2, 0.8, any() * 1.2, 0.07, 0xfffaf0, 0.4, NEVER, 0, 3)
+    } else if (e.leapt < UP + ATOP + DOWN) {
+      const u = (e.leapt - UP - ATOP) / DOWN
+      way = e.from[4] + (1 - e.from[4]) * ease(u / 0.7)
+      high = top * (1 - ease((u - 0.66) / 0.34)) + 0.32 * Math.sin(Math.PI * u)
+    }
+    e.x = e.from[0] + (e.from[2] - e.from[0]) * way
+    e.z = e.from[1] + (e.from[3] - e.from[1]) * way
+    if (e.leapt < UP + ATOP + DOWN) {
+      // (Over the other, by so much as a hair: then no lower than its top.)
+      const r = this.scratch
+      this.rects(e.s, e.face, e.x, e.z, r)
+      for (let k = 0; k < 8; k += 4) for (let q = 0; q < 8; q += 4) if (r[k] < o.rect[q + 1] + 0.05 && r[k + 1] > o.rect[q] - 0.05 && r[k + 2] < o.rect[q + 3] + 0.05 && r[k + 3] > o.rect[q + 2] - 0.05) high = Math.max(high, top)
+      e.air = Math.max(0, high)
+      return
+    }
+    // Down: its own ground again, a puff, and the one that was leapt over gives a hop, and has a face about it.
+    const { lark } = e
+    Object.assign(e, { air: 0, over: null, lie: 0, hop: GLAD })
+    this.rects(e.s, e.face, e.x, e.z, e.rect)
+    for (let k = 0; k < 5; k++) this.bits.spawn(e.x + any() * 0.6, 1.05, e.z + any() * 0.6, any() * 1.4, 0.5 + Math.random() * 0.6, any() * 1.4, 0.09, 0xfffaf0, 0.5, 1, 0.2)
+    o.pinned = 0
+    o.hop = GLAD
+    this.think(o, lark ? 'smile' : 'gasp', 2)
+    if (!lark && e.goal !== 'wander') {
+      // On with what it was about.
+      Object.assign(e, { state: 'walk', blocked: 0, timer: 8 + (Math.abs(e.tx - e.x) + Math.abs(e.tz - e.z)) / 0.45 })
+      return
+    }
+    this.rest(e, 1)
+    this.think(e, 'stars', 2)
+    // Leapfrog: the one that was leapt over takes its turn, over this one, the same way; and so on down the line.
+    if (lark && e.frogs > 0 && !e.mate && e.rider < 0) {
+      Object.assign(o, { state: 'idle', vexed: e, lark: true, frogs: e.frogs - 1, timer: 0.7, goal: 'wander' })
+      e.pinned = 1
+      this.did.frog++
+    }
+    e.frogs = 0
   }
 
   /** A small picture comes up over a sheep's head for a moment, in a bubble: what it thinks of things. */
@@ -1101,7 +1339,7 @@ export class Sheep {
     }
     // Who notices at once: whoever is awake, with nothing on, near enough (the greedy from further off). The nearest three.
     const keen = this.ewes
-      .filter((e) => !e.mate && e.rider < 0 && !e.air && !e.lie && (e.state === 'idle' || (e.state === 'walk' && e.goal !== 'drink' && e.goal !== 'treat')) && Math.hypot(e.x - cx, e.z - cz) < (e.nature === 'greedy' ? 13 : 7))
+      .filter((e) => !e.mate && !e.pinned && e.rider < 0 && !e.air && !e.lie && (e.state === 'idle' || (e.state === 'walk' && e.goal !== 'drink' && e.goal !== 'treat')) && Math.hypot(e.x - cx, e.z - cz) < (e.nature === 'greedy' ? 13 : 7))
       .sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))
     for (const e of keen.slice(0, 3)) this.after(e, this.treats.indexOf(tuft))
     return this.treats.indexOf(tuft)
@@ -1177,7 +1415,7 @@ export class Sheep {
         o.hop = GLAD
         this.think(o, 'sweat')
         this.did.tussle++
-      } else if (gold && far < 5 && o.state !== 'sleep' && !o.lie) {
+      } else if (gold && far < 5 && o.state !== 'sleep' && !o.lie && !o.pinned && !o.over) {
         // A golden one: everybody near is glad of it, whoever got it.
         o.hop = GLAD
         this.think(o, 'heart')
@@ -1215,6 +1453,13 @@ export class Sheep {
   private arrived(e: Ewe) {
     const [, fx, , fz] = TURNS[e.want >= 0 ? e.want : e.face]
     const [hx, hz] = [e.x + fx * NOSE * e.s, e.z + fz * NOSE * e.s]
+    if (e.goal === 'vault') {
+      // Square on to its friend: over it goes, if it still can. (Else it only stands there, as if that was the plan.)
+      const { friend } = e
+      e.friend = null
+      if (friend && this.leap(e, friend, true)) return
+      return this.rest(e, 0.5)
+    }
     if (e.goal === 'graze' && this.long(hx, hz)) return this.graze(e)
     if (e.goal === 'drink' && this.height(hx, hz) < 1) {
       if (e.face !== e.want) {
@@ -1225,7 +1470,7 @@ export class Sheep {
       e.goal = 'wander'
       e.timer = 3 + this.chance() * 2
       // A duck may take it for somewhere to sit: the first one that is only swimming flies over.
-      const duck = this.chance() < 0.6 ? this.ducks.find((one) => one.state === 'swim' && one.brook < 0) : undefined
+      const duck = this.chance() < 0.6 && !e.old && !this.ewes.some((one) => one.over) ? this.ducks.find((one) => one.state === 'swim' && one.brook < 0) : undefined
       if (duck) {
         Object.assign(duck, { state: 'fly', t: 0, fx: duck.x, fy: duck.y, fz: duck.z, on: e })
         e.rider = this.ducks.indexOf(duck)
@@ -1246,8 +1491,9 @@ export class Sheep {
     }
     if (e.goal === 'nap') {
       // Beside its friend, looking the same way if there is room to turn, it lies down.
-      if (e.face !== e.want && this.fits(e, e.s, e.want, e.x, e.z)) this.turn(e, e.want)
-      Object.assign(e, { state: 'sleep', goal: 'wander' })
+      // (One that came to lie near a very old sheep looks whichever way it came.)
+      if (e.want >= 0 && e.face !== e.want && this.fits(e, e.s, e.want, e.x, e.z)) this.turn(e, e.want)
+      Object.assign(e, { state: 'sleep', goal: 'wander', friend: null })
       this.think(e, 'blush')
       this.did.nap++
       return
@@ -1260,7 +1506,7 @@ export class Sheep {
       // And whoever is near with nothing to do may come and splash beside it.
       let friend: Ewe | null = null
       for (const one of this.ewes) {
-        const free = one !== e && !one.mate && one.rider < 0 && !one.air && !one.lie && !one.nod && (one.state === 'idle' || (one.state === 'walk' && one.goal === 'wander'))
+        const free = one !== e && !one.mate && !one.pinned && one.rider < 0 && !one.air && !one.lie && !one.nod && (one.state === 'idle' || (one.state === 'walk' && one.goal === 'wander'))
         if (free && Math.hypot(one.x - e.x, one.z - e.z) < (friend ? Math.hypot(friend.x - e.x, friend.z - e.z) : 10)) friend = one
       }
       const [x, z] = friend ? this.ford(friend, e.x, e.z, at(e.x, e.z)) : [99, 99]
@@ -1305,10 +1551,22 @@ export class Sheep {
       return false
     }
     const far = Math.abs(left)
-    e.v += (e.pace * e.rush * Math.min(1, 0.3 + far / 0.6) - e.v) * Math.min(1, dt * 5)
+    // (A very old sheep goes at a third of the pace; and nobody runs past her.)
+    const haste = e.old ? 0.3 : e.rush > 1 && this.elders.length && this.beside(e) ? 1 : e.rush
+    e.v += (e.pace * haste * Math.min(1, 0.3 + far / 0.6) - e.v) * Math.min(1, dt * 5)
     const step = Math.min(far, e.v * dt) * Math.sign(left)
     const [x, z] = [e.x + (side ? step : 0), e.z + (side ? 0 : step)]
-    if (!this.fits(e, e.s, face, x, z)) return balk(), false
+    if (!this.fits(e, e.s, face, x, z)) {
+      // Shut, and not for the first time, by a sheep that is only standing there: it loses patience. A stamp, a face
+      // like thunder, and in a moment it will go over the top. (It keeps its errand: it means to go on with it.)
+      const o = e.blocked && !e.mate ? this.blocker(e, face, x, z) : null
+      if (o && this.still(o) && this.chance() < 0.6) {
+        Object.assign(e, { state: 'idle', vexed: o, lark: false, timer: 0.8, hop: GLAD })
+        this.think(e, 'oh', 0.8)
+        return false
+      }
+      return balk(), false
+    }
     const hops = Math.floor(e.stride)
     e.x = x
     e.z = z
@@ -1365,6 +1623,12 @@ export class Sheep {
       e.ate = Math.max(0, e.ate - dt)
       if (e.crown > 0 && (e.crown -= dt) > 0 && Math.random() < dt * 14) bits.spawn(e.x + any() * 0.6, e.y + e.s + Math.random() * 0.2, e.z + any() * 0.6, 0, 0.3, 0, 0.06, 0xffe38a, 0.5, NEVER, 0, -0.2, 3)
       e.fun -= dt
+      e.pinned = Math.max(0, e.pinned - dt)
+      if (e.over) {
+        this.vault(e, dt)
+        this.draw(e)
+        continue
+      }
       if (e.air > 0) {
         // Just put in the field: it falls, lands with a puff and a heart, and gives a hop to be here.
         // (How high it is comes from how long it has fallen, and not from adding up steps: the same at any frame rate.)
@@ -1418,7 +1682,14 @@ export class Sheep {
         } else if (e.state === 'eat' && this.bite(e.x + fx * NOSE * e.s, e.z + fz * NOSE * e.s)) e.hunger = 0
         if (e.state === 'drink') e.thirst = 0
         if (e.state !== 'idle') this.rest(e, 1)
-        else if (e.nod > 0 || e.lie > 0 || e.stride) e.timer = 0.1 // (not before its head is up and it is on its feet)
+        else if (e.nod > 0 || e.lie > 0 || e.stride || e.pinned) e.timer = 0.1 // (not before its head is up and it is on its feet, nor with somebody over it)
+        else if (e.vexed) {
+          // It has stamped: now over the one in its way, if that can still be done; and else it gives the errand up.
+          const o = e.vexed
+          e.vexed = null
+          if (e.lark) o.pinned = 0 // (leapfrog: the other has been waiting for it, bent over)
+          if (!this.leap(e, o, e.lark)) this.rest(e, 0.4)
+        }
         else this.choose(e)
       }
       if (!moved) {
@@ -1435,6 +1706,8 @@ export class Sheep {
       e.lie += Math.max(-dt * 2, Math.min(dt * 2, flat - e.lie))
       this.draw(e)
     }
+    // (Over a very old sheep, now and then, a small warm glint.)
+    for (const old of this.elders) if (!old.air && Math.random() < dt * 0.9) bits.spawn(old.x + any() * 0.5, old.y + old.s + Math.random() * 0.2, old.z + any() * 0.5, 0, 0.25, 0, 0.06, 0xffe38a, 0.8, NEVER, 0, -0.15, 3)
     this.bubbles()
     this.hermit.hop = Math.max(0, this.hermit.hop - dt)
     this.draw(this.hermit)

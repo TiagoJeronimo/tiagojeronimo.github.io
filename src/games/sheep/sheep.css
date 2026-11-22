@@ -124,7 +124,7 @@
 }
 .dress .pay {
   order: -1; /* on the left, though it comes second: on a narrow screen it is last, under the sheep */
-  align-content: center;
+  align-content: start; /* from the top of the card, level with the top of the window */
 }
 .dress .pay strong {
   font-size: 1.25rem;
@@ -167,17 +167,17 @@
     inset 0 0 34px rgb(92 70 120 / 0.14);
   pointer-events: none;
 }
-/* The small quiet label over each thing to choose or to write. */
+/* The small quiet label over each row of things to choose, and over each box to write in. */
+.dress .field {
+  display: grid;
+  gap: 10px;
+}
 .dress .tag {
   display: block;
-  margin-bottom: -4px;
+  margin: 2px 0 -4px;
   font-size: 12px;
   font-weight: 700;
   opacity: 0.62;
-}
-.dress .field {
-  display: grid;
-  gap: 8px;
 }
 .dress .words {
   position: relative;
@@ -186,7 +186,7 @@
 .dress .words small {
   position: absolute;
   right: 10px;
-  bottom: 11px;
+  bottom: 12px;
   font-size: 11px;
   opacity: 0.55;
   pointer-events: none;
@@ -337,4 +337,88 @@
 .hints.snack {
   top: auto;
   bottom: 18px;
+}
+
+/* The two buttons at the foot of the gift: small, side by side on one line always, as tall as each other and each on
+   the same thin lip, so that their faces are level; the main one a little the wider. */
+.dress .foot {
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dress .foot .btn,
+.dress .foot .sound {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  margin: 0 0 3px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 11px;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+.dress .foot .btn {
+  flex-grow: 1.5;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--ink) 55%, var(--bg));
+}
+.dress .foot .btn:hover,
+.dress .foot .btn:active {
+  translate: none;
+}
+.dress .foot .sound {
+  box-shadow: 0 3px 0 rgb(61 53 80 / 0.16);
+}
+
+/* The very old sheep: a gift of nothing. The same card at the end of the afternoon: paper gone a faded cream with
+   lilac in it, a little gold round it, its window a dusk of peach and lavender with a small sun low in it, and what
+   it has to say said larger. Nothing of it is anywhere but in this card. */
+.dress .pick.nought {
+  opacity: 0.7;
+}
+.dress.elder {
+  background: linear-gradient(165deg, #fbf3e4, #f5ecdf 55%, #efe6f1);
+  box-shadow:
+    0 5px 0 rgb(120 96 80 / 0.25),
+    0 0 40px rgb(255 205 130 / 0.35);
+}
+.dress.elder .window {
+  background:
+    radial-gradient(circle at 20% 74%, #fff3c4 0 5%, #ffd98f 6.5%, rgb(255 200 140 / 0.45) 16%, transparent 34%),
+    linear-gradient(#c9b8e6, #e9c3d6 45%, #ffd3ae 78%, #ffe6bd);
+}
+.dress.elder .window::before {
+  opacity: 0.55;
+}
+.dress.elder .window::after {
+  box-shadow:
+    inset 0 0 0 4px #f7ecd9,
+    inset 0 0 34px rgb(255 190 120 / 0.3);
+}
+.dress.elder .pick[aria-checked='true'] {
+  background: #f6dba6;
+  opacity: 1;
+}
+.dress.elder .btn {
+  background: #eec078;
+  color: var(--ink);
+  box-shadow: 0 3px 0 #c2935a;
+}
+.dress .terms {
+  display: grid;
+  gap: 9px;
+}
+.dress .terms p {
+  font-size: 15px;
+  line-height: 1.4;
+  opacity: 0.95;
+}
+@media (max-width: 640px) {
+  .dress.elder .foot {
+    background: #f5ecdf;
+  }
 }

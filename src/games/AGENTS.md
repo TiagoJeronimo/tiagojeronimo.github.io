@@ -126,6 +126,11 @@ is the pattern and `sheep/Sheep.ts` the short copy of it: take the recipe from t
 - Two tiles of see-through water side by side, each a box of its own, show the join between them (each draws its
   sides inside the water). Where that matters, draw the tops as one mesh and no sides between them (`pour` in
   `sheep/Sheep.ts`); the island and the castle still use a box a tile.
+- A creature that goes over another (a leap) is in the air by a clock of its own, so the same at any frame rate; it
+  keeps the ground from where it left to where it lands, the one underneath is held still, and it is never lower than
+  the top of whatever it is over. It only sets off when where it will land fits. (`leap`, `vault` in `sheep/Sheep.ts`.)
+- A small canvas inside something that pops up from small is measured by its own size (`resize={{ offsetSize: true }}`
+  on an r3f `<Canvas>`): measured by what is seen of it, it stays the size it was in the middle of the pop.
 - Creatures that do things together hold each other by one link that both ends let go of together (`mate`, `part` in
   `sheep/Sheep.ts`), and whatever play they are at is the same walk, only faster. What one thinks is a small picture
   in a bubble over its head for a moment (see "Bubbles"), never a word.

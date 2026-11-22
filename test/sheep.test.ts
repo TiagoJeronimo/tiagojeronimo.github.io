@@ -4,7 +4,9 @@
 // ground); they walk at a hop, the way they look, and never sideways; they graze, drink and sleep; and a bitten tile
 // of grass grows back.
 import assert from 'node:assert/strict'
-import { MESSAGE, NAME, WOOL, fit, tidy } from '../src/games/sheep/dress.ts'
+import { readFileSync } from 'node:fs'
+import { BLANKETS, BLANKET_NAMES, MEMORIES, MESSAGE, NAME, REMEMBERS, WOOL, fit, plan, tidy } from '../src/games/sheep/dress.ts'
+import { AGED, GREY, KEEPSAKES } from '../src/games/sheep/model.ts'
 import { FLOCK, type Entry } from '../src/games/sheep/flock.ts'
 import { PerspectiveCamera } from 'three'
 import { View, close, viewing } from '../src/games/View.ts'
@@ -54,7 +56,11 @@ const apart = (w: Sheep) => {
       }
       for (const o of rest) assert.ok(clear(b, o), `${where}: in a duck, in the big grass, or in a thought bubble`)
     }
-    for (let j = i + 1; j < all.length; j++) for (const a of all[i]) for (const b of all[j]) assert.ok(clear(a, b), `sheep ${i} and ${j} overlap`)
+    for (let j = i + 1; j < all.length; j++) {
+      // (Two that are three tiles apart have no box in common: a sheep's boxes are all within a tile of it.)
+      if (Math.abs(e.x - w.ewes[j].x) > 3 || Math.abs(e.z - w.ewes[j].z) > 3) continue
+      for (const a of all[i]) for (const b of all[j]) assert.ok(clear(a, b), `sheep ${i} and ${j} overlap`)
+    }
   }
 }
 apart(world)
@@ -91,7 +97,7 @@ const seen = new Set<string>()
 const from = world.ewes.map((e) => [e.x, e.z])
 let [hops, turns, regrown] = [0, 0, false]
 for (let step = 0; step < 3600; step++) { // a whole day and night, 180 seconds
-  const was = world.ewes.map((e) => [e.x, e.z, e.face, e.rush])
+  const was = world.ewes.map((e) => [e.x, e.z, e.face, e.rush, e.over ? 1 : 0])
   world.update(0.05)
   twin.update(0.05)
   sow(world, step)
@@ -117,10 +123,10 @@ for (let step = 0; step < 3600; step++) { // a whole day and night, 180 seconds
       w.dismiss()
       assert.ok(!w.guest && w.ewes.length === n + 3 && w.room(), 'one that is sent away leaves nothing behind')
     }
-  if (step % 8 === 0) apart(world)
+  if (step % 8 === 0 || world.ewes.some((e) => e.over)) apart(world) // (every step, while a sheep is in the air over another)
   world.ewes.forEach((e, i) => {
     seen.add(e.state)
-    if (!was[i]) return // (it came this very step)
+    if (!was[i] || was[i][4] || e.over) return // (it came this very step; or it is in the air over another, which is its own test)
     const [dx, dz] = [e.x - was[i][0], e.z - was[i][1]]
     if (e.face !== was[i][2]) {
       turns++
@@ -173,10 +179,29 @@ let met = 0
 for (const seed of [2, 3, 4, 5]) {
   const field = new Sheep(undefined, seed)
   let slept = 0
+  const flying = new Set<object>() // the sheep that were in the air over another at the last step
   for (let step = 0; step < 3600; step++) {
     field.update(0.05)
     sow(field, step)
-    if (step % 12 === 0) apart(field)
+    const leaper = field.ewes.find((e) => e.over)
+    if (step % 12 === 0 || leaper) apart(field) // (every step, while a sheep is in the air over another)
+    // A leap: the one underneath stays as it is; the leaper is not in it at any step (that is `apart`), comes down
+    // where it fits, and can be clicked on the way, and a new sheep put down beside it.
+    if (leaper) {
+      const o = leaper.over!
+      assert.ok(o.rider < 0 && o.state !== 'sleep' && o.state !== 'walk' && !o.over, 'a sheep is leapt over that should not be')
+      if (step % 7 === 0) field.glad(field.ewes.indexOf(leaper))
+      if (step % 40 === 3 && field.room() && field.bring({ ...NEW[2], id: 990 + step, seed: 990 + step }, leaper.x, leaper.z)) {
+        assert.ok(field.drop() >= 0)
+        field.update(0.05)
+        apart(field)
+      }
+    }
+    for (const e of field.ewes) {
+      if (flying.has(e) && !e.over) assert.ok(field.fits(e, e.s, e.face, e.x, e.z), 'a sheep came down from a leap where it does not fit')
+      if (e.over) flying.add(e)
+      else flying.delete(e)
+    }
     const player = field.ewes.findIndex((e) => e.mate && e.state === 'walk')
     if (player >= 0 && step % 400 === 7 && field.room()) {
       const { mate } = field.ewes[player]
@@ -205,6 +230,7 @@ for (const seed of [2, 3, 4, 5]) {
 }
 assert.ok(met > 0, 'a sheep was caught at play')
 assert.ok(thought > 1 && thought <= 6, `thought bubbles come up, a few at a time: ${thought} at the most`)
+assert.ok(did.leap >= 5 && did.leap <= 5 * 40, `sheep leap over each other now and then, and not all day: ${did.leap} times in five days`)
 for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own test is below: that takes a tuft up a slope) */, `over five days nobody was seen to ${what}: ${JSON.stringify(did)}`)
 
 // The light of a day never jumps: from one step to the next the sun, the soft light, the sky and the height of the sun
@@ -316,6 +342,83 @@ for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own t
   door.cubes.forEach((a, i) => door.cubes.slice(i + 1).forEach((b) => assert.ok(clear(box(a).map((v, k) => v + (k & 1 ? -1e-4 : 1e-4)), box(b)), 'two boxes of the door in each other'))) // (to a hair: they touch)
   for (const c of door.cubes) assert.ok(box(c)[2] >= 2 - 0.001 && field.height(field.ground.at(c)[0], field.ground.at(c)[2]) === 2, 'the door stands on its step')
   assert.ok(field.ewes.every((e) => Math.hypot(e.x - door.x, e.z - door.z) > 1), 'and no sheep is at it')
+}
+
+// The very old sheep: a gift of nothing. It is never the checkout and never the stand-in that is kept, with a server
+// or without; any other gift is as it was. A look that comes from outside never says a sheep is one (no server keeps
+// such a sheep), and has a memory only if it is one there is. In the field she has a beard, a blanket of the colour
+// picked and what she remembers, and a wool that is pale and grey whatever was picked; and no box of her is in
+// another box of her, whatever she remembers and whatever she is at: standing, hopping, head down, asleep. What is
+// for her is not on any other sheep, and what is for the others is not on her.
+assert.deepEqual([plan(0, true), plan(0, false), plan(3, true), plan(3, false), plan(0.5, true)], ['elder', 'elder', 'checkout', 'stand-in', 'checkout'])
+assert.deepEqual(tidy({ look: { wool: 1, wear: 'hat', elder: true, memory: 'duck' } }).look, { wool: 1, wear: 'hat', memory: 'duck' })
+assert.deepEqual(tidy({ look: { memory: 'soul', elder: 1 } }).look, {})
+assert.ok(MEMORIES.length >= 5 && MEMORIES.every((memory) => REMEMBERS[memory].startsWith('remembering ') && KEEPSAKES[memory].length && KEEPSAKES[memory].length <= 6), 'every memory has its words and its keepsake')
+assert.equal(new Set(BLANKETS).size, WOOL.length, 'as many blankets as wools, no two alike')
+assert.ok(new Set(BLANKET_NAMES).size === BLANKETS.length && BLANKET_NAMES.every((name) => /^[a-z]+$/.test(name)), 'and each has a plain name of its own')
+{
+  // What the card says of her: none of what was taken out, and nothing of why she is the one on offer.
+  const page = readFileSync(new URL('../src/games/sheep/SheepPage.tsx', import.meta.url), 'utf8')
+  const words = page.slice(page.indexOf('<div className="terms">'), page.indexOf('</div>', page.indexOf('<div className="terms">')))
+  assert.ok(words.includes('She is very old.') && words.includes('So that is the offer'), 'the words of the old sheep are where they were looked for')
+  assert.ok(page.includes('keeping her memories to herself') && page.includes('blanket</span>'), 'the line under them says what she keeps to herself, and which blanket, in words')
+  assert.ok(!/for nothing|offered|giving|zero|€|free\b|real gift|amounts|walk about|stand near her/i.test(words), 'the card says nothing of a gift of nothing, of what she will do, or of a better gift')
+}
+{
+  const looks = ['', ...MEMORIES].map((memory, k) => ({ id: 800 + k, seed: 800 + k, name: 'x', message: '', date: '', look: { wool: k, elder: true, ...(memory ? { memory } : {}) } })) as Entry[]
+  const mixed = [{ id: 820, seed: 820, name: 'x', message: '', date: '', look: { wool: 2, wear: 'bell', elder: true } }, { id: 821, seed: 821, name: 'x', message: '', date: '', look: { wool: 2, wear: 'hat', memory: 'duck' } }] as Entry[]
+  const home = new Sheep([...looks, ...mixed, FLOCK[0]])
+  const aged = home.ewes.slice(0, looks.length)
+  const on = (e: (typeof home.ewes)[number]) => e.cubes.filter((c) => home.flock.on(c)).length
+  assert.ok(aged.every((e) => e.old && on(e) === 11 + AGED.length + (e.entry.look?.memory ? KEEPSAKES[e.entry.look.memory].length : 0)), 'a very old sheep has a beard, a blanket, and what she remembers')
+  assert.ok(aged.every((e, k) => e.wool === GREY && e.wear[7][6] === BLANKETS[k]), 'her wool is grey whatever is picked, and her blanket is of the colour picked')
+  const [old, young, plain] = home.ewes.slice(looks.length)
+  assert.ok(old.old && on(old) === 11 + AGED.length, 'a very old sheep wears nothing that the others wear')
+  assert.ok(!young.old && on(young) === 11 + 2 && young.wool === WOOL[2], 'and a sheep that is not old has no memory on')
+  assert.ok(!plain.old && on(plain) === 11, 'nor a beard, nor a blanket')
+  const inside = (w: Sheep) => {
+    for (const e of w.ewes) {
+      const all = boxes(w, w.ewes.indexOf(e))
+      all.forEach((a, i) => all.slice(i + 1).forEach((b) => assert.ok(clear(a.map((v, k) => (k < 6 ? v + (k & 1 ? -1e-4 : 1e-4) : v)), b), `two boxes of one sheep in each other (${e.entry.look?.memory ?? e.entry.look?.wear ?? 'bare'}, ${e.state}, box ${a[6]} and ${b[6]})`)))
+    }
+  }
+  for (const [state, time] of [['idle', 10], ['eat', 10], ['sleep', 90]] as const) {
+    for (const w of [home]) {
+      w.time = time
+      for (const e of w.ewes) Object.assign(e, { state, timer: 99, goal: 'wander' })
+      for (let i = 0; i < 40; i++) {
+        w.update(0.05)
+        if (i % 9 === 0) w.ewes.forEach((_, k) => w.glad(k))
+        inside(w)
+      }
+    }
+  }
+}
+
+// A very old sheep in the field. She goes slowly, never runs, is in no game and under no leap; the others come and
+// are with her, and say so with hearts: put in the same place on the same day, an ordinary sheep has much less
+// company. Nothing is in anything, at any step; and the same seed is the same day.
+{
+  const company = (seed: number, elder: boolean) => {
+    const field = new Sheep(undefined, seed)
+    const k = field.add({ id: 5, seed: 5 + seed, name: 'x', message: '', date: '', look: elder ? { elder: true } : {} })
+    const it = field.ewes[k]
+    let [near, fast] = [0, 0]
+    for (let step = 0; step < 3600; step++) {
+      const [x, z] = [it.x, it.z]
+      field.update(0.05)
+      if (elder && (step % 12 === 0 || field.ewes.some((e) => e.over))) apart(field)
+      if (!it.air) fast = Math.max(fast, Math.hypot(it.x - x, it.z - z) / 0.05)
+      for (const e of field.ewes) if (e !== it && Math.hypot(e.x - it.x, e.z - it.z) < 3) near += 1 / 3600
+      if (elder) assert.ok(!it.mate && !it.over && it.rush <= 1 && !field.ewes.some((e) => e.over === it), 'a very old sheep is in no game, runs nowhere, leaps nothing, and is not leapt')
+    }
+    return { field, near, fast }
+  }
+  const [old, plain] = [company(3, true), company(3, false)]
+  assert.ok(old.fast < 0.85 * 0.35 && old.fast < plain.fast * 0.35, `a very old sheep goes slowly: ${old.fast.toFixed(2)} at her fastest, and ${plain.fast.toFixed(2)} an ordinary one`)
+  assert.ok(old.near > 3 && old.near > plain.near * 1.5, `the others keep a very old sheep company: ${old.near.toFixed(2)} of them within three tiles of her on average, and ${plain.near.toFixed(2)} of an ordinary one`)
+  assert.ok(old.field.fond > 20 && plain.field.fond === 0, 'and show that they are fond of her, and of nobody else in that way')
+  assert.deepEqual(told(old.field), told(company(3, true).field), 'and the same seed is the same day, old sheep and all')
 }
 
 // A sheep let go falls out of the sky as anything falls: from the same height in the same time, however long a frame is.
