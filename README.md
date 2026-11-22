@@ -76,19 +76,19 @@ strings, fragments or email addresses. Game events include a random `play_id` pe
 the simulated game time. A new play ID does not identify a person or persist across visits.
 Navigation events use immediate beacon capture when the SDK is ready; early events still wait for its asynchronous load.
 
-The useful questions are whether visible cards get opened, whether browsing leads to CV or email interest, whether
+The useful questions are whether visible cards get opened, whether visitors read the CV or reach for email, whether
 the phone warning discourages game launches, where Island progress slows down, and how Castle attempts end.
 Email actions show intent, not messages sent. A missing completion may mean a later return or a closed tab; it does
 not prove a deliberate quit. Timing at completion describes completers, not every player. Small counts make rates
 noisy, so the dashboard includes counts alongside percentages.
 
 The [PostHog dashboard](https://us.posthog.com/project/750403/dashboard/2388145) is defined in
-`analytics/dashboard.mjs`. This is account configuration, not code shipped to website visitors. Its 13 insights
-cover traffic, referrers, card exposure and open rate, project-to-contact sessions, CV interest, link destinations,
-email intent, the phone warning,
-Island progress and hints, Castle courtship and outcomes, and browser errors. All exclude local hosts, development
-events and visits whose URL contains `analytics_check=`. Game funnels aggregate by `play_id`; browsing funnels by
-PostHog's session ID. SQL tables use a fixed rolling 30 days, as their descriptions say.
+`analytics/dashboard.mjs`. This is account configuration, not code shipped to website visitors. It is the project's
+only dashboard, with seven insights: front-page and CV visitors with print requests, cards seen and opened, contact
+intent, game launches and the phone warning, Island progress to completion, Castle courtship to a wedding, and how
+Castle days end. All exclude local hosts, development events and visits whose URL contains `analytics_check=`. Game
+funnels aggregate by `play_id`; card and contact tables by PostHog's session ID. SQL tables use a fixed rolling 30
+days, as their descriptions say.
 
 Use PostHog's **Filter out internal and test users** switch to include or exclude your own visits. The project's
 internal-user rules exclude localhost and loopback hosts, members of the **Internal / Test users** cohort, and the
@@ -101,13 +101,17 @@ Filtering changes the view without stopping collection or deleting events. There
 ```bash
 npm run analytics:dashboard           # print the reviewable definition; no account access or writes
 npm run analytics:dashboard -- --apply
+npm run analytics:dashboard -- --list    # every other dashboard and insight, with a ready --clean line
+npm run analytics:dashboard -- --clean d12,i345
 ```
 
 Applying requires server-side `POSTHOG_PERSONAL_API_KEY` and `POSTHOG_PROJECT_ID` environment variables, plus
 `POSTHOG_API_HOST` for EU hosting (the default is `https://us.posthog.com`). The key needs query access and read/write
 access to dashboards and insights. Never prefix this private key with `VITE_` or commit it. The script validates all
 queries before creating anything, updates only its own marked insights, and checks that every tile exists. Repeating
-it updates the same dashboard. Publishing the new event instrumentation is a separate step from creating the dashboard.
+it updates the same dashboard. `--list` names everything else in the project: other dashboards, other insights, and
+insights this definition no longer has. `--clean` deletes only the keys you pass that are still on that list, so it
+cannot remove the kept dashboard or its insights; run `--list` again first if anything changed. Publishing the new event instrumentation is a separate step from creating the dashboard.
 
 ## If you are an AI
 

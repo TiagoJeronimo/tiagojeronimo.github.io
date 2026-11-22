@@ -39,8 +39,45 @@ export async function syncDashboard(request) {
   return { dashboardId: board.id, insightCount: insights.length }
 }
 
+async function all(request, page) {
+  const items = []
+  while (page) {
+    const result = await request('GET', page)
+    items.push(...result.results.filter(item => !item.deleted))
+    page = result.next
+  }
+  return items
+}
+
+/** Everything in the project except our dashboard and its current insights, as `d<id>` and `i<id>` keys. */
+export async function strays(request) {
+  const dashboards = await all(request, 'dashboards/?limit=100')
+  const ours = dashboards.filter(item => item.description?.startsWith('[web-cv:portfolio-insights:v1]'))
+  if (ours.length !== 1) throw new Error('Run --apply first: there must be exactly one marked dashboard to keep.')
+  const detail = await request('GET', `dashboards/${ours[0].id}/`)
+  const keep = new Set(detail.tiles?.filter(tile => !tile.deleted && tile.insight
+    && insights.some(insight => tile.insight.description?.startsWith(`[web-cv:${insight.id}]`))).map(tile => tile.insight.id))
+  return [
+    ...dashboards.filter(item => item.id !== ours[0].id).map(item => ({ key: `d${item.id}`, kind: 'dashboards', id: item.id, name: item.name })),
+    ...(await all(request, 'insights/?limit=100&saved=true')).filter(item => !keep.has(item.id))
+      .map(item => ({ key: `i${item.id}`, kind: 'insights', id: item.id, name: item.name || item.derived_name || '(unnamed)' })),
+  ]
+}
+
+/** Soft-deletes only the approved keys that are still strays, so our own dashboard can never be removed. */
+export async function clean(request, approved) {
+  const removed = []
+  for (const item of await strays(request)) {
+    if (!approved.includes(item.key)) continue
+    await request('PATCH', `${item.kind}/${item.id}/`, { deleted: true })
+    removed.push(item.key)
+  }
+  return removed
+}
+
 async function main() {
-  if (!process.argv.includes('--apply')) {
+  const flag = process.argv.find(arg => ['--apply', '--list', '--clean'].includes(arg))
+  if (!flag) {
     console.log(JSON.stringify({ dashboard, insights }, null, 2))
     return
   }
@@ -61,8 +98,18 @@ async function main() {
     if (!response.ok) throw new Error(`PostHog ${method} ${url.pathname} returned ${response.status}; check API permissions or the query definition.`)
     return response.json()
   }
-  const result = await syncDashboard(request)
-  console.log(`${host.origin}/project/${project}/dashboard/${result.dashboardId} (${result.insightCount} insights)`)
+  if (flag === '--list') {
+    const found = await strays(request)
+    for (const item of found) console.log(`${item.key}\t${item.kind === 'dashboards' ? 'dashboard' : 'insight'}\t${item.name}`)
+    console.log(`\n${found.length} to delete. To delete them: npm run analytics:dashboard -- --clean ${found.map(item => item.key).join(',')}`)
+  } else if (flag === '--clean') {
+    const approved = (process.argv[process.argv.indexOf('--clean') + 1] ?? '').split(',').filter(Boolean)
+    if (!approved.length) throw new Error('Pass the approved keys from --list, comma-separated.')
+    console.log(`Deleted: ${(await clean(request, approved)).join(', ') || 'nothing'}`)
+  } else {
+    const result = await syncDashboard(request)
+    console.log(`${host.origin}/project/${project}/dashboard/${result.dashboardId} (${result.insightCount} insights)`)
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
