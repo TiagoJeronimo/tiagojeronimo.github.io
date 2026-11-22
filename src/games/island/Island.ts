@@ -2,7 +2,7 @@ import {
   CircleGeometry, Color, DirectionalLight, Group, HemisphereLight, Mesh, MeshStandardMaterial, Plane, PointLight, Raycaster, ShadowMaterial, SpotLight, Vector2, Vector3,
   type Light, type PerspectiveCamera, type Scene,
 } from 'three'
-import { Butterflies } from '../../Butterflies.ts'
+import { Butterflies } from './Butterflies.ts'
 import { mute, note, thump } from '../../sound.ts'
 import { Critters, type Critter } from './critters.ts'
 import { combos } from './combos.ts'

@@ -12,7 +12,7 @@ of its own: 8 combos, 16 secrets, 7 snails, and a wish or two for every animal.
 | `GamePage.tsx` | The page: top bar, the journal (Map, Friends, Finds, Log), subtitles, credits, the card at the end, the postcard. |
 | `isles/<name>.ts` | One isle each: its maps, heights, colours (`look`), and `lay(w, tile, c)` for the characters that are its own. The header comment of each lists them. |
 | `grid.ts` | The grid (`W D tx tz tileAt step`), the shapes `Isle` and `Thing`, and `deal`: an isle's loose things shuffled by a seed, with the rules a layout has to pass. |
-| `critters.ts` | Animals and whatever else moves in one piece. `combos.ts`: what happens when two notes in `w.memo` are both true. `wishes.ts`: friends and their wishes. `music.ts`, `sprites.ts`. |
+| `critters.ts` | Animals and whatever else moves in one piece. `combos.ts`: what happens when two notes in `w.memo` are both true. `wishes.ts`: friends and their wishes. `music.ts`, `sprites.ts`, `Butterflies.ts`. |
 
 Methods of `Island` worth knowing by name: `thing` (make one), `put` and `scar` (its cubes), `tree`, `lay` (the map
 characters every isle shares: `.` ground, `T` tree, `b` bush, `o` rocks), `strike` and `knock`, `grow` (a thing comes

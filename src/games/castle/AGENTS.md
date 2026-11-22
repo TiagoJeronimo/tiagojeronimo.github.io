@@ -71,4 +71,4 @@ not at all. To tune, change a number and let the bot play a dozen days at severa
   is on purpose not the same on both sides: change it there, a character at a time.
 - The brook is narrow, with grass banks, and ends in the pond. Its bridge is level with the ground at both ends.
 - The marks over what he has been told to do get darker down the list: the bright one is next.
-- Still open with the owner: the name; and the card on the front page, which still describes the game this replaced.
+- Still open with the owner: the name.
