@@ -7,8 +7,9 @@
 // How a world here is to look and how its creatures are to move is written down in `../AGENTS.md` ("Look and
 // movement"): this file follows it, and the castle, from which most of its recipes are taken.
 import { CircleGeometry, Color, DirectionalLight, Group, HemisphereLight, Mesh, MeshStandardMaterial, PointLight, ShadowMaterial } from 'three'
-import { BARK, BLOSSOM, LEAF, NEAR, NEVER, RING, STONE, WOOD, any, rnd, shade } from '../basics.ts'
+import { ARROW, BARK, BLOSSOM, LEAF, NEAR, NEVER, POINTER, RING, STONE, WOOD, any, rnd, shade } from '../basics.ts'
 import { Bits, Cubes } from '../cubes.ts'
+import { WOOL, type Look, type Wear } from './dress.ts'
 import { FLOCK, RECLUSE, type Entry } from './flock.ts'
 
 export const REACH = 18 // the land is on a board of 2 * REACH + 1 tiles each way; a tile is a unit
@@ -32,7 +33,6 @@ const BED = 0xb9a67e
 const SNOW = 0xf6f3fa
 const HAY = [0xf2d98a, 0xd9b95e]
 const PETALS = [0xfffaf0, 0xffd45c, 0xffc2d9, 0xc4a4f0, 0xff9a85]
-const WOOL = [0xfffaf0, 0xf7ecd9, 0xffd9e6, 0xe6dcf7, 0xd6f0e0, 0xd4e8fb, 0xfff0b8, 0xf9d9c4]
 const FACE = 0x5f4f5a // a sheep's face, ears and legs
 /** What `pick` says for the sheep in the cave, which is none of the flock's. */
 export const HERMIT = -2
@@ -189,15 +189,31 @@ const DRAKE: Part[] = [[0, 0, 0, 0.2, 0.14, 0.3, 0xffd45c], [0, 0.14, 0.1, 0.13,
  * tail; a big dark head set low, with a tuft of wool on it; two ears out sideways, low, as a lamb's; and a pink nose.
  * It has no eyes, on purpose: what it feels shows in how it moves. No box is inside another. `BODY` and `HEAD` are the
  * two rectangles of ground all of it stands over, as how far to each side, and from where to where along: the tail is
- * in the first, the ears and nose in the second.
+ * in the first, the ears and nose in the second. A part with a 1 at its end goes with the body; the rest go with the
+ * head, down to the grass and up again.
  */
 const EWE: Part[] = [
   [-0.18, 0, 0.24, 0.13, 0.2, 0.13, FACE], [0.18, 0, 0.24, 0.13, 0.2, 0.13, FACE], [-0.18, 0, -0.24, 0.13, 0.2, 0.13, FACE], [0.18, 0, -0.24, 0.13, 0.2, 0.13, FACE],
-  [0, 0.2, 0, 0.66, 0.56, 0.8, 0], [0, 0.42, -0.45, 0.18, 0.16, 0.1, 0],
+  [0, 0.2, 0, 0.66, 0.56, 0.8, 0, 1], [0, 0.42, -0.45, 0.18, 0.16, 0.1, 0, 1],
   [0, 0.34, 0.55, 0.4, 0.38, 0.3, FACE], [-0.25, 0.48, 0.52, 0.1, 0.08, 0.14, FACE], [0.25, 0.48, 0.52, 0.1, 0.08, 0.14, FACE],
   [0, 0.37, 0.715, 0.14, 0.09, 0.03, 0xffa8b8], [0, 0.72, 0.51, 0.3, 0.14, 0.22, 0],
 ]
-const BODY = [0.33, -0.5, 0.4]
+/**
+ * What a sheep can wear, as parts of the same kind, three at the most. Each sits on the sheep and in none of its
+ * boxes, bowed head and all: what is on the head is no further back than the head is; the scarf lies on the back,
+ * behind the head, with an end down one side (which is why `BODY` is a little wider than the wool).
+ */
+const WORN: Record<Wear, Part[]> = {
+  hat: [[0, 0.86, 0.53, 0.38, 0.04, 0.26, 0xf2d98a], [0, 0.9, 0.53, 0.24, 0.13, 0.18, 0xe9c46a]],
+  bell: [[0.25, 0.36, 0.52, 0.1, 0.1, 0.1, 0xffc93c]],
+  scarf: [[0, 0.76, 0.3, 0.66, 0.06, 0.14, 0xff7a8a, 1], [0.355, 0.46, 0.3, 0.05, 0.36, 0.14, 0xff7a8a, 1]],
+  flowers: [[-0.1, 0.86, 0.47, 0.09, 0.07, 0.09, 0xff9ec4], [0.02, 0.86, 0.57, 0.09, 0.07, 0.09, 0xffd45c], [0.11, 0.86, 0.46, 0.09, 0.07, 0.09, 0xc4a4f0]],
+}
+const SLOTS = EWE.length + 3 // the cubes every sheep has: its own, and three for what it wears
+const ALOFT = 6 // how high over the grass a new sheep hangs, being dressed and waiting to be put down: up in the sky,
+const GRAVITY = 22 // from where it falls like anything else (as the loose bits of `../cubes.ts` do)
+const SPARE = 8 // how many more sheep than it began with a field has cubes for (until step 3: see `PLAN.md`)
+const BODY = [0.38, -0.5, 0.4]
 const HEAD = [0.31, 0.4, 0.75]
 const NOSE = 0.56 // how far ahead of its middle the middle of its head is
 const LEGS = 0.2 // how long its legs are
@@ -230,6 +246,10 @@ type Ewe = {
   wait: number // a moment's stop after a turn
   nod: number // how far its head is down, 0 to 1,
   lie: number // and how far it has lain down
+  air: number // how high over the ground it hangs or is falling from: a sheep that is being put in the field
+  fall: number // for how long it has been falling,
+  high: number // and from how high
+  wear: Part[] // what it has on
   friend: Ewe | null // whom it is going up to
   wool: number
   cubes: number[] // one for each part of `EWE`
@@ -261,6 +281,12 @@ export class Sheep {
   private eaten: number[] = []
   private pink: number[][] = [] // the tops of the trees in blossom, which shed petals
   private duck: number[] = []
+  private most = 0 // how many cubes the flock has room for
+  /** A sheep that is being dressed, or is about to be put down: it hangs in the air, and is not of the flock yet. */
+  guest: Ewe | null = null
+  private arrow: number[] = [] // the yellow arrow that bobs over the sheep that hangs: this one is yours
+  private ring: number[] = [] // and four thin bars on the ground under it: this is where it will land
+  private spare: Ewe | null = null // one that was sent away again: its cubes do for the next
   /** The sheep in the cave: small, at home, and going nowhere. It is none of `ewes`. */
   readonly hermit: Ewe
   private swum = 0
@@ -270,10 +296,11 @@ export class Sheep {
   /** @param seed the same seed, the same wandering. @param list who is in the field */
   constructor(list: Entry[] = FLOCK, seed = 1) {
     this.seed = seed
-    this.flock = new Cubes((list.length + 1) * EWE.length, new MeshStandardMaterial({ roughness: 0.95 }))
+    this.most = (list.length + 1 + SPARE) * SLOTS
+    this.flock = new Cubes(this.most, new MeshStandardMaterial({ roughness: 0.95 }))
     this.build()
     list.forEach((entry) => this.arrive(entry))
-    this.hermit = this.ewe(RECLUSE, HERMIT, 0.6, WOOL[0], CAVE[1][0], CAVE[1][1] + 0.05, 2)
+    this.hermit = this.ewe(RECLUSE, HERMIT, 0.6, CAVE[1][0], CAVE[1][1] + 0.05, 2)
     this.hermit.base = FLOOR
     this.draw(this.hermit)
     // The light: a low warm sun, a soft sky, and a floor that only shows the shadows that fall on it.
@@ -293,6 +320,7 @@ export class Sheep {
     lamp.position.set(CAVE[0][0] + 0.5, FLOOR + 0.9, CAVE[0][1] + 0.9)
     this.group.add(this.ground.mesh, this.water.mesh, this.flock.mesh, this.bits.mesh, sun, sun.target, this.glow, lamp, floor)
     this.update(0)
+    this.flock.settle() // (nothing springs up or changes colour at the start)
   }
 
   private chance() {
@@ -394,6 +422,9 @@ export class Sheep {
     // On the pond: lily pads, two of them in flower, and a duck. And what was left in the meadow.
     for (const [x, z, bloom] of [[DUCK[0], DUCK[1], 1], [-6.4, 4.6, 0], [-2.7, 5.6, 1], [-4.2, 6.9, 0]]) put([[0, -0.06, 0, 0.34, 0.03, 0.34, 0x6fbf73], ...(bloom ? [[0.04, -0.03, 0.02, 0.14, 0.1, 0.14, 0xffc2d9]] : [])], x, 1, z)
     this.duck = put(DRAKE, DUCK[0], 0.9, DUCK[1] + 0.9)
+    this.arrow = ARROW.map(([, , , sx, sy, sz]) => ground.add(0, -40, 0, sx, sy, sz, POINTER))
+    this.ring = [0, 1, 2, 3].map(() => ground.add(0, -40, 0, 0.06, 0.04, 0.06, POINTER))
+    for (const c of [...this.arrow, ...this.ring]) ground.paint(c, POINTER, 1.7)
     FENCE.forEach(([x, z], k) => put(k === FENCE.length - 1 ? [...RAILS, [0.42, 0, 0, 0.12, 0.5, 0.12, BARK]] : RAILS, x, 1, z))
     BALES.forEach(([x, z], k) => put(BALE, x, 1, z, k ? 0.8 : 1, k))
     // In the cave: a bed of hay, a stone, a lantern that glows, and two toadstools that glow a little too.
@@ -461,32 +492,135 @@ export class Sheep {
     return true
   }
 
-  /** A sheep, and its cubes: `owner` is what `pick` says for them. */
-  private ewe(entry: Entry, owner: number, s: number, wool: number, x: number, z: number, face: number): Ewe {
+  /** A sheep, and its cubes: `owner` is what `pick` says for them. Its seed gives its nature; its look, or else its seed, its wool. */
+  private ewe(entry: Entry, owner: number, s: number, x: number, z: number, face: number): Ewe {
     const { seed } = entry
-    const cubes = EWE.map(([, , , , , , ink]) => this.flock.add(0, 0, 0, 1, 1, 1, ink || wool, owner))
+    const cubes = [...EWE.map(([, , , , , , ink]) => this.flock.add(0, 0, 0, 1, 1, 1, ink || WOOL[0], owner)), ...[0, 1, 2].map(() => this.flock.add(0, 0, 0, 1, 1, 1, WOOL[0], owner, false))]
     const e: Ewe = {
       entry, s, nature: NATURES[Math.floor(rnd(seed * 7 + 3) * 4)], x, z, base: 1, y: 1, face, state: 'idle', goal: 'wander',
       timer: 0.5 + this.chance() * 5, tx: 0, tz: 0, sideways: false, want: -1, hunger: this.chance(), thirst: this.chance(), blocked: 0, pace: 0.6 + 0.25 * rnd(seed * 7 + 7), v: 0,
-      stride: 0, hop: 0, wait: 0, nod: 0, lie: 0, friend: null, wool, cubes, rect: new Float64Array(8), mark: NaN, sized: -1,
+      stride: 0, hop: 0, wait: 0, nod: 0, lie: 0, air: 0, fall: 0, high: 0, wear: [], friend: null, wool: 0, cubes, rect: new Float64Array(8), mark: NaN, sized: -1,
     }
     this.rects(s, face, x, z, e.rect)
+    this.clothe(e, entry.look)
     return e
   }
 
-  /** Puts a sheep in the field, at the spot its seed gives or the nearest one that is free. */
+  /** A sheep's look is put on it: its wool in its colour, and what it wears on the three cubes kept for that. */
+  private clothe(e: Ewe, look: Look = {}) {
+    const { flock } = this
+    e.wool = WOOL[look.wool ?? Math.floor(rnd(e.entry.seed * 7 + 1) * WOOL.length)]
+    e.wear = look.wear ? WORN[look.wear] : []
+    EWE.forEach(([, , , , , , ink], k) => {
+      if (!ink) flock.paint(e.cubes[k], e.wool)
+    })
+    for (let k = 0; k < 3; k++) {
+      const c = e.cubes[EWE.length + k]
+      if (e.wear[k]) flock.paint(c, e.wear[k][6])
+      if (e.wear[k]) flock.show(c)
+      else flock.hide(c)
+    }
+    e.sized = -1
+    e.mark = NaN
+  }
+
+  /** The place nearest to (x, z) where a sheep of this size, looking this way, fits; or null, if there is none. */
+  private spot(self: Ewe | null, s: number, face: number, x: number, z: number): [number, number] | null {
+    for (let k = 0; k < 900; k++) {
+      const px = x + Math.cos(k * 2.4) * k * 0.06
+      const pz = z + Math.sin(k * 2.4) * k * 0.06
+      if (this.fits(self, s, face, px, pz)) return [px, pz]
+    }
+    return null
+  }
+
+  /** Puts a sheep in the field, at the spot its seed gives or the nearest one that is free. @returns its place in `ewes` */
   private arrive(entry: Entry) {
     const { seed } = entry
     const [s, face] = [0.8 + 0.2 * rnd(seed * 7 + 2), Math.floor(rnd(seed * 7 + 6) * 4)]
-    const [x0, z0] = [(rnd(seed * 7 + 4) * 2 - 1) * 12, -3 + rnd(seed * 7 + 5) * 16]
-    let [x, z] = [x0, z0]
-    for (let k = 0; k < 900; k++) {
-      ;[x, z] = [x0 + Math.cos(k * 2.4) * k * 0.12, z0 + Math.sin(k * 2.4) * k * 0.12]
-      if (this.fits(null, s, face, x, z)) break
-    }
-    const e = this.ewe(entry, this.ewes.length, s, WOOL[Math.floor(rnd(seed * 7 + 1) * WOOL.length)], x, z, face)
+    const [x, z] = this.spot(null, s, face, (rnd(seed * 7 + 4) * 2 - 1) * 12, -3 + rnd(seed * 7 + 5) * 16) ?? [0, 0]
+    const e = this.ewe(entry, this.ewes.length, s, x, z, face)
     this.ewes.push(e)
     this.draw(e)
+    return this.ewes.length - 1
+  }
+
+  /** Whether there are cubes for one more sheep. */
+  room() {
+    return !!this.spare || this.flock.count + SLOTS <= this.most
+  }
+
+  /** One more sheep, straight into the field at the spot its seed gives. @returns its place in `ewes`, or -1 if there is no room */
+  add(entry: Entry) {
+    return this.flock.count + SLOTS <= this.most ? this.arrive(entry) : -1
+  }
+
+  /**
+   * A new sheep comes, to be dressed and then put down: it hangs in the air over the place nearest to (x, z) where it
+   * could stand, looking at whoever is looking. It is not of the flock until it is dropped.
+   * @returns false if there is no room for it
+   */
+  bring(entry: Entry, x = 0, z = 6) {
+    this.dismiss()
+    if (!this.room()) return false
+    const s = 0.8 + 0.2 * rnd(entry.seed * 7 + 2)
+    const e = this.spare ?? this.ewe(entry, -1, s, 0, 0, 0)
+    this.spare = null
+    Object.assign(e, { entry, s, nature: NATURES[Math.floor(rnd(entry.seed * 7 + 3) * 4)], pace: 0.6 + 0.25 * rnd(entry.seed * 7 + 7), air: ALOFT, fall: 0 })
+    for (let k = 4; k < EWE.length; k++) this.flock.show(e.cubes[k])
+    this.clothe(e, entry.look)
+    this.guest = e
+    this.hang(x, z)
+    return true
+  }
+
+  /** The sheep that hangs is given another look. */
+  dress(look: Look) {
+    if (!this.guest) return
+    this.guest.entry = { ...this.guest.entry, look }
+    this.clothe(this.guest, look)
+  }
+
+  /** The sheep that hangs is given its name and its words: the same sheep, with what its giver wrote. */
+  sign(entry: Entry) {
+    if (!this.guest) return
+    this.guest.entry = entry
+    this.clothe(this.guest, entry.look)
+  }
+
+  /** The sheep that hangs goes to hang over the place nearest to (x, z) where it could stand: what is seen is where it would land. */
+  hang(x: number, z: number) {
+    const e = this.guest
+    const where = e && this.spot(null, e.s, e.face, x, z)
+    if (!e || !where) return
+    ;[e.x, e.z] = where
+    this.rects(e.s, e.face, e.x, e.z, e.rect)
+  }
+
+  /**
+   * The sheep that hangs is let go: over the place nearest to (x, z) if given, else where it hangs. It falls out of the
+   * sky, lands with a puff, and is one of the flock from now on. The place is nobody's to keep: it walks off soon enough.
+   * @returns its place in `ewes`, or -1 if there was nowhere to put it
+   */
+  drop(x?: number, z?: number) {
+    const e = this.guest
+    if (!e) return -1
+    this.hang(x ?? e.x, z ?? e.z)
+    if (!this.fits(null, e.s, e.face, e.x, e.z)) return -1
+    this.guest = null
+    for (const c of e.cubes) this.flock.owner[c] = this.ewes.length
+    Object.assign(e, { state: 'idle', goal: 'wander', timer: 2 + this.chance() * 2, air: Math.max(e.air, 0.01), high: Math.max(e.air, 0.01), fall: 0 })
+    this.ewes.push(e)
+    return this.ewes.length - 1
+  }
+
+  /** The sheep that hangs is not wanted after all: it goes, and its cubes wait for the next. */
+  dismiss() {
+    const e = this.guest
+    if (!e) return
+    for (const c of e.cubes) this.flock.hide(c)
+    this.spare = e
+    this.guest = null
   }
 
   /** Which sheep a cube of the flock belongs to: its place in `ewes`, `HERMIT` for the one in the cave, or -1. */
@@ -525,7 +659,7 @@ export class Sheep {
   private draw(e: Ewe) {
     const { flock } = this
     const { s, cubes } = e
-    const lift = (Math.abs(Math.sin(e.stride * Math.PI)) * HOP + (e.hop > 0 ? Math.sin(Math.min(1, e.hop / GLAD) * Math.PI) * 0.3 : 0)) * s
+    const lift = (Math.abs(Math.sin(e.stride * Math.PI)) * HOP + (e.hop > 0 ? Math.sin(Math.min(1, e.hop / GLAD) * Math.PI) * 0.3 : 0)) * s + e.air
     const chew = (e.state === 'eat' || e.state === 'drink') && e.nod > 0.9 ? Math.max(0, Math.sin(this.time * 7 + s * 40)) * 0.06 : 0
     const flick = (this.time * 0.23 + s * 11) % 1 < 0.05 ? 0.05 : 0 // (its ears go up for a moment)
     // All of it in the brook, it stands in the water up to its wool, and not over it on stilts.
@@ -540,7 +674,10 @@ export class Sheep {
     const odd = e.face & 1
     const sink = LEGS * e.lie
     const bow = Math.max(e.nod * (BOW - chew), e.lie * TUCK)
-    EWE.forEach(([dx, dy, dz, sx, sy, sz], k) => {
+    for (let k = 0; k < SLOTS; k++) {
+      const part = k < EWE.length ? EWE[k] : e.wear[k - EWE.length]
+      if (!part) continue
+      const [dx, dy, dz, sx, sy, sz] = part
       const [x, z] = [e.x + (a * dx + b * dz) * s, e.z + (c * dx + d * dz) * s]
       if (k < 4) {
         // A leg: from the body down to what is under it. Folded away once it has lain down.
@@ -550,12 +687,11 @@ export class Sheep {
         flock.size(cubes[k], sx * s, tall, sz * s)
         if (e.lie > 0.9) flock.hide(cubes[k])
         else flock.show(cubes[k])
-        return
+        continue
       }
       if (e.sized !== odd) flock.size(cubes[k], (odd ? sz : sx) * s, sy * s, (odd ? sx : sz) * s)
-      const low = k === 4 || k === 5 ? sink : bow
-      flock.place(cubes[k], x, floor + lift + (dy - low + (k === 7 || k === 8 ? flick : 0) + sy / 2) * s, z)
-    })
+      flock.place(cubes[k], x, floor + lift + (dy - (part[7] ? sink : bow) + (k === 7 || k === 8 ? flick : 0) + sy / 2) * s, z)
+    }
     e.sized = odd
   }
 
@@ -758,6 +894,19 @@ export class Sheep {
       e.hunger += dt / (e.nature === 'greedy' ? 25 : 50)
       e.thirst += dt / 70
       e.hop = Math.max(0, e.hop - dt)
+      if (e.air > 0) {
+        // Just put in the field: it falls, lands with a puff and a heart, and gives a hop to be here.
+        // (How high it is comes from how long it has fallen, and not from adding up steps: the same at any frame rate.)
+        e.fall += dt
+        e.air = Math.max(0, e.high - 0.5 * GRAVITY * e.fall * e.fall)
+        if (!e.air) {
+          e.hop = GLAD
+          for (let k = 0; k < 7; k++) bits.spawn(e.x + any() * 0.7, 1.05, e.z + any() * 0.7, any() * 1.6, 0.6 + Math.random(), any() * 1.6, 0.1, 0xfffaf0, 0.6, 1, 0.2)
+          bits.spawn(e.x, 2, e.z, any() * 0.2, 0.9, any() * 0.2, 0.13, 0xff8fb0, 1.2, NEVER, 0, -0.4)
+        }
+        this.draw(e)
+        continue
+      }
       let moved = false
       if (e.state === 'sleep') {
         if (this.dark < WAKE) this.rest(e, 0)
@@ -787,6 +936,22 @@ export class Sheep {
     }
     this.hermit.hop = Math.max(0, this.hermit.hop - dt)
     this.draw(this.hermit)
+    if (this.guest) {
+      // (The one that hangs bobs a little, as a thing held up does; and the arrow over it bobs too.)
+      const g = this.guest
+      g.air = ALOFT + 0.06 * Math.sin(this.time * 3)
+      this.draw(g)
+      const y = g.y + 1.25 * g.s + 0.1 * Math.sin(this.time * 4)
+      ARROW.forEach(([dx, dy, dz], k) => this.ground.place(this.arrow[k], g.x + dx, y + dy, g.z + dz))
+      // The mark on the ground: a frame the size of the sheep, just over the flowers, inside the ground that is kept
+      // for it (so no other sheep is ever in it). A hanging sheep looks along, so its length is along.
+      const [wide, back, front, up] = [HEAD[0] * g.s, BODY[1] * g.s, HEAD[2] * g.s, 1.38 + 0.02 * Math.sin(this.time * 4)]
+      this.ring.forEach((c, k) => {
+        const side = k < 2
+        this.ground.place(c, g.x + (side ? (k ? wide - 0.03 : 0.03 - wide) : 0), up, g.z + (side ? (back + front) / 2 : k === 2 ? back + 0.03 : front - 0.03))
+        this.ground.size(c, side ? 0.06 : wide * 2 - 0.12, 0.04, side ? front - back : 0.06)
+      })
+    } else if (this.ground.at(this.arrow[0])[1] > -40) for (const c of [...this.arrow, ...this.ring]) this.ground.place(c, 0, -40, 0)
     for (let i = this.eaten.length - 1; i >= 0; i--) {
       const t = this.eaten[i]
       this.fed[t] -= dt

@@ -1,6 +1,7 @@
 # Buy me a sheep: the plan
 
-Brainstormed with the owner on 2026-11-22. Nothing is built yet. When it is, this becomes the game's `AGENTS.md`.
+Brainstormed with the owner on 2026-11-22. Steps 1 and 2 of the build order are built (see `AGENTS.md` beside this,
+which says how); the rest is still the plan.
 
 ## The idea
 
@@ -29,6 +30,25 @@ Working name: "Buy me a sheep". It's a coffee, but woolly.
   keeps the sheep, because somebody paid for it.
 - **Portable.** Plain web-standard request handlers and all SQL in one small file, so the worker can move to Vercel
   (with Turso or Postgres) in an afternoon.
+
+## Step 2, as built: defaults for the owner to judge
+
+None of these was decided with him. Each is small and easy to change.
+
+- **Wool**: the eight pastel wools the made-up flock already had (`WOOL` in `dress.ts`). No wool chosen: the seed picks.
+- **To wear**, one at a time: a straw hat, a bell (under one ear), a scarf (red, over the back), flowers (three, on
+  the head). Or nothing. No gift unlocks anything.
+- **Name**: optional, up to 24 letters; none is "a sheep". **Message**: optional, up to 80 letters. Links, angle
+  brackets and invisible characters are taken out of both (`tidy`); nothing else is judged.
+- **No amount, no minimum, no payment form**: one button, "Put it in the field", and a line that says paying is not
+  built and the sheep lives in this browser only.
+- **The words**: the button in the top bar is "Buy me a sheep"; the card is "A sheep of your own"; while placing,
+  "Click where it should land. It will wander off anyway."
+- **Placing**: the sheep hangs over the nearest place it could stand, so what is seen is where it lands; a click
+  anywhere drops it there. It cannot be moved afterwards.
+- **Kept**: in `localStorage` (`sheep/mine`), until step 3. Eight new sheep to a visit, then "The field is full for now".
+- **The bubble** says what a sheep has on, after what it is doing.
+- A few of the made-up flock were given looks, so that the field shows them.
 
 ## Still to decide
 
@@ -84,8 +104,9 @@ owner ──/admin (behind Cloudflare Access)──▶ worker: list messages, hi
 
 ## Build order
 
-1. The field and sheep wandering, with made-up sheep from a local list. The owner judges whether watching them is fun.
-2. Dressing a sheep, the bubble, and the drop after a fake return.
+1. (Built.) The field and sheep wandering, with made-up sheep from a local list. The owner judges whether watching
+   them is fun.
+2. (Built.) Dressing a sheep, the bubble, and the drop after a fake return.
 3. The worker and D1, locally with `wrangler dev`: `GET /sheep`, `POST /checkout`, `POST /stripe` against Stripe's test
    mode.
 4. The admin page behind Access.

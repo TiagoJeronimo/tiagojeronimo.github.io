@@ -1,10 +1,11 @@
-# The sheep: "Buy me a sheep", at `/games/sheep/` (step 1 of `PLAN.md`: built, not yet on the front page)
+# The sheep: "Buy me a sheep", at `/games/sheep/` (steps 1 and 2 of `PLAN.md`: built, not yet on the front page)
 
 A small island in the castle's manner: a meadow with a high knoll, a pond with a duck on it, a mountain at the back
 (a lumpy heap of rock with grass round its foot), a brook that runs out of the rock and down to the pond over little
 steps, trees (some in blossom), rocks, a fence with two bales; twenty made-up sheep going about at a hop; and one
 more in a lit cave in the back of the mountain.
-No payments, no server, no dressing yet: those are steps 2 to 5 of `PLAN.md`, which still holds the plan. How it looks
+A visitor can dress a sheep of their own and put it in the field, for nothing and in their own browser only: the
+paying and the server are steps 3 to 5 of `PLAN.md`, which still holds the plan. How it looks
 and how they move follows `../AGENTS.md`, "Look and movement": the first version did not, and was sent back.
 
 ## Files
@@ -12,12 +13,16 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
 | File | What |
 | --- | --- |
 | `Sheep.ts` | The world, no React. At its top: the numbers (`REACH SPAN ROUND REGROW DAY SLEEP WAKE HOP STEPS GLAD STONY SNOWY`); the water and the things by tile (`BROOK LAKE DUCK FENCE BALES CAVE FLOOR ROOF`); the land, worked out once (`LAND` heights, `ROCK` bare stone, `KIND` 1 ground 2 brook 3 pond 4 cave, `BLOCK`, `TREES ROCKS SHORE FALLS`); the parts (`EWE`, `BODY`, `HEAD`, and the scenery's). Then the class. |
-| `flock.ts` | The sheep there are: `{ id, seed, name, message, date }`. Index in `FLOCK` is the sheep's index in `world.ewes`. And `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
-| `SheepPage.tsx`, `sheep.css` | The page: `Stage`, a click on a sheep (it hops, and a bubble sits over it: name, message, date, and what it is doing now). |
+| `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words). Step 3's server is to run the same `tidy`. |
+| `flock.ts` | The sheep there are: `{ id, seed, name, message, date, look? }`. Index in `FLOCK` is the sheep's index in `world.ewes`. And `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
+| `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`). |
 
 ## The world from outside
 
-`new Sheep(list?, seed?)`; `update(dt)`, `shadows(tier)`, `dispose()`. For the page: `pick(instance)`, `glad(i)`,
+`new Sheep(list?, seed?)`; `update(dt)`, `shadows(tier)`, `dispose()`. A new sheep: `add(entry)` puts one straight in;
+`bring(entry, x?, z?)` hangs one in the air (`guest`), `dress(look)` and `sign(entry)` change it, `hang(x, z)` moves it
+over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from then, and the number comes back),
+`dismiss()` sends it away, `room()` says whether there are cubes for one more. For the page: `pick(instance)`, `glad(i)`,
 `doing(ewe)`, `ewes`, `hermit` (the cave's sheep: `pick` says `HERMIT`, -2, for it), `sky`, `dark`, `time`, `ground` (what the camera points at), `flock`. For tests: `height(x, z)`
 (the bed, under water), `pond`, `blocked`, `long`, `bite`, `fits`, `bites`. In the dev server: `window.sheep`, `window.view`.
 
@@ -57,9 +62,26 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
   uneven heights, a step of grass before its mouth. In it a bed of hay, a stone, a lantern and two toadstools that
   glow, and a warm `PointLight`. Its sheep is drawn by the same `draw` (on `base`, its floor), hops when clicked,
   and never moves: `fits` and the flock know nothing of it.
+- A look: `wool` is a place in `WOOL` (else the seed picks), `wear` one of `WEARS`. What is worn is up to three more
+  boxes (`WORN`), on the three cubes every sheep keeps for it (`SLOTS`), drawn by the same `draw`: on the head and no
+  further back than it (hat, flowers, the bell under an ear), or on the back with the body (the scarf). `BODY` is a
+  little wider than the wool, for the scarf's end. The test's whole day has all four in the field.
+- Buying, for now (`SheepPage.tsx`): the button brings a sheep to hang where the visitor is looking, up in the sky
+  (`ALOFT`, 6 over the grass), with the yellow arrow of `../basics.ts` bobbing over it and a yellow frame on the
+  ground where it would land; the view goes in on it as near as `View`
+  goes, and in an upright window looks a little under it, so that it is clear of the card. The card dresses it there.
+  (Typing in the card does not move the view: `View.ts` leaves keys typed into a text field alone.) "Put it in the field" is the stand-in for paying: `tidy`, the entry kept
+  in this browser, the address made `?sheep=<id>` as Stripe's return will make it, and the sheep hangs from the
+  cursor at the same height, the view out again and down to the grass, always over a place it could stand. A click drops it (`drop`: it falls from there under `GRAVITY`, by how long it has
+  fallen and so the same at any frame rate; then a puff, a heart, a hop), its bubble
+  opens, and the address is put back. A page loaded with `?sheep=<id>` of a kept sheep starts at the hanging. The
+  place is not kept: on the next visit the sheep stands where its seed says. The field has cubes for `SPARE` (8)
+  more sheep than it began with; after that the button says the field is full.
 - The day is `DAY` seconds: bright, dark in the middle (`dark`); sheep lie down above `SLEEP`, get up below `WAKE`.
 
 ## Still to do
 
-Steps 2 to 5 of `PLAN.md`; a card on the front page (not until the owner says); his own sheep in `flock.ts`.
+Steps 3 to 5 of `PLAN.md` (each `TODO(step 3 ...)` in `SheepPage.tsx` is where the server goes in); a card on the
+front page (not until the owner says); his own sheep in `flock.ts`. For the owner to judge: every default of step 2,
+listed in `PLAN.md`.
 Not yet judged by the owner: round 3 (the heaped mountain, water as cubes, sheep without eyes, the cave). The cave sheep's line is his to write. Known and left: legs pass through blades of grass, as in the castle.

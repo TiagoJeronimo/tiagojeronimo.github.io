@@ -9,7 +9,7 @@ things its own way (a camera of its own, inside `Island.ts`).
 | File | What it gives |
 | --- | --- |
 | `Picture.tsx` | `<Picture>{(tier) => scene}</Picture>`: the canvas, the finish (soft shading, glow, tone) and the pump that draws the frames and gives a slow machine a lighter picture. Optional `near={() => 0..1}` softens top and bottom from close up. Canvas props pass through. |
-| `View.ts` | `new View(canvas, land, span, learnt, lift?)`: the camera. Drag moves, right-drag or a twist turns, wheel or pinch zooms to the cursor, keys do all three. `update(dt, camera, width, height)` every frame, `dispose()` at the end. |
+| `View.ts` | `new View(canvas, land, span, learnt, lift?)`: the camera. Drag moves, right-drag or a twist turns, wheel or pinch zooms to the cursor, keys do all three (but never a key typed into a text field: a page with an input needs no guard of its own). `update(dt, camera, width, height)` every frame, `dispose()` at the end. |
 | `cubes.ts` | `Cubes(capacity, material, 'wind' \| 'waves'?)`: a pool of boxes in one draw call. `add` returns an index; then `show hide poke paint place size lean drop` by index, `at top on up` to ask, `update(dt)` every frame. `Bits(n)`: loose cubes, `spawn(x, y, z, vx, vy, vz, size, color, life, floor, bounce?, gravity?, gain?)`. Also `unit` (the box), `dirty`, `blown`. |
 | `basics.ts` | The palette (`LEAF STONE WOOD BARK WATER LAVA BLOSSOM FRUIT`), `NEAR` and `RING` (a tile's neighbours), `NEVER` (a floor no bit reaches), `rnd(n)` (the same every visit), `any()` (differs every time), `shade(sun, tier)`, `LIGHTEST`; `ARROW` and `POINTER`, the boxes and colour of the yellow arrow that stands over what to click. |
 | `hints.tsx`, `hints.css` | `<Back />` (the way to the front page), `<Hints known="mz" />` (how to get about, minus what has been done), `<Sound />` (the sound's button, with its "Sound?" label until pressed), `FINGERS` (a touch screen). The styles of `.top`, `.sound`, `.icon`, `.nudge`, `.hints`. |
@@ -122,6 +122,8 @@ is the pattern and `sheep/Sheep.ts` the short copy of it: take the recipe from t
   else. No step or turn is made that does not fit. The test proves it on the cubes themselves: no two boxes of
   different creatures overlap, none is below the ground, through a whole day (`test/sheep.test.ts`).
 - What answers a click says so: a bubble or a tag right on it, moving with it. Pictures before sentences.
+- What a creature wears is more parts on the same model, drawn by the same code: it hops, bows and lies down with
+  it, sits in none of its boxes in any pose, and is inside the rectangles `fits` goes by (`WORN` in `sheep/Sheep.ts`).
 
 **Do not** (the first field of sheep did all of these, and was sent back)
 

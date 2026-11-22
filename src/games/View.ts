@@ -138,6 +138,9 @@ export class View {
     if (e.target === this.canvas) e.preventDefault()
   }
   private onKey = (e: KeyboardEvent) => {
+    // A key typed into a box of text is a letter of what is being written there, and no business of the camera's.
+    const box = e.target as Partial<HTMLElement> | null
+    if (e.type === 'keydown' && (box?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(box?.tagName ?? ''))) return
     // A key pressed along with ⌘ or Ctrl is the browser's, and a Mac never says when such a key comes up again: it
     // does not count as held.
     if (e.type === 'keydown' && !e.metaKey && !e.ctrlKey && !e.altKey) this.keys.add(e.key.toLowerCase())
