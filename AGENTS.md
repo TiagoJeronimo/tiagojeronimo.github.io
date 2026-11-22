@@ -9,9 +9,10 @@ there (each folder's `CLAUDE.md` is one line, `@AGENTS.md`).
 
 | Working on | Read |
 | --- | --- |
-| any game, or a new one | `src/games/AGENTS.md`: the shared kit, the page skeleton, how to add a game, speed |
+| any game, or a new one | `src/games/AGENTS.md`: the shared kit, the page skeleton, how to add a game, how a world looks and its creatures move, speed |
 | the island | `src/games/island/AGENTS.md`: files, `Island` methods, things, maps, settled choices |
 | the castle | `src/games/castle/AGENTS.md`: files, the world's API, the rules of a day, settled choices |
+| the sheep (step 1 built) | `src/games/sheep/AGENTS.md`: the island, the flock, how they move; `PLAN.md` beside it holds the plan |
 | the front page, a card | `src/home/AGENTS.md`: cards, pictures, why the page stays light, the toys |
 | a word you do not know | `CONTEXT.md`: the project's vocabulary (card, tier, pump, isle, ask, ...) |
 | analytics, PostHog | `README.md`, "Analytics": events, env vars, the dashboard script |
@@ -87,6 +88,7 @@ The four checks pass before work is called done. One test alone: `node test/cast
   `npx --yes npm@11.19.1 install --package-lock-only`, then `npx --yes npm@11.19.1 ci --dry-run`.
 - Nothing about the owner goes on the site that is not already in `src/content.ts`, and no fact about his work is made up.
 - A change to how a game plays is proposed and agreed before it is built. A fix or a look is just done.
+- A world or a creature is built by the recipes in `src/games/AGENTS.md`, "Look and movement": read it before drawing either.
 - TypeScript is strict, with `erasableSyntaxOnly` and `verbatimModuleSyntax`: no enums, no parameter properties,
   `import type` for types, and an import says its `.ts` or `.tsx`.
 - three: import from `'three'`; addons, if ever needed, from `'three/addons/...'`. Effects go through

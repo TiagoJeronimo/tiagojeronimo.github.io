@@ -6,5 +6,5 @@ import { defineConfig } from 'vite'
 // games is in `src/games/`, in folders of the same names.
 export default defineConfig({
   plugins: [react()],
-  build: { rolldownOptions: { input: { main: 'index.html', cv: 'cv/index.html', island: 'games/island/index.html', castle: 'games/castle/index.html' } } },
+  build: { rolldownOptions: { input: { main: 'index.html', cv: 'cv/index.html', island: 'games/island/index.html', castle: 'games/castle/index.html', sheep: 'games/sheep/index.html' } } },
 })
