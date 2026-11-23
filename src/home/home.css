@@ -1294,11 +1294,71 @@
   }
 }
 
-/* The tip line under the introduction: in plain sight, in the page's own words, the link the one bold thing in it. */
-.hello .coffee a {
+/* The tip under the introduction: a small pink banner with a sheep in it, the whole of it the link. In plain sight, and
+   not another card: it is not something made. The sheep hops when it is looked at (or tapped). */
+.hello .coffee {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 30rem;
+  margin: 14px 0 0;
+  padding: 10px 14px 10px 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, #f5a3b5 38%, var(--bg));
+  box-shadow: 0 3px 0 color-mix(in srgb, #e0527e 40%, var(--bg));
   color: inherit;
-  text-decoration-color: #e0527e;
+  text-decoration: none;
+  line-height: 1.35;
+}
+.hello .coffee svg {
+  flex: none;
+  width: 56px;
+  height: auto;
+}
+.hello .coffee b {
   font-weight: 800;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+}
+.hello .coffee:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, #f5a3b5 55%, var(--bg));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hello .coffee svg {
+    transition: transform 0.2s;
+  }
+  .hello .coffee:is(:hover, :focus-visible) svg {
+    animation: coffee-hop 0.5s ease-out;
+  }
+  @keyframes coffee-hop {
+    35% {
+      transform: translateY(-9px);
+    }
+  }
+}
+
+/* A phone: the links and the filters are each one line to swipe along, and not five lines of buttons. The shadows
+   under the buttons have a little room (padding) so that the line does not cut them off. */
+@media (max-width: 36rem) {
+  .hello nav,
+  .kinds {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding: 2px 16px 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .hello nav::-webkit-scrollbar,
+  .kinds::-webkit-scrollbar {
+    display: none;
+  }
+  .hello nav > *,
+  .kinds > * {
+    flex: none;
+  }
+  .hello {
+    gap: 12px;
+  }
+  .kinds {
+    margin-bottom: 10px;
+  }
 }

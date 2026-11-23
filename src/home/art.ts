@@ -22,6 +22,11 @@ export const ART: Record<string, { rows: string[]; ink: Record<string, string> }
     rows: ['............', '..aaaaaa....', '..a....a....', '..a....a..H.', '..a....aaaa.', '..a.........', '..aaaaaaa...', '..........o.', '............'],
     ink: { H: '#ffd45c', o: '#ff8fb0' },
   },
+  // A sheep, front on, with a bell: for the line that asks for a tip (a sheep is the receipt).
+  sheep: {
+    rows: ['...WWWWWW...', '..WWWWWWWW..', '.EWWCCCCWWE.', '.EWCKCCKCWE.', '..WWCCNCWW..', '..WWWCCWWW..', '...WWBBWW...', '...K....K...', '...K....K...'],
+    ink: { W: '#ffffff', C: '#f1dcc0', E: '#f5a3b5', K: '#3f3b4e', N: '#f08fa8', B: '#ffc93c' },
+  },
   // A fox, a little confused.
   fox: {
     rows: ['..O......O..', '..OO....OO..', '..OOOOOOOO..', '..OOOOOOOO..', '..OKOOOOKO..', '..WWOOOOWW..', '..WWWNNWWW..', '...WWWWWW...', '............'],

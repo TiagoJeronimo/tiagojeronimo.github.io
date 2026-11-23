@@ -448,13 +448,13 @@ export default function Home() {
           <h1>{me.name}</h1>
           <p className="lead">{me.role}</p>
           <p>{me.line} Here is some of what I’ve made, at work and for fun.</p>
-          <p className="coffee">
-            Like this site, or any of the games?{' '}
-            <a href="/games/sheep/" onClick={() => trackLink('/games/sheep/', 'Buy me a sheep', 'home_header')}>
-              Buy me a sheep.
-            </a>{' '}
-            It is a tip, and the sheep is the receipt.
-          </p>
+          {/* The tip, in plain sight and with a face: the whole of it is the link, a small sheep and a few words. */}
+          <a className="coffee" href="/games/sheep/" onClick={() => trackLink('/games/sheep/', 'Buy me a sheep', 'home_header')}>
+            <Art name="sheep" />
+            <span>
+              <b>Buy me a sheep.</b> Like this site, or any of the games? It is a tip, and the sheep is the receipt.
+            </span>
+          </a>
         </div>
         <nav aria-label="Elsewhere">
           <a className="btn" href="/cv/" onClick={() => trackLink('/cv/', 'My CV', 'home_header')}>
