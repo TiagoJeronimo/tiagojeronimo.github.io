@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { flushSync } from 'react-dom'
 import { links, me, outside } from '../content.ts'
 import { ART } from './art.ts'
-import { hello, KINDS, projects, type Kind, type Project } from './projects.ts'
+import { hello, helloOld, KINDS, projects, type Kind, type Project } from './projects.ts'
 import posthog, { isPostHogEnabled } from '../posthog.ts'
 import { trackLink } from '../analytics.ts'
 
@@ -39,7 +39,7 @@ const keep = (key: string, value: string) => {
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** Every card there is: the projects, and after them the one that says how to reach me. */
-const cards = [...projects, hello]
+const cards = [...projects, hello, helloOld]
 
 /**
  * A sticker comes off under the pointer. Once it has been pulled a little way, a copy of it follows the pointer about
@@ -237,6 +237,7 @@ const PHONE = '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (
 
 export default function Home() {
   const [kind, setKind] = useState<Kind | 'all'>('all')
+  const [oldOpen, setOldOpen] = useState(false)
   const [slug, setSlug] = useState(named)
   const [night, setNight] = useState(() => kept('home/night') === '1')
   const [found, setFound] = useState('') // the snails found, on this visit: they hide again at the next
@@ -447,7 +448,7 @@ export default function Home() {
         <div>
           <h1>{me.name}</h1>
           <p className="lead">{me.role}</p>
-          <p>I build products for the web, and games for no reason. Below is a lot of time I will never get back, arranged in a grid.</p>
+          <p>I build products for the web, and games for no reason. Below is a lot of time I will never get back, arranged in a grid. I would do all of it again.</p>
         </div>
         <nav aria-label="Elsewhere">
           <a className="btn" href="/cv/" onClick={() => trackLink('/cv/', 'My CV', 'home_header')}>
@@ -495,10 +496,14 @@ export default function Home() {
       {shown.some((project) => !project.old) && <ul className="grid">{shown.filter((project) => !project.old).map(card)}</ul>}
       {/* The old stuff, under a line of its own. */}
       {shown.some((project) => project.old) && (
-        <section className="old" aria-labelledby="old-title">
+        <section className="old" aria-labelledby="old-title" data-open={oldOpen || !shown.some((project) => !project.old)}>
           <Snail id="b" found={found} find={find} />
           <h2 id="old-title">Old stuff</h2>
           <p>Made years ago, for no reason. Still here for the same one.</p>
+          {/* On a phone the old stuff is folded away behind this (the page is long enough without it). */}
+          <button className="sound unfold" aria-expanded={oldOpen} onClick={() => setOldOpen((yes) => !yes)}>
+            {oldOpen ? 'Hide the old stuff' : `Show the old stuff (${shown.filter((project) => project.old).length})`}
+          </button>
           <ul className="grid">{shown.filter((project) => project.old).map(card)}</ul>
         </section>
       )}

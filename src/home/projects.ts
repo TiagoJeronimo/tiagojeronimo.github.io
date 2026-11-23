@@ -85,9 +85,9 @@ const made: Project[] = [
     title: 'Storm the castle',
     kind: 'games',
     when: '2021–2026',
-    blurb: 'Keep both sides of a tiny war supplied. For no reason. Nobody’s winning, but business is good. It is probably a metaphor for something, but I do not know what.',
+    blurb: 'Keep both sides of a tiny war supplied. Nobody’s winning, but business is good.',
     body: [
-      'Nobody knows yet what this unfinished game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. There is probably something to learn from this, but somebody needs bread.',
+      'Nobody knows yet what this unfinished game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. There is probably something to learn from this, but somebody needs bread. It is probably a metaphor for something, but I do not know what.',
       'It started in 2021: bored, during Covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill with some little people running around. It stayed that way for years. Recently, AI helped me get it to something you can play.',
     ],
     tags: ['TypeScript', 'three.js', 'react-three-fiber', 'Vite'],
@@ -274,11 +274,20 @@ export const hello: Project = {
   title: 'Say hello',
   kind: 'hello',
   blurb: 'Open to senior and staff product engineering roles.',
-  body: ['I’m open to senior and staff product engineering roles. Based in Zürich.', 'Write to me about a role, a project, or the snails. I answer all three.', 'My reference letter is yours for the asking.'],
+  body: ['I’m open to senior and staff product engineering roles. Based in Zürich.', 'Write to me about a role, a project, or the snails on this page. I answer all three.', 'My reference letter is yours for the asking.'],
   links: [
     { label: 'Write to me', href: links.find((link) => link.label === 'Email')!.href },
     { label: 'LinkedIn', href: links.find((link) => link.label === 'LinkedIn')!.href },
     { label: 'My CV', href: '/cv/' },
   ],
   art: 'envelope',
+}
+
+/** The same card again, among the old things: the same words, on parchment (it is only the colours that are older). */
+export const helloOld: Project = {
+  ...hello,
+  slug: 'say-hello-again',
+  bg: '#eadfc7',
+  accent: '#a9824f',
+  old: true,
 }

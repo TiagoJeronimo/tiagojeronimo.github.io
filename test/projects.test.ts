@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { ART } from '../src/home/art.ts'
-import { hello, KINDS, projects } from '../src/home/projects.ts'
+import { hello, helloOld, KINDS, projects } from '../src/home/projects.ts'
 
 const slugs = projects.map((project) => project.slug)
 assert.equal(new Set(slugs).size, slugs.length, `two cards share an address: ${slugs}`)
@@ -25,5 +25,6 @@ for (const [name, { rows, ink }] of Object.entries(ART)) {
   const odd = [...new Set(rows.join(''))].filter((c) => c !== '.' && c !== 'a' && !ink[c])
   assert.equal(odd.length, 0, `the drawing ${name} uses colours it does not have: ${odd}`)
 }
+assert.ok(helloOld.old && ART[helloOld.art] && helloOld.slug !== hello.slug && helloOld.links.length, 'the older card that says how to reach me is short of something')
 assert.ok(ART[hello.art] && hello.kind in KINDS && hello.links.length, 'the card that says how to reach me is short of a drawing, a kind or a link')
 console.log(`projects: ok (${projects.length} cards)`)

@@ -494,7 +494,7 @@
   font-size: 0.86rem;
   font-weight: 800;
   line-height: 1.3;
-  color: color-mix(in srgb, var(--mark) 72%, var(--ink));
+  color: color-mix(in srgb, var(--mark) 58%, var(--ink));
 }
 [data-night] .what .role {
   color: color-mix(in srgb, var(--mark) 50%, var(--ink));
@@ -519,7 +519,8 @@
   padding: 2px 9px;
   border-radius: 8px;
   font-style: normal;
-  color: color-mix(in srgb, var(--mark) 78%, var(--dark));
+  /* (Mostly ink, a little of the card's colour: these pills were under the 4.5 to 1 that small words need.) */
+  color: color-mix(in srgb, var(--mark) 42%, var(--dark));
   background: var(--tile);
 }
 
@@ -1398,5 +1399,19 @@
     background-repeat: no-repeat;
     background-position: right 14px center;
     background-size: 12px;
+  }
+}
+
+/* The old stuff is folded away on a phone, behind a button of its own; everywhere else the button is not there. */
+.old .unfold {
+  display: none;
+}
+@media (max-width: 36rem) {
+  .old .unfold {
+    display: inline-block;
+    margin: 0 0 14px;
+  }
+  .old[data-open='false'] .grid {
+    display: none;
   }
 }
