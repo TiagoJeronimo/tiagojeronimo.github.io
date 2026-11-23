@@ -1,4 +1,4 @@
-# sheep-api: the sheep's server (steps 3 and 4 of `src/games/sheep/PLAN.md`: built, runs locally, not deployed)
+# sheep-api: the sheep's server (steps 3 and 4 of `src/games/sheep/PLAN.md`: built; deployed on the owner's `workers.dev`, see `GO-LIVE.md`)
 
 One Cloudflare Worker and a D1 database. Plain web `Request`s and `Response`s, no SDK: Stripe is called with `fetch`,
 and its signature is checked by hand with Web Crypto. Every word of SQL is in `src/sql.ts`, so moving to Vercel
@@ -31,6 +31,10 @@ CURRENCY`), the sheep's number (`newId isId`) and its seed (`seedOf`).
   `{ clientSecret }`: the intent's, which the game's card confirms the payment with. It pays that intent and nothing
   else; the account's secret key never leaves the worker. A refusal from Stripe is logged as its status, code and
   field, never its message.
+- Rate limit: `POST /checkout` is counted by the caller's address (`cf-connecting-ip`) with Cloudflare's rate-limit
+  binding `CHECKOUT_LIMIT` (`wrangler.toml`: ten a minute), and answers 429 `slow down` over it. The binding is
+  optional in `Env`: the tests and a plain `wrangler dev` have none, and then nothing is counted. (A WAF rule would
+  need a domain of his own: `workers.dev` has none.)
 - `POST /stripe` (256 KB at most): signature first; then `payment_intent.succeeded` (status `succeeded`, in euros or
   francs, with a sheep in its `metadata`) puts the sheep in, tidied again, its seed from its number, `amount` from
   `amount_received` and its `currency`. Every way of paying ends in that one event once the money is in: a card or

@@ -1293,3 +1293,12 @@
     rotate: 0deg;
   }
 }
+
+/* The tip line under the introduction: in plain sight, in the page's own words, the link the one bold thing in it. */
+.hello .coffee a {
+  color: inherit;
+  text-decoration-color: #e0527e;
+  font-weight: 800;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}

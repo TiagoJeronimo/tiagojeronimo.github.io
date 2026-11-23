@@ -21,3 +21,11 @@ database_name = "sheep"
 # Made by the owner with `wrangler d1 create sheep` at step 5; locally any value does.
 database_id = "164b03c7-8b78-40a4-a2c3-4b34366f1fb3"
 migrations_dir = "migrations"
+
+# At most ten checkouts a minute from one address: /checkout makes a payment at Stripe every time it is asked.
+[[ratelimits]]
+name = "CHECKOUT_LIMIT"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 10
+  period = 60

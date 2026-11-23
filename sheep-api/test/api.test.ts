@@ -65,6 +65,20 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   assert.equal(await signed(sign(body, t, ''), body, ''), false, 'no secret set up: nothing is signed')
 }
 
+// The rate limit: a caller over it is told to slow down, and Stripe is not asked; one under it is served.
+{
+  const limits: string[] = []
+  let over = true
+  const limited: Env = { ...env, CHECKOUT_LIMIT: { limit: async ({ key }) => (limits.push(key), { success: !over }) } }
+  const post = () => worker.fetch(new Request('https://x.test/checkout', { method: 'POST', headers: { origin: SITE, 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.7' }, body: JSON.stringify({ id: newId(), amount: 300, name: 'x', message: '', look: {} }) }), limited)
+  asked = null
+  assert.equal((await post()).status, 429, 'over the limit')
+  assert.equal(asked, null, 'and Stripe is not asked')
+  assert.deepEqual(limits, ['203.0.113.7'], 'counted by the caller\'s address')
+  over = false
+  assert.equal((await post()).status, 200, 'under it')
+}
+
 // A checkout.
 {
   const id = newId()

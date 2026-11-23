@@ -15,6 +15,8 @@ export type Env = Gate & {
   ORIGINS: string
   /** Where the game is, for Stripe to send the giver back to. */
   SITE: string
+  /** Cloudflare's rate limiter for /checkout (see wrangler.toml). Not there in the tests and in `wrangler dev` of old. */
+  CHECKOUT_LIMIT?: { limit(options: { key: string }): Promise<{ success: boolean }> }
 }
 
 /**
@@ -146,7 +148,11 @@ async function handle(request: Request, env: Env) {
     const sheep = (await flock(env.DB)).map(({ look, ...rest }) => ({ ...rest, look: JSON.parse(look) as unknown }))
     return json(sheep, 200, { ...allow, 'cache-control': 'public, max-age=60' })
   }
-  if (request.method === 'POST' && pathname === '/checkout') return checkout(request, env, allow)
+  if (request.method === 'POST' && pathname === '/checkout') {
+    // (By the caller's address: ten a minute is far more than a giver needs, and far less than a script would.)
+    if (env.CHECKOUT_LIMIT && !(await env.CHECKOUT_LIMIT.limit({ key: request.headers.get('cf-connecting-ip') ?? 'none' })).success) return no(429, 'slow down', allow)
+    return checkout(request, env, allow)
+  }
   if (request.method === 'POST' && pathname === '/stripe') return stripe(request, env)
   return no(404, 'not here', allow)
 }
