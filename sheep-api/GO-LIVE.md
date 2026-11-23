@@ -54,5 +54,4 @@ and shows the list. Until then `/admin` refuses everybody, which is fine.
 ## 6. Afterwards
 
 - Cloudflare, Security, WAF, Rate limiting: a rule on `/checkout` (say 10 a minute per address).
-- The cave sheep's words (`RECLUSE` in `src/games/sheep/flock.ts`, marked `TODO(owner)`).
 - A card on the front page, when you want the game seen (`src/home/projects.ts`).

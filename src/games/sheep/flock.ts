@@ -9,5 +9,5 @@ export type Entry = { id: number; seed: number; name: string; message: string; d
 export const FLOCK: Entry[] = [{ id: 1, seed: 101, name: 'Claude the sheep', message: 'Test sheep. Walked a thousand simulated days before you came. Never once fed.', date: '2026-11-22', look: { wool: 0, items: ['scarf'] } }]
 
 // The sheep in the cave at the back of the mountain. It is nobody's gift and none of the flock: it is there to be found.
-// TODO(owner): it has no line until he writes one: its card shows its name and where it is, and no made-up words.
-export const RECLUSE: Entry = { id: 0, seed: 7, name: 'A sheep in a cave', message: '', date: '', look: { wool: 0 } }
+// Its line is about the money, said by the sheep that has had time to think about it. It says nothing about the owner.
+export const RECLUSE: Entry = { id: 0, seed: 7, name: 'A sheep in a cave', message: "You're giving money to someone for a cube sheep, when so many things could use it. I live in a cave. I've had time to think. Thank you. Also: are you okay?", date: '', look: { wool: 0 } }
