@@ -36,7 +36,7 @@
 .top .nudge {
   position: absolute;
   top: calc(100% + 9px);
-  left: 50%;
+  right: -6px; /* (from the button's right edge leftwards: the button is at the edge of the page, and the label is longer than it) */
   padding: 4px 9px;
   border-radius: 8px;
   background: #f0719a;
@@ -46,7 +46,6 @@
   font-weight: 750;
   line-height: 1.2;
   white-space: nowrap;
-  translate: -50% 0;
   animation:
     nudge-in 0.5s 2.5s both,
     nudge-nod 1.5s 3s ease-in-out 11,
@@ -56,13 +55,12 @@
   content: '';
   position: absolute;
   top: -4px;
-  left: 50%;
+  right: 14px;
   width: 9px;
   height: 9px;
   border-radius: 2px;
   background: inherit;
   rotate: 45deg;
-  translate: -50% 0;
 }
 .top:has([aria-expanded='true']) .nudge {
   visibility: hidden;
@@ -75,7 +73,7 @@
 }
 @keyframes nudge-nod {
   50% {
-    translate: -50% 3px;
+    translate: 0 3px;
   }
 }
 @keyframes nudge-out {

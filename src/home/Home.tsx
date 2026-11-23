@@ -447,14 +447,7 @@ export default function Home() {
         <div>
           <h1>{me.name}</h1>
           <p className="lead">{me.role}</p>
-          <p>{me.line} Here is some of what I’ve made, at work and for fun.</p>
-          {/* The tip, in plain sight and with a face: the whole of it is the link, a small sheep and a few words. */}
-          <a className="coffee" href="/games/sheep/" onClick={() => trackLink('/games/sheep/', 'Buy me a sheep', 'home_header')}>
-            <Art name="sheep" />
-            <span>
-              <b>Buy me a sheep.</b> Like this site, or any of the games? It is a tip, and the sheep is the receipt.
-            </span>
-          </a>
+          <p>I build products for the web, and games for no reason. Below is a lot of time I will never get back, arranged in a grid.</p>
         </div>
         <nav aria-label="Elsewhere">
           <a className="btn" href="/cv/" onClick={() => trackLink('/cv/', 'My CV', 'home_header')}>
@@ -490,6 +483,14 @@ export default function Home() {
           </button>
         ))}
       </div>
+      {/* On a phone the chips give way to this one control. */}
+      <select className="kinds-select" aria-label="Show only" value={kind} onChange={(event) => pick(event.target.value as typeof kind)}>
+        {(['all', ...kinds] as const).map((one) => (
+          <option key={one} value={one}>
+            {one === 'all' ? `Show all (${projects.length})` : `Show ${KINDS[one].name.toLowerCase()} (${projects.filter((project) => project.kind === one).length})`}
+          </option>
+        ))}
+      </select>
 
       {shown.some((project) => !project.old) && <ul className="grid">{shown.filter((project) => !project.old).map(card)}</ul>}
       {/* The old stuff, under a line of its own. */}
@@ -501,6 +502,20 @@ export default function Home() {
           <ul className="grid">{shown.filter((project) => project.old).map(card)}</ul>
         </section>
       )}
+
+      {/* The sign-off: said at the end, to somebody who has seen what there is. */}
+      <aside className="signoff">
+        <Art name="sheep" />
+        <p>If you liked any of this, consider buying me a sheep.</p>
+        <div>
+          <a className="btn" href="/games/sheep/?buy" onClick={() => trackLink('/games/sheep/?buy', 'Buy me a sheep', 'home_signoff')}>
+            Buy me a sheep
+          </a>
+          <a className="sound" href="/games/sheep/" onClick={() => trackLink('/games/sheep/', 'See the sheep', 'home_signoff')}>
+            See the sheep
+          </a>
+        </div>
+      </aside>
 
       {/* One project, close up. Shut by its button, the Escape key, the back button, or a click beside it. */}
       <dialog className="sheet" ref={sheet} tabIndex={-1} style={open && colours(open)} aria-labelledby="sheet-title" onClose={() => open && shut()} onClick={(event) => event.target === sheet.current && shut()}>

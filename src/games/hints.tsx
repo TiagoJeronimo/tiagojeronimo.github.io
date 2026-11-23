@@ -53,15 +53,18 @@ export function Sound() {
   const [chosen, setChosen] = useState<'on' | 'off' | null>(null)
   const sound = chosen === 'on'
   useEffect(() => {
-    const say = () => setSound(sound)
+    const say = () => {
+      setSound(sound)
+    }
     const ways = ['click', 'keydown', 'pointerup', 'touchend']
     for (const way of ways) addEventListener(way, say, true)
     return () => {
       for (const way of ways) removeEventListener(way, say, true)
     }
   }, [sound])
+  const choose = () => setChosen(toggleSound() ? 'on' : 'off')
   return (
-    <button className="sound icon" aria-label={sound ? 'Turn the sound off' : 'Turn the sound on'} title={sound ? 'Sound on' : 'Sound off'} onClick={() => setChosen(toggleSound() ? 'on' : 'off')}>
+    <button className="sound icon" aria-label={sound ? 'Turn the sound off' : 'Turn the sound on'} title={sound ? 'Sound on' : 'Sound off'} onClick={choose}>
       <Speaker on={sound} />
       {/* Until somebody has said yes or no to it: a small label under the button, which asks. */}
       {chosen === null && (

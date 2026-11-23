@@ -5,6 +5,7 @@
 // of grass grows back.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { bucket, phrase } from '../src/sound.ts'
 import { BLANKETS, BLANKET_NAMES, EXTRAS, MEMORIES, MESSAGE, NAME, REMEMBERS, WOOL, WEARS, allowed, fit, pairs, plan, tidy, worn } from '../src/games/sheep/dress.ts'
 import { WORN, AGED, GREY, KEEPSAKES } from '../src/games/sheep/model.ts'
 import { CROWD } from '../src/games/sheep/crowd.ts'
@@ -588,5 +589,22 @@ assert.deepEqual(fit({ wool: 1.5 }), {})
       })
     }
   }
+}
+
+// The sound, as far as it can be heard without ears. The small noises are limited: four at once, three a second
+// after that, however many sheep there are. The music box plays the same five notes as everything else, the same
+// tune for the same round, and not quite the same tune the next time round. And what a visitor said of the sound the
+// last time is taken as said only if it was a yes or a no.
+{
+  const few = bucket(3, 4)
+  let made = 0
+  for (let t = 0; t < 10; t += 0.01) if (few(t)) made++ // (a hundred asked for every second, for ten seconds)
+  assert.ok(made >= 30 && made <= 35, `the small noises are limited: ${made} in ten seconds`)
+  const burst = bucket(3, 4)
+  assert.deepEqual([0, 0, 0, 0, 0, 0.1, 0.4].map((t) => burst(t)), [true, true, true, true, false, false, true])
+  const rounds = [0, 1, 2, 3, 4, 5].map(phrase)
+  assert.ok(rounds.every((tune) => tune.length === 16 && tune.every((step) => Number.isInteger(step) && step >= -1 && step <= 10) && tune.filter((step) => step >= 0).length >= 8), 'a round of the music box is sixteen beats of notes there are, most of them sounded')
+  assert.deepEqual(phrase(3), rounds[3])
+  assert.ok(new Set(rounds.map((tune) => tune.join())).size >= 4, 'and is not the same every time round')
 }
 console.log('sheep: ok')

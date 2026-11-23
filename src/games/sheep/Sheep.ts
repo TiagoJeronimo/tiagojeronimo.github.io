@@ -361,6 +361,10 @@ export class Sheep {
   /** How many times a dog has barked at a sheep, and how many times one has been up on its sheep's back. */
   wuffed = 0
   rode = 0
+  /** For the page's small noises (it listens to these numbers, and the world makes no sound itself): how many times a sheep with a bell on has given a hop, a sheep has splashed, and one has come down out of the sky. */
+  rang = 0
+  splashes = 0
+  landed = 0
   private elders: Ewe[] = [] // the very old sheep that are in the field: the others like to be by them
   /** How many times a sheep has come up to one of them, or stood by her, and shown that it is fond of her. */
   fond = 0
@@ -1668,6 +1672,7 @@ export class Sheep {
 
   /** A splash where a sheep stands in the brook: drops up and out, and a ring of white on the water. */
   private splash(e: Ewe) {
+    this.splashes++
     for (let k = 0; k < 7; k++) this.bits.spawn(e.x + any() * 0.5, 1, e.z + any() * 0.5, any() * 2.2, 1.6 + Math.random() * 1.6, any() * 2.2, 0.09, k & 1 ? 0xffffff : 0x9fd6ff, 0.7, 0.94, 0)
     for (let k = 0; k < 6; k++) this.bits.spawn(e.x, 0.97, e.z, Math.cos(k * 1.05) * 0.9, 0, Math.sin(k * 1.05) * 0.9, 0.07, 0xffffff, 0.5, NEVER, 0, 0)
   }
@@ -1874,6 +1879,7 @@ export class Sheep {
     for (const e of this.ewes) {
       e.hunger += dt / (e.nature === 'greedy' ? 25 : 50)
       e.thirst += dt / 70
+      if (e.hop === GLAD && e.entry.look?.items?.includes('bell')) this.rang++ // (a hop that has just begun)
       e.hop = Math.max(0, e.hop - dt)
       e.said = Math.max(0, e.said - dt)
       e.cool = Math.max(0, e.cool - dt)
@@ -1893,6 +1899,7 @@ export class Sheep {
         e.air = Math.max(0, e.high - 0.5 * GRAVITY * e.fall * e.fall)
         if (!e.air) {
           e.hop = GLAD
+          this.landed++
           for (let k = 0; k < 7; k++) bits.spawn(e.x + any() * 0.7, 1.05, e.z + any() * 0.7, any() * 1.6, 0.6 + Math.random(), any() * 1.6, 0.1, 0xfffaf0, 0.6, 1, 0.2)
           bits.spawn(e.x, 2, e.z, any() * 0.2, 0.9, any() * 0.2, 0.13, 0xff8fb0, 1.2, NEVER, 0, -0.4)
         }

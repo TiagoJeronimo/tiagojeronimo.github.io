@@ -5,7 +5,7 @@ import { Back, FINGERS, Hints, Sound } from '../hints.tsx'
 import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
-import { note } from '../../sound.ts'
+import { music, note, sfx } from '../../sound.ts'
 import { BLANKETS, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isCurrency, isId, money, newId, plan, seedOf, tidy, type Currency, allowed, isWear, pairs, type Extra, type Item, type Look, type Memory, type Wear } from './dress.ts'
 import { GREY, woolOf } from './model.ts'
 import { Fitting } from './Fitting.tsx'
@@ -231,14 +231,16 @@ function Stage({ world, tier, mode, open, onView, onKnown, onSelect, onDrop, onP
             return
           }
           const sheep = which(event)
-          if (sheep !== -1) note(4 + (Math.abs(sheep) % 5))
+          // (A sheep that is clicked says so, each in a voice of its own; the door only knocks.)
+          if (sheep === DOOR) note(0.2)
+          else if (sheep !== -1) sfx('baa', ((sheep === HERMIT ? world.hermit : world.ewes[sheep])?.entry.seed ?? 0) % 7 / 6)
           world.glad(sheep) // a sheep that is clicked gives a hop (and the door in the mountain, which is locked, a rattle)
           onSelect(sheep === DOOR ? -1 : sheep) // (the door has no bubble: it has nothing to say)
           // A click anywhere on the land plants a tuft of big grass, there or on the nearest tile that can take one:
           // the sheep see to the rest. (With a sheep's bubble open, the click only puts the bubble away; and while a
           // sheep is dressed, it does nothing.)
           if (sheep === -1 && mode === 'idle' && !open && world.plant(event.point.x, event.point.y, event.point.z) >= 0) {
-            note(9)
+            sfx('pop')
             onPlant()
           }
         }}
@@ -289,6 +291,27 @@ function Field({ given }: { given: Entry[] | null }) {
   const eye = useRef<View>(null)
   const seeing = useCallback((view: View) => void (eye.current = view), [])
   const [mode, setMode] = useState<Mode>(back ? 'place' : 'idle')
+  // The welcome: said once, a moment into a first visit, and it stays until it is answered (or half a minute has gone).
+  // Not to somebody who has just come back from paying. That it has been said is kept, when the browser keeps things;
+  // when it does not, it is said once a visit, which does no harm.
+  const [hello, setHello] = useState(false)
+  useEffect(() => {
+    if (kept('sheep/hello') || wanted()) return
+    const come = setTimeout(() => {
+      setHello(true)
+      keep('sheep/hello', '1')
+    }, 1500)
+    const go = setTimeout(() => setHello(false), 30000)
+    return () => {
+      clearTimeout(come)
+      clearTimeout(go)
+    }
+  }, [])
+  // The music box plays for as long as this page is here (and only with the sound on: see `music`).
+  useEffect(() => {
+    music(true)
+    return () => music(false)
+  }, [])
   // The sheep that is being dressed, in the card: its number and its seed, what it has on, what it is called, the
   // words that go with it, and the gift in euros. It is not in the field until it has been paid for.
   const [fresh, setFresh] = useState<Entry | null>(null)
@@ -329,6 +352,7 @@ function Field({ given }: { given: Entry[] | null }) {
   const saying = useRef<HTMLElement>(null)
   const said = useRef(0) // when what the sheep is doing was last written on its card
   const pick = useRef(-1)
+  const sounds = useRef([world.rang, world.splashes, world.landed, world.wuffed]) // what of the world's doings has had its noise
   const told = useRef(-1) // the last time of day that was written down, in twos of seconds
   // The sheep's thought bubbles are the world's own (cubes over their heads). None over the sheep whose bubble with
   // its name in is open, and none at all while a sheep is being dressed or put down.
@@ -346,6 +370,15 @@ function Field({ given }: { given: Entry[] | null }) {
         // then the day begins again in the morning
       }
     }
+    // The field's small noises: the world counts what has happened, and the page makes a sound of what is new.
+    const heard = sounds.current
+    if (world.rang !== heard[0]) sfx('tinkle')
+    if (world.landed !== heard[2]) sfx('jingle')
+    if (world.wuffed !== heard[3]) sfx('bark', (world.wuffed % 3) / 2)
+    heard[0] = world.rang
+    heard[1] = world.splashes
+    heard[2] = world.landed
+    heard[3] = world.wuffed
     const e = pick.current === HERMIT ? world.hermit : world.ewes[pick.current]
     if (!e || !bubble.current) return
     _v.set(e.x, e.y + e.s * 1.15, e.z).project(camera) // just over its head (and its hat), and up with it when it hops
@@ -427,20 +460,33 @@ function Field({ given }: { given: Entry[] | null }) {
   }, [ready, fits, cents, currency])
 
   /** A new sheep comes to be dressed: in the card, in a window of its own. */
-  const begin = () => {
+  const begin = (like: Look = {}) => {
     if (!world.room()) return setFull(true)
+    setHello(false)
     // With a server its number is one nobody can guess, and its seed comes from that, as the server's will.
     const id = API ? newId() : Date.now()
     setFresh({ id, seed: API ? seedOf(id) : Math.floor(Math.random() * 1e9), name: 'a sheep', message: '', date: new Date().toISOString().slice(0, 10), look: {} })
     choose(-1)
     setNews('')
     setTrouble('')
-    setLook({})
+    setLook(like)
     setCalled('')
     setWords('')
     setAmount(3)
     setMode('dress')
   }
+  // "Buy a sheep" on the front page comes here as `?buy`: the card is open a moment after the field is, the welcome is
+  // not needed (it asks for the same thing), and the address goes back to plain.
+  const [buying] = useState(() => new URLSearchParams(location.search).has('buy'))
+  useEffect(() => {
+    if (!buying) return
+    keep('sheep/hello', '1')
+    history.replaceState(null, '', location.pathname)
+    const wait = setTimeout(() => begin(), 1200)
+    return () => clearTimeout(wait)
+    // (once: `begin` is new every render)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buying])
   const close = useCallback(() => void (held.current || setMode('idle')), [])
   // The card is a dialogue: Escape puts it away, and Tab goes round inside it and not out into the page behind.
   useEffect(() => {
@@ -721,6 +767,30 @@ function Field({ given }: { given: Entry[] | null }) {
           </form>
         </div>
       )}
+      {/* A first visit: a word from the field, with two ways out. Said once, and never again in this browser. */}
+      {hello && mode === 'idle' && !news && !waiting && (
+        <div className="welcome" role="region" aria-label="A word about tips">
+          <p>
+            <b>If you like any of my projects, consider buying me a sheep.</b>
+          </p>
+          <p>I know. Asking for money and calling it a sheep does not make it any less asking for money. It is a very nice sheep, though.</p>
+          <div className="row">
+            <button
+              className="btn"
+              onClick={() => {
+                setHello(false)
+                begin()
+              }}
+              disabled={full}
+            >
+              Buy a sheep
+            </button>
+            <button className="sound" onClick={() => setHello(false)}>
+              Just look around
+            </button>
+          </div>
+        </div>
+      )}
       {mode === 'place' && <p className="place">Click where it should land. It will wander off anyway.</p>}
       {mode === 'idle' && waiting > 0 && <p className="place">Your sheep is on its way from Stripe. A moment.</p>}
       {mode === 'idle' && news === 'late' && <p className="place">Your sheep has not turned up yet. It will be in the field once Stripe says so: look again in a minute.</p>}
@@ -728,7 +798,7 @@ function Field({ given }: { given: Entry[] | null }) {
       {mode === 'idle' && news === 'unpaid' && (
         <p className="place">
           That payment did not go through, so nothing was paid and no sheep was made.{' '}
-          <button className="sound" onClick={begin} disabled={full}>
+          <button className="sound" onClick={() => begin()} disabled={full}>
             Try again
           </button>
         </p>
@@ -736,7 +806,9 @@ function Field({ given }: { given: Entry[] | null }) {
       <header className="top">
         <Back />
         {mode === 'idle' && (
-          <button className="sound buy" onClick={begin} disabled={full}>
+          <button className="sound buy" onClick={() => begin()} disabled={full}>
+            {/* A small sheep's face before the words, of squares as everything here is. */}
+            {squares([2, 1, 8, 2, '#fffaf0'], [1, 3, 10, 5, '#fffaf0'], [4, 5, 4, 6, '#5f4f5a'], [2, 6, 2, 2, '#5f4f5a'], [8, 6, 2, 2, '#5f4f5a'], [5, 10, 2, 1, '#ffa8b8'])}
             {full ? 'The field is full for now' : 'Buy me a sheep'}
           </button>
         )}

@@ -130,9 +130,93 @@
 }
 
 /* Buying a sheep: the button is one of the small quiet ones in the top bar, a little warmer than the rest. */
+/* (Bigger than the other small buttons, since this is what the page is for, with a sheep's face on it; and every
+   twelve seconds or so it gives a small hop, as the sheep do. Not while a card is open, and not for anybody who has
+   asked for things to keep still.) */
 .top .sound.buy {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   margin-left: auto;
+  padding: 7px 14px 7px 10px;
+  border-radius: 12px;
   background: #ffd9e6;
+  font-size: 0.95rem;
+  font-weight: 750;
+  box-shadow: 0 3px 0 rgb(214 120 150 / 0.45);
+  animation: buy-hop 12s 6s infinite;
+}
+.top .sound.buy svg {
+  width: 20px;
+  height: 20px;
+  shape-rendering: crispEdges;
+}
+main:has(.bubble) .top .sound.buy {
+  animation: none;
+}
+@keyframes buy-hop {
+  0%,
+  94%,
+  100% {
+    translate: 0 0;
+  }
+  96% {
+    translate: 0 -6px;
+  }
+  98% {
+    translate: 0 1px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .top .sound.buy {
+    animation: none;
+  }
+}
+@media (max-width: 480px) {
+  .top .sound.buy {
+    gap: 5px;
+    margin-right: 8px;
+    padding: 6px 10px 6px 8px;
+    font-size: 0.82rem;
+  }
+  .top .sound.buy svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+/* The welcome: a small pink card that comes up from the foot of the window (above the hints that are there), with two
+   ways out, and stays until one of them is taken. */
+.welcome {
+  position: fixed;
+  z-index: 2;
+  bottom: 72px;
+  left: 50%;
+  display: grid;
+  gap: 8px;
+  width: min(360px, 100vw - 24px);
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: #ffd9e6;
+  color: #3d3550;
+  font-size: 14px;
+  line-height: 1.4;
+  box-shadow: 0 4px 0 rgb(40 30 60 / 0.22);
+  translate: -50% 0;
+  animation: hello 0.5s cubic-bezier(0.3, 1.5, 0.6, 1) both;
+}
+.welcome p {
+  margin: 0;
+}
+.welcome .row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+@keyframes hello {
+  from {
+    opacity: 0;
+    translate: -50% 16px;
+  }
 }
 .top .sound.buy:disabled {
   opacity: 0.6;

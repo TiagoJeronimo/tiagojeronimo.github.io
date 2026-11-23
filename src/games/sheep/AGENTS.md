@@ -158,6 +158,18 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   sheep in the cave, until the owner writes it); small tags for what it is doing (green, `doing(e)`) and for each
   thing it has (lilac, with the chip's picture; for the very old sheep, her memory); and "Arrived" with the date,
   small. What it is doing stays on the card for `HOLD` (3.5 s) once written, whatever the sheep does underneath.
+- Ways in to the buying card (the owner found the one small button easy to miss; neither is a modal): the top bar's
+  button is bigger, with a sheep's face, and gives a small hop every twelve seconds (`buy-hop`; not with a card open,
+  not under `prefers-reduced-motion`; at 375 px it shrinks and stays in the row). And a welcome (`.welcome`): a pink
+  card at the foot of the window, 1.5 s into a first visit (once per browser: `sheep/hello` in `kept`), with the
+  owner's words ("If you like any of my projects, consider buying me a sheep. ...") and two buttons, Buy a sheep and
+  Just look around; it stays until one is pressed (or 30 s), and never on the way back from Stripe. (A "Get one like
+  this" on a sheep's card was built and taken out again at his word.)
+- Sound (all in `src/sound.ts`, under the one switch; nothing is heard until the visitor turns it on). The world
+  makes no sound: it counts (`rang`, `splashes`, `landed`, `wuffed`), and the page's `each` makes a noise of what
+  is new: `sfx('tinkle')` when a sheep with a bell hops, `'jingle'` when one lands (no splash at the brook: the owner found it odd), `'bark'`. A click on
+  a sheep is `sfx('baa', tone)` (its seed says how high), a planted tuft `'pop'`; the door still knocks (`note`).
+  The page asks for the music box while it is there (`music(true)`).
 - Calm (asked for by the owner: the label on a card changed every second or so). Measured over three days of
   twenty sheep, a `doing` label lasted a median of 1.1 s, and 93% of them under 5 s; it is now 8 s, and 23%. What
   did it, and is to be kept: `rest` is 4.5 to 11.5 s; a mouthful is 6 to 10 s, a drink 6 to 9; they sleep from

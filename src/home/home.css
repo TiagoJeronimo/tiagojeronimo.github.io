@@ -734,7 +734,7 @@
   display: grid;
   justify-items: center;
   gap: 6px;
-  margin-top: clamp(40px, 9vh, 80px);
+  margin-top: clamp(24px, 5vh, 40px);
   font-size: 0.85rem;
   opacity: 0.8;
 }
@@ -1294,52 +1294,71 @@
   }
 }
 
-/* The tip under the introduction: a small pink banner with a sheep in it, the whole of it the link. In plain sight, and
-   not another card: it is not something made. The sheep hops when it is looked at (or tapped). */
-.hello .coffee {
-  display: flex;
-  align-items: center;
+/* The sign-off, after the cards: a sheep, one plain line, and two ways on. */
+.signoff {
+  display: grid;
+  justify-items: center;
   gap: 12px;
-  max-width: 30rem;
-  margin: 14px 0 0;
-  padding: 10px 14px 10px 10px;
-  border-radius: 16px;
+  margin: 32px auto 0;
+  padding: 18px 20px 20px;
+  max-width: 28rem;
+  border-radius: 22px;
   background: color-mix(in srgb, #f5a3b5 38%, var(--bg));
-  box-shadow: 0 3px 0 color-mix(in srgb, #e0527e 40%, var(--bg));
-  color: inherit;
-  text-decoration: none;
-  line-height: 1.35;
+  box-shadow: 0 4px 0 color-mix(in srgb, #e0527e 40%, var(--bg));
+  text-align: center;
 }
-.hello .coffee svg {
-  flex: none;
-  width: 56px;
+.signoff svg {
+  width: 72px;
   height: auto;
 }
-.hello .coffee b {
+.signoff p {
+  margin: 0;
+  font-size: 1.15rem;
   font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
-.hello .coffee:is(:hover, :focus-visible) {
-  background: color-mix(in srgb, #f5a3b5 55%, var(--bg));
+.signoff div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.signoff a {
+  text-decoration: none;
+  color: inherit;
+}
+.signoff a.btn {
+  color: var(--bg);
+}
+.signoff a.sound {
+  padding: 12px 18px;
+  font-size: 1rem;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .hello .coffee svg {
+  .signoff svg {
     transition: transform 0.2s;
   }
-  .hello .coffee:is(:hover, :focus-visible) svg {
-    animation: coffee-hop 0.5s ease-out;
+  .signoff:hover svg {
+    animation: signoff-hop 0.5s ease-out;
   }
-  @keyframes coffee-hop {
+  @keyframes signoff-hop {
     35% {
       transform: translateY(-9px);
     }
   }
 }
+/* The one control for the filters, for a phone only. */
+.kinds-select {
+  display: none;
+}
 
 /* A phone: the links and the filters are each one line to swipe along, and not five lines of buttons. The shadows
    under the buttons have a little room (padding) so that the line does not cut them off. */
 @media (max-width: 36rem) {
-  .hello nav,
-  .kinds {
+  .hello nav {
     flex-wrap: nowrap;
     overflow-x: auto;
     margin-inline: -16px;
@@ -1347,18 +1366,37 @@
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
-  .hello nav::-webkit-scrollbar,
-  .kinds::-webkit-scrollbar {
+  .hello nav::-webkit-scrollbar {
     display: none;
   }
-  .hello nav > *,
-  .kinds > * {
+  .hello nav > * {
     flex: none;
   }
   .hello {
     gap: 12px;
+    margin-bottom: 4px;
+  }
+  .hello nav {
+    padding-bottom: 2px;
   }
   .kinds {
-    margin-bottom: 10px;
+    display: none;
+  }
+  .kinds-select {
+    display: block;
+    margin: 6px 0 16px;
+    padding: 9px 36px 9px 14px;
+    border: 0;
+    border-radius: 12px;
+    background-color: #ede4d6;
+    color: inherit;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%233f3b4e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px;
   }
 }
