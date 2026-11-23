@@ -38,10 +38,13 @@ workflow is yours to edit; I leave it alone):
 Push to `main`. Try a real purchase on the live site with the test card `4242 4242 4242 4242`, any date and CVC:
 the sheep should drop, and the database should have it (`<address>/sheep`).
 
-## 4. The owner's page, `/admin` (Cloudflare Access)
+## 4. The owner's page, `/admin` (Cloudflare Access): done once, for the record
 
-The six steps in `sheep-api/AGENTS.md`, "Live, later". Done when `<address>/admin` asks for your email, mails a code,
-and shows the list. Until then `/admin` refuses everybody, which is fine.
+Zero Trust, Access controls, Applications, Self-hosted: two public hostnames typed with "Switch to custom input",
+`sheep-api.<name>.workers.dev/admin` and `.../admin/*` (never "Add Workers": it would lock `/stripe` and `/checkout`
+too), and a policy that allows only the owner's email. The application's AUD tag is in the login page's address
+(`kid=`). Secrets: `ACCESS_TEAM` (the team's name, the name Zero Trust gave it), `ACCESS_AUD`, `ADMIN_EMAILS`. Login is with the
+Cloudflare account itself, whose email must match `ADMIN_EMAILS`. Done when `/admin` shows the list.
 
 ## 5. Live money
 
