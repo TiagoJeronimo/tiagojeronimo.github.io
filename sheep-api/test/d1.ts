@@ -1,12 +1,14 @@
-// For the tests: node's own SQLite with the real migration in it, and the same dressed as the little of D1 that
+// For the tests: node's own SQLite with the real migrations in it, and the same dressed as the little of D1 that
 // `sql.ts` uses.
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import type { Db, Statement } from '../src/sql.ts'
 
 export function fresh() {
   const sqlite = new DatabaseSync(':memory:')
-  sqlite.exec(readFileSync(new URL('../migrations/0001_sheep.sql', import.meta.url), 'utf8'))
+  // Every migration, in order, as wrangler applies them.
+  const folder = new URL('../migrations/', import.meta.url)
+  for (const file of readdirSync(folder).filter((name) => name.endsWith('.sql')).sort()) sqlite.exec(readFileSync(new URL(file, folder), 'utf8'))
   return sqlite
 }
 

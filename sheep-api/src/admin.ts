@@ -7,6 +7,7 @@
 // `Origin` alone would shut the owner out.) And it must carry a token made from the Access JWT of the request that
 // drew the page, which another site never sees: so no secret of our own to keep, and a new token with every session.
 import { admitted, bypassed, type Gate } from './access.ts'
+import { CURRENCIES, isCurrency, money } from '../../src/games/sheep/dress.ts'
 import { hide, ledger, type Db, type Kept } from './sql.ts'
 
 const STYLE = `
@@ -54,22 +55,25 @@ const page = async (html: string, status = 200) => {
 }
 const plain = (status: number, text: string, more: Record<string, string> = {}) => new Response(text, { status, headers: { ...SHUT, 'content-type': 'text/plain; charset=utf-8', ...more } })
 
-const euros = (cents: number) => `€${(cents / 100).toFixed(2)}`
+/** An amount as paid: "€3.00", "CHF 3.00". (Anything else in the column would be a mistake; it is shown as it is.) */
+const paid = (cents: number, currency: string) => (isCurrency(currency) ? money(cents / 100, currency, true) : `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`)
 function row(sheep: Kept, form: string) {
   const hidden = !!sheep.hidden
-  return `<li${hidden ? ' class="hidden"' : ''}><div><strong>${escape(sheep.name)}</strong><q>${escape(sheep.message)}</q><small>${escape(sheep.created.slice(0, 16).replace('T', ' '))} · ${euros(sheep.amount)} · #${sheep.id}${hidden ? ' · hidden' : ''}</small></div><form method="post" action="/admin/${hidden ? 'show' : 'hide'}"><input type="hidden" name="id" value="${sheep.id}">${form}<button>${hidden ? 'Show' : 'Hide'}</button></form></li>`
+  return `<li${hidden ? ' class="hidden"' : ''}><div><strong>${escape(sheep.name)}</strong><q>${escape(sheep.message)}</q><small>${escape(sheep.created.slice(0, 16).replace('T', ' '))} · ${escape(paid(sheep.amount, sheep.currency))} · #${sheep.id}${hidden ? ' · hidden' : ''}</small></div><form method="post" action="/admin/${hidden ? 'show' : 'hide'}"><input type="hidden" name="id" value="${sheep.id}">${form}<button>${hidden ? 'Show' : 'Hide'}</button></form></li>`
 }
 
 async function list(db: Db, jwt: string) {
   const all = await ledger(db)
   const form = `<input type="hidden" name="token" value="${await token(jwt)}">`
   const quiet = all.filter((one) => one.hidden).length
-  const total = all.reduce((sum, one) => sum + one.amount, 0)
+  // What came in, a sum to each currency that anything came in ("€15.00 and CHF 8.00"), or nothing yet.
+  const sums = CURRENCIES.map((currency) => [currency, all.filter((one) => one.currency === currency).reduce((sum, one) => sum + one.amount, 0)] as const).filter(([, sum]) => sum > 0)
+  const total = sums.map(([currency, sum]) => paid(sum, currency)).join(' and ') || paid(0, CURRENCIES[0])
   return page(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>The sheep's messages</title><style>${STYLE}</style></head>
 <body><main><h1>The sheep's messages</h1>
-<p class="lede">${all.length} sheep, ${euros(total)} in all${quiet ? `, ${quiet} keeping quiet` : ''}. Newest first. Hide takes a sheep's name and words off the field; the sheep stays, since somebody paid for it.</p>
+<p class="lede">${all.length} sheep, ${total} in all${quiet ? `, ${quiet} keeping quiet` : ''}. Newest first. Hide takes a sheep's name and words off the field; the sheep stays, since somebody paid for it.</p>
 ${all.length ? `<ol>${all.map((one) => row(one, form)).join('')}</ol>` : '<p>No sheep yet. The field is very peaceful.</p>'}
 </main></body></html>`)
 }

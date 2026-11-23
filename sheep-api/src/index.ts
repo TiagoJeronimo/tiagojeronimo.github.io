@@ -1,6 +1,6 @@
 // The sheep's server: a Cloudflare Worker with a D1 database (see `../AGENTS.md`). Plain web Requests and Responses,
 // no SDK: Stripe is spoken to with `fetch`, and its signature is checked here with Web Crypto. All SQL is in `sql.ts`.
-import { CURRENCY, LEAST, MOST, isId, newId, seedOf, tidy } from '../../src/games/sheep/dress.ts'
+import { CURRENCIES, LEAST, MOST, isCurrency, isId, newId, seedOf, tidy } from '../../src/games/sheep/dress.ts'
 import type { Gate } from './access.ts'
 import { admin } from './admin.ts'
 import { signed } from './signed.ts'
@@ -19,7 +19,7 @@ export type Env = Gate & {
 
 /**
  * The version of Stripe's API the worker speaks, pinned so that a change in the account's default cannot change what
- * its words mean. (`embedded_page` is this version's name for a checkout that sits inside the game's own card.)
+ * its words mean.
  */
 const STRIPE_VERSION = '2026-11-18.endive'
 const SMALL = 4 * 1024 // a checkout is a few hundred bytes
@@ -49,7 +49,7 @@ async function checkout(request: Request, env: Env, allow: Record<string, string
   if (!(request.headers.get('content-type') ?? '').startsWith('application/json')) return no(415, 'json', allow)
   const text = await read(request, SMALL)
   if (text === null) return no(413, 'too big', allow)
-  let given: { id?: unknown; amount?: unknown; name?: unknown; message?: unknown; look?: unknown }
+  let given: { id?: unknown; amount?: unknown; currency?: unknown; name?: unknown; message?: unknown; look?: unknown }
   try {
     given = JSON.parse(text)
   } catch {
@@ -59,54 +59,58 @@ async function checkout(request: Request, env: Env, allow: Record<string, string
   const { id, amount } = given
   if (!isId(id)) return no(400, 'id', allow)
   if (!Number.isInteger(amount) || (amount as number) < LEAST || (amount as number) > MOST) return no(400, 'amount', allow)
+  // Euros unless it says francs (a page from before there were two says nothing).
+  const currency = given.currency ?? CURRENCIES[0]
+  if (!isCurrency(currency)) return no(400, 'currency', allow)
   if (await taken(env.DB, id)) return no(409, 'id taken', allow)
   // The same rule as the page's: a page can be made to send anything.
   const { name, message, look } = tidy(given)
+  // A PaymentIntent, paid in the game's own card by Stripe's Payment Element. Which ways of paying it takes is the
+  // owner's, in Stripe's dashboard (cards, Apple Pay, MB WAY, PayPal, ...), as far as each suits the gift and the
+  // giver; redirects allowed, since some of them send the giver to their bank or app and back to `?sheep=<id>`. The
+  // page's form asks for the same, by saying nothing of its own: the two must agree, or Stripe will not confirm.
   const form = new URLSearchParams({
-    mode: 'payment',
-    ui_mode: 'embedded_page',
-    submit_type: 'donate',
-    'line_items[0][quantity]': '1',
-    'line_items[0][price_data][currency]': CURRENCY,
-    'line_items[0][price_data][unit_amount]': String(amount),
-    'line_items[0][price_data][product_data][name]': 'A sheep in the field',
-    // Paid in the card, the page drops the sheep itself (Stripe's `onComplete`). Only a way of paying that has to go
-    // to a bank's own page comes back here, by the address, as the page has always been able to take it.
-    redirect_on_completion: 'if_required',
-    return_url: `${env.SITE}/games/sheep/?sheep=${id}`,
+    amount: String(amount),
+    currency,
+    'automatic_payment_methods[enabled]': 'true',
+    'automatic_payment_methods[allow_redirects]': 'always',
+    description: 'A sheep in the field',
     // What the sheep is, for when Stripe says it is paid for. Each value is far under Stripe's 500 characters.
     'metadata[id]': String(id),
     'metadata[name]': name,
     'metadata[message]': message,
     'metadata[look]': JSON.stringify(look),
   })
-  const answer = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+  const answer = await fetch('https://api.stripe.com/v1/payment_intents', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.STRIPE_SECRET}`, 'content-type': 'application/x-www-form-urlencoded', 'stripe-version': STRIPE_VERSION },
     body: form,
   })
   if (!answer.ok) {
-    console.error('sheep-api: stripe said', answer.status) // the status only: its body may name the key
+    // The status, and Stripe's code for what was wrong and which field: never its message, which may name the key.
+    const { error } = (await answer.json().catch(() => ({}))) as { error?: { code?: unknown; param?: unknown } }
+    console.error('sheep-api: stripe said', answer.status, String(error?.code ?? ''), String(error?.param ?? ''))
     return no(502, 'stripe', allow)
   }
-  // The session's client secret is for the giver's browser, which Stripe.js mounts the form with: it can pay this one
-  // session and nothing else. It is not the account's secret.
+  // The intent's client secret is for the giver's browser, which confirms the payment with it: it can pay this one
+  // intent and nothing else. It is not the account's secret.
   const { client_secret: clientSecret } = (await answer.json()) as { client_secret?: unknown }
-  return typeof clientSecret === 'string' && clientSecret.startsWith('cs_') ? json({ clientSecret }, 200, allow) : no(502, 'stripe', allow)
+  return typeof clientSecret === 'string' && clientSecret.startsWith('pi_') ? json({ clientSecret }, 200, allow) : no(502, 'stripe', allow)
 }
 
-type Session = { id?: unknown; payment_status?: unknown; amount_total?: unknown; metadata?: Record<string, unknown> }
+type Intent = { id?: unknown; status?: unknown; amount_received?: unknown; currency?: unknown; metadata?: Record<string, unknown> }
 
 async function stripe(request: Request, env: Env) {
   const text = await read(request, LARGE)
   if (text === null) return no(413, 'too big')
   if (!(await signed(request.headers.get('stripe-signature'), text, env.STRIPE_WEBHOOK_SECRET))) return no(400, 'signature')
-  const event = JSON.parse(text) as { type?: unknown; data?: { object?: Session } }
-  // A card is paid at once; a slower way to pay (a bank debit, if ever turned on) says so later, in the second event.
-  if (event.type !== 'checkout.session.completed' && event.type !== 'checkout.session.async_payment_succeeded') return json({ ignored: true })
-  const session = event.data?.object ?? {}
-  if (session.payment_status !== 'paid' || typeof session.id !== 'string' || !Number.isInteger(session.amount_total)) return json({ ignored: true })
-  const meta = session.metadata ?? {}
+  const event = JSON.parse(text) as { type?: unknown; data?: { object?: Intent } }
+  // Only money that has arrived makes a sheep: `payment_intent.succeeded`, which Stripe sends once a payment is in,
+  // however it was paid. Every other event (and a payment of something that is not a sheep) is thanked for and let be.
+  if (event.type !== 'payment_intent.succeeded') return json({ ignored: true })
+  const intent = event.data?.object ?? {}
+  const meta = intent.metadata ?? {}
+  if (intent.status !== 'succeeded' || typeof intent.id !== 'string' || !Number.isInteger(intent.amount_received) || !isCurrency(intent.currency) || meta.id === undefined) return json({ ignored: true })
   let look: unknown = {}
   try {
     look = JSON.parse(String(meta.look ?? '{}'))
@@ -118,8 +122,9 @@ async function stripe(request: Request, env: Env) {
   // ponytail: a race between two checkouts of one id is caught here and not in the checkout, by giving the second a
   // number of its own; its giver then finds no sheep of theirs to drop, but it is in the field all the same.
   if (!isId(id) || (await taken(env.DB, id))) id = newId()
-  // The amount is what Stripe says was paid, never what the page asked for.
-  await put(env.DB, { id, session: session.id, seed: seedOf(id), look: JSON.stringify(kept.look), name: kept.name, message: kept.message, amount: session.amount_total as number })
+  // The amount is what Stripe says was paid, never what the page asked for. The intent's id is the unique key (the
+  // column is still called `session`, from when it held a Checkout Session's): the same news twice is one sheep.
+  await put(env.DB, { id, session: intent.id, seed: seedOf(id), look: JSON.stringify(kept.look), name: kept.name, message: kept.message, amount: intent.amount_received as number, currency: intent.currency as string })
   return json({ ok: true })
 }
 

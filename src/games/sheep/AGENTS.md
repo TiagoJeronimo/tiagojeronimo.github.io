@@ -16,10 +16,10 @@ and how they move follows `../AGENTS.md`, "Look and movement": the first version
 | `Sheep.ts` | The world, no React. At its top: the numbers (`REACH SPAN ROUND REGROW DAY SLEEP WAKE HOP STEPS GLAD STONY SNOWY`); the water and the things by tile (`BROOK LAKE DUCK FENCE BALES CAVE FLOOR ROOF`); the land, worked out once (`LAND` heights, `ROCK` bare stone, `KIND` 1 ground 2 brook 3 pond 4 cave, `BLOCK`, `TREES ROCKS SHORE FALLS`); the parts (`EWE`, `BODY`, `HEAD`, and the scenery's). Then the class. |
 | `model.ts` | The sheep as cubes, for the field and for the window it is dressed in alike: `EWE` (its eleven boxes), `WORN` (what it can wear), `BODY HEAD NOSE LEGS` (its measures), `AGED`, `KEEPSAKES` and `GREY` (the very old sheep's), `limbs` (its cubes in a pool: eleven, three for what it wears, two for horns), `clothe` (its look put on), `pose` (its cubes put where it is: the hop, the legs, the head, the ears); and the thought bubble: `BUBBLE`, `THINK` (the pictures), `LINES`, `speak` (its cubes put where it is). |
 | `Fitting.tsx` | The window a sheep is dressed in: a small canvas of its own, a very small island with the sheep on it, no finish. |
-| `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words); the gift (`LEAST MOST CURRENCY`), a new sheep's number (`newId isId`) and its seed (`seedOf`). The server (`sheep-api/`) imports all of it. |
+| `dress.ts` | No three, no page: `WOOL` (the wools), `WEARS` (`hat bell scarf flowers`), `Look` (`{ wool?, wear? }`), `NAME` and `MESSAGE` (24 and 80 letters), `fit(look)` and `tidy({ name, message, look })`, which says what a giver may write (no links, plain words); the gift (`LEAST MOST`, and its currencies `CURRENCIES isCurrency`, written by `money`), a new sheep's number (`newId isId`) and its seed (`seedOf`). The server (`sheep-api/`) imports all of it. |
 | `flock.ts` | An `Entry` is `{ id, seed, name, message, date, look? }`. `FLOCK` is the one sheep that is always in the field and that nobody gave: Claude the sheep (id 1, the test sheep; the owner's idea and name). It is first in `world.ewes`, with every given sheep after it. Also `RECLUSE`, the one in the cave, which is not in `FLOCK`: its line is a placeholder (a `TODO` there) until the owner writes it. |
 | `crowd.ts` | `CROWD`: twenty made-up sheep. For the tests (`new Sheep(CROWD)`: play, chases, leaps, company), and in development only for `/games/sheep/?crowd`, to watch a full field. The page's use of it is behind `import.meta.env.DEV`, so it is not in what is published: keep it so. |
-| `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`), or with a server (`API`) everybody's (`herd`), the checkout, and the wait for a sheep Stripe has not told the server about yet (`waiting`, `late`). |
+| `SheepPage.tsx`, `sheep.css` | The page: `Stage`; a click on a sheep (it hops, and a bubble sits over it: name, message, date, what it is doing now and what it has on); the button in the top bar, the card to dress a sheep (`.dress`), the line while one is being put down (`.place`); and this browser's own sheep, kept under `sheep/mine` (`mine`), or with a server (`API`) everybody's (`herd`), the checkout, and the wait for a sheep Stripe has not told the server about yet (`waiting`, `news`). |
 
 ## The world from outside
 
@@ -133,14 +133,34 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
 - "Put it in the field": with no server (`VITE_SHEEP_API` unset) nothing is charged and the card says so; the entry
   goes through `tidy`, is kept in this browser, the address is made `?sheep=<id>` as Stripe's return makes it, and
   the sheep comes to hang over the field (`bring`: `ALOFT`, 6 over the grass, the yellow arrow of `../basics.ts`
-  over it, always over a place it could stand, and from the cursor). With a server the card posts to `/checkout`
-  and puts Stripe's own form where its buttons were (`till`; Stripe.js from `js.stripe.com` by a script tag, only
-  then, with the publishable key `VITE_STRIPE_PUBLISHABLE`; the card says so if there is none). The looks and the
-  gift are locked (`inert`) while it is there; "Never mind" under it, Escape or a click beside the card take it away
-  (`destroy`: one on a page at a time) and the session with it, unpaid. Paid (`onComplete`), the sheep as it was sent
-  comes to the same hanging at once, from what the page knows, with no wait for the server; Stripe tells the worker
-  in its own time, for everybody else. A way of paying that goes to a bank's own page comes back to `?sheep=<id>`,
-  and from there as before (`waiting`, `late`). The form's colours are the owner's, in Stripe's dashboard. A click drops it (`drop`:
+  over it, always over a place it could stand, and from the cursor). With a server, Stripe's Payment Element is in
+  the left half of the card from the moment it opens, under the gift (`paid`, `counter`, `elements`; Stripe.js from
+  `js.stripe.com` by a script tag the first time the card opens, never on page load; the publishable key
+  `VITE_STRIPE_PUBLISHABLE`, and the card says so if there is none). No payment exists until the button is pressed
+  (Stripe's deferred intent): a gift that changes is `elements.update`d, and one outside `LEAST`..`MOST` fades the
+  form, disables the button and says why in the card's line. Not for the very old sheep: her card has no form.
+  The gift is in euros or Swiss francs (`currency`; `CURRENCIES`, `money` in `dress.ts`): francs to start with for
+  a browser whose language says Switzerland (`de-CH`, `fr-CH`, Swiss German) or whose clock is Zurich's, whatever its language,
+  else euros (`homeCurrency`); a small switch, "€ | CHF", at the end of the gift's heading changes it, and the pick
+  is kept (`sheep/currency`). The numbers stay; their sign follows ("€3", "CHF 3"); `LEAST`..`MOST` holds in both.
+  Without a server it is always euros and there is no switch, so the live site is as it was. The
+  button: `elements.submit()` (Stripe checks what was typed), `/checkout` (the worker makes the PaymentIntent),
+  `confirmPayment` with `redirect: 'if_required'` (3-D Secure asks in a window over the page). Meanwhile the looks
+  and the gift are locked (`inert`) and the card cannot be put away (`held`). Paid, the sheep as it was sent comes to
+  the same hanging at once, from what the page knows, with no wait for the server; Stripe tells the worker in its own
+  time, for everybody else. A way of paying that must go to a bank's page comes back to `?sheep=<id>` (with Stripe's
+  own parameters, which the drop clears), and from there as below (`waiting`, `news`). The form is dressed as the
+  card (`APPEARANCE`: the card's paper, ink, pink, corners and the page's letters, `FONTS`). The ways of paying are
+  whatever the owner has switched on in Stripe's dashboard and suits the currency, the amount and the giver (the
+  worker's PaymentIntent asks the same), as rows, one open under the one picked, three and then "More" (Klarna and the rest live there)
+  (`layout: accordion`; tabs hid all but two behind a small menu), in the order of `ORDER` (card always first, then TWINT, MB WAY,
+  the wallets, PayPal: one list for both currencies, so the second row follows the giver: TWINT takes only francs, MB WAY only euros and Portugal); no Link
+  (it asks for an email and a telephone, and doubles the card's height). A refusal (a declined card) is Stripe's own
+  words in the card's line, with "Nothing was paid." Taken but still settling (`processing`): the card goes, and a
+  line says the sheep comes once it is paid (`news`). Back from a way of paying that went away (PayPal, TWINT, a
+  bank), Stripe's `redirect_status` says how it went (`returned`): `succeeded`, the sheep is waited for as before;
+  `processing`, the settling line; anything else, a line that nothing was paid, with "Try again", which opens the
+  card anew. For those two the address is put back plain at once. A click drops it (`drop`:
   it falls under `GRAVITY`, by how long it has fallen and so the same at any frame rate; then a puff, a heart, a
   hop), its bubble opens, and the address is put back. The place is not kept: on the next visit the sheep stands
   where its seed says. The field has cubes for `SPARE` (8) more sheep than it began with; after that the button
@@ -235,7 +255,7 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   every sheep that comes back (none, if the server is down: Claude is there all the same); a new sheep's number is `newId` and its seed `seedOf` it; "Put it in the field" posts the sheep and
   the gift (an input in euros, `LEAST` to `MOST`) to `/checkout` and pays in the card (above); back at `?sheep=<id>`, that
   sheep hangs to be dropped, or if it is not in the list yet the page asks again for 15 s (`waiting`) and then says
-  so (`late`). Nothing is kept in this browser then.
+  so (`news`: `late`). Nothing is kept in this browser then.
 
 ## Still to do
 

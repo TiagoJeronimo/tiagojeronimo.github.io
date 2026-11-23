@@ -29,23 +29,24 @@ export const flock = (db: Db) =>
 
 export const taken = async (db: Db, id: number) => !!(await db.prepare('SELECT 1 FROM sheep WHERE id = ?').bind(id).first())
 
-export type Kept = { id: number; name: string; message: string; amount: number; created: string; hidden: number }
+export type Kept = { id: number; name: string; message: string; amount: number; currency: string; created: string; hidden: number }
 
 /** Every sheep for the admin page, newest first, words and all, hidden or not. */
 export const ledger = (db: Db) =>
   db
-    .prepare('SELECT id, name, message, amount, created, hidden FROM sheep ORDER BY created DESC, id DESC')
+    .prepare('SELECT id, name, message, amount, currency, created, hidden FROM sheep ORDER BY created DESC, id DESC')
     .all<Kept>()
     .then((done) => done.results)
 
 /** Hides a sheep's words, or shows them again. The same twice is the same. */
 export const hide = (db: Db, id: number, hidden: boolean) => db.prepare('UPDATE sheep SET hidden = ? WHERE id = ?').bind(hidden ? 1 : 0, id).run()
 
-/** Puts a sheep in. @returns false if this session's sheep is in already (Stripe said so before) */
-export const put = async (db: Db, sheep: { id: number; session: string; seed: number; look: string; name: string; message: string; amount: number }) =>
+/** Puts a sheep in. @returns false if this payment's sheep is in already (Stripe said so before). `session` holds the
+ * PaymentIntent's id (it held a Checkout Session's, once). */
+export const put = async (db: Db, sheep: { id: number; session: string; seed: number; look: string; name: string; message: string; amount: number; currency: string }) =>
   (
     await db
-      .prepare('INSERT INTO sheep (id, session, seed, look, name, message, amount) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (session) DO NOTHING')
-      .bind(sheep.id, sheep.session, sheep.seed, sheep.look, sheep.name, sheep.message, sheep.amount)
+      .prepare('INSERT INTO sheep (id, session, seed, look, name, message, amount, currency) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (session) DO NOTHING')
+      .bind(sheep.id, sheep.session, sheep.seed, sheep.look, sheep.name, sheep.message, sheep.amount, sheep.currency)
       .run()
   ).meta.changes > 0

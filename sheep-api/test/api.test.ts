@@ -21,11 +21,12 @@ const env: Env = { DB: d1(sqlite), STRIPE_SECRET: SECRET, STRIPE_WEBHOOK_SECRET:
 // Stripe, as far as a checkout goes: it says where to pay, and the test keeps what it was asked.
 let asked: URLSearchParams | null = null
 let stripeUp = true
-globalThis.fetch = (async (_url: string, init: RequestInit) => {
+globalThis.fetch = (async (url: string, init: RequestInit) => {
+  assert.equal(url, 'https://api.stripe.com/v1/payment_intents', 'a PaymentIntent')
   asked = new URLSearchParams(String(init.body))
   assert.equal((init.headers as Record<string, string>).authorization, `Bearer ${SECRET}`)
   assert.equal((init.headers as Record<string, string>)['stripe-version'], '2026-11-18.endive', 'the API version is pinned')
-  return stripeUp ? Response.json({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_abc' }) : new Response('{"error":{"message":"Invalid API Key provided: sk_test_****6789"}}', { status: 401 })
+  return stripeUp ? Response.json({ id: 'pi_test_1', client_secret: 'pi_test_1_secret_abc' }) : new Response('{"error":{"message":"Invalid API Key provided: sk_test_****6789"}}', { status: 401 })
 }) as typeof fetch
 
 const call = (path: string, init: RequestInit = {}) => worker.fetch(new Request(`https://sheep.example${path}`, init), env)
@@ -41,7 +42,7 @@ const buy = (body: unknown, origin = SITE, type = 'application/json') =>
 
 // Stripe's signature, made as Stripe makes it.
 const sign = (body: string, t = Math.floor(Date.now() / 1000), secret = HOOK) => `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`
-const news = (session: Record<string, unknown>, type = 'checkout.session.completed') => JSON.stringify({ id: 'evt_1', type, data: { object: session } })
+const news = (session: Record<string, unknown>, type = 'payment_intent.succeeded') => JSON.stringify({ id: 'evt_1', type, data: { object: session } })
 const tell = (body: string, signature: string | null = sign(body)) =>
   call('/stripe', { method: 'POST', headers: { 'content-type': 'application/json', ...(signature ? { 'stripe-signature': signature } : {}) }, body }).then(answer)
 const field = async (origin = SITE) => answer(await call('/sheep', { headers: { origin } }))
@@ -70,18 +71,23 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   const good = { id, amount: 300, name: 'Wooliam  <b>', message: 'Hello see https://spam.example and www.x.com or buy.cheap.io now', look: { wool: 3, wear: 'hat', crown: true } }
   const done = await buy(good)
   assert.equal(done.status, 200)
-  assert.deepEqual(done.body, { clientSecret: 'cs_test_1_secret_abc' }, "the session's client secret, and nothing else")
+  assert.deepEqual(done.body, { clientSecret: 'pi_test_1_secret_abc' }, "the intent's client secret, and nothing else")
   assert.equal(done.headers.get('access-control-allow-origin'), SITE)
   assert.ok(asked)
   const sent = asked as URLSearchParams
-  assert.equal(sent.get('line_items[0][price_data][unit_amount]'), '300')
-  assert.equal(sent.get('line_items[0][price_data][currency]'), 'eur')
-  assert.equal(sent.get('ui_mode'), 'embedded_page', 'paid inside the card')
-  assert.equal(sent.get('redirect_on_completion'), 'if_required')
-  assert.equal(sent.get('return_url'), `${SITE}/games/sheep/?sheep=${id}`, 'a bank that sends the giver away sends them back to the drop')
-  assert.equal(sent.get('success_url'), null, 'not allowed with an embedded checkout')
-  assert.equal(sent.get('cancel_url'), null, 'nor this')
-  assert.equal(sent.get('submit_type'), 'donate')
+  assert.equal(sent.get('amount'), '300')
+  assert.equal(sent.get('currency'), 'eur', 'euros when the page says nothing')
+  assert.equal((await buy({ ...good, id: newId(), currency: 'chf' })).status, 200)
+  assert.equal((asked as URLSearchParams).get('currency'), 'chf', 'francs when it says so')
+  for (const currency of ['usd', 'CHF', '', 7]) {
+    const got = await buy({ ...good, id: newId(), currency })
+    assert.deepEqual([got.status, got.body.error], [400, 'currency'], String(currency))
+  }
+  assert.equal(sent.get('automatic_payment_methods[enabled]'), 'true', "the ways to pay are the dashboard's, as in the page's form")
+  assert.equal(sent.get('automatic_payment_methods[allow_redirects]'), 'always', 'PayPal and the like go away and come back')
+  assert.equal(sent.get('allowed_payment_method_types[0]'), null, 'no list of our own: it would not match the form')
+  assert.equal(sent.get('payment_method_types[0]'), null, 'gone from this API version')
+  assert.equal(sent.get('ui_mode'), null, 'no Checkout Session any more')
   assert.equal(sent.get('metadata[id]'), String(id))
   assert.equal(sent.get('metadata[name]'), 'Wooliam b', 'angle brackets out')
   assert.equal(sent.get('metadata[message]'), 'Hello see and or now', 'links out')
@@ -109,7 +115,7 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   await bad(good, 403, 'origin', 'https://evil.example')
   stripeUp = false
   const loud = console.error
-  console.error = (...what: unknown[]) => assert.deepEqual(what, ['sheep-api: stripe said', 401], 'the status is logged, and nothing Stripe said')
+  console.error = (...what: unknown[]) => assert.deepEqual(what, ['sheep-api: stripe said', 401, '', ''], "the status is logged, and Stripe's code and field, never its message")
   await bad({ ...good, id: newId() }, 502, 'stripe')
   console.error = loud
   stripeUp = true
@@ -121,29 +127,38 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
 // Stripe says a sheep is paid for: it is in the field, once, however many times Stripe says so.
 {
   const id = newId()
-  const session = { id: 'cs_test_paid', payment_status: 'paid', amount_total: 750, metadata: { id: String(id), name: 'Gwen', message: 'Baa', look: '{"wool":2,"wear":"bell"}' } }
+  const session = { id: 'pi_test_paid', object: 'payment_intent', status: 'succeeded', amount: 700, amount_received: 750, currency: 'eur', metadata: { id: String(id), name: 'Gwen', message: 'Baa', look: '{"wool":2,"wear":"bell"}' } }
   const body = news(session)
   assert.equal((await tell(body)).status, 200)
   assert.equal((await tell(body)).status, 200, 'the same news twice is fine')
-  assert.equal((await tell(news(session, 'checkout.session.async_payment_succeeded'))).status, 200)
-  const rows = sqlite.prepare('SELECT * FROM sheep WHERE session = ?').all('cs_test_paid')
+  assert.equal((await tell(news(session, 'charge.succeeded'))).body.ignored, true, 'the same payment, other news')
+  const rows = sqlite.prepare('SELECT * FROM sheep WHERE session = ?').all('pi_test_paid')
   assert.equal(rows.length, 1, 'and one sheep')
   assert.equal(rows[0].amount, 750, 'the amount is what Stripe says was paid')
+  assert.equal(rows[0].currency, 'eur')
+  const franc = newId()
+  await tell(news({ ...session, id: 'pi_test_chf', currency: 'chf', amount_received: 500, metadata: { ...session.metadata, id: String(franc) } }))
+  const chf = sqlite.prepare('SELECT * FROM sheep WHERE session = ?').get('pi_test_chf')!
+  assert.deepEqual([chf.id, chf.amount, chf.currency], [franc, 500, 'chf'], 'francs are kept as francs')
   assert.equal(rows[0].seed, seedOf(id), 'the seed is worked out from the number, here')
   assert.equal((await answer(await call('/checkout', { method: 'POST', headers: { origin: SITE, 'content-type': 'application/json' }, body: JSON.stringify({ id, amount: 300 }) }))).status, 409, 'its number is taken now')
 
   // Not signed, or not about a paid sheep: nothing goes in.
   const before = sqlite.prepare('SELECT count(*) AS n FROM sheep').get()!.n
-  assert.equal((await tell(news({ ...session, id: 'cs_forged' }), null)).status, 400)
-  assert.equal((await tell(news({ ...session, id: 'cs_forged' }), sign(body))).status, 400, "another body's signature")
-  assert.equal((await tell(news({ ...session, id: 'cs_forged' }), sign(news({ ...session, id: 'cs_forged' }), Math.floor(Date.now() / 1000) - 3600))).status, 400, 'an old one')
-  assert.equal((await tell(news({ ...session, id: 'cs_unpaid', payment_status: 'unpaid' }))).body.ignored, true)
-  assert.equal((await tell(news({ ...session, id: 'cs_other' }, 'payment_intent.created'))).body.ignored, true, 'other news is thanked for and let be')
+  assert.equal((await tell(news({ ...session, id: 'pi_forged' }), null)).status, 400)
+  assert.equal((await tell(news({ ...session, id: 'pi_forged' }), sign(body))).status, 400, "another body's signature")
+  assert.equal((await tell(news({ ...session, id: 'pi_forged' }), sign(news({ ...session, id: 'pi_forged' }), Math.floor(Date.now() / 1000) - 3600))).status, 400, 'an old one')
+  assert.equal((await tell(news({ ...session, id: 'pi_unpaid', status: 'requires_payment_method' }))).body.ignored, true)
+  assert.equal((await tell(news({ ...session, id: 'pi_other' }, 'payment_intent.created'))).body.ignored, true, 'other news is thanked for and let be')
+  assert.equal((await tell(news({ ...session, id: 'pi_old' }, 'checkout.session.completed'))).body.ignored, true, 'the old Checkout news is no longer a sheep')
+  assert.equal((await tell(news({ ...session, id: 'pi_usd', currency: 'usd' }))).body.ignored, true, 'not in euros: not ours')
+  assert.equal((await tell(news({ ...session, id: 'pi_coffee', metadata: {} }))).body.ignored, true, 'a payment that is not a sheep (the account may take others)')
+  assert.equal((await tell(news({ ...session, id: 'pi_nothing', amount_received: undefined }))).body.ignored, true)
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM sheep').get()!.n, before)
 
   // A second session for a number that is taken (two tabs, or somebody copying): the sheep goes in with a number of its own.
-  await tell(news({ ...session, id: 'cs_test_twin', metadata: { ...session.metadata, name: '<script>Twin' } }))
-  const twin = sqlite.prepare('SELECT * FROM sheep WHERE session = ?').get('cs_test_twin')!
+  await tell(news({ ...session, id: 'pi_test_twin', metadata: { ...session.metadata, name: '<script>Twin' } }))
+  const twin = sqlite.prepare('SELECT * FROM sheep WHERE session = ?').get('pi_test_twin')!
   assert.notEqual(twin.id, id)
   assert.equal(twin.seed, seedOf(twin.id as number))
   assert.equal(twin.name, 'script Twin', 'what Stripe hands back is tidied again')

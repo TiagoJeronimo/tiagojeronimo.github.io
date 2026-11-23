@@ -41,7 +41,7 @@ None of these was decided with him. Each is small and easy to change.
 - **Name**: optional, up to 24 letters; none is "a sheep". **Message**: optional, up to 80 letters. Links, angle
   brackets and invisible characters are taken out of both (`tidy`); nothing else is judged.
 - **The card** (asked for by the owner later): one card in two halves, the gift on the left and the sheep in a
-  window with its looks under it on the right. The gift is €3, €5, €10 or a number of the giver's own; with no
+  window with its looks under it on the right. The gift is 3, 5, 10 or a number of the giver's own; with no
   server the amounts are there to be looked at and a line says that nothing is charged and the sheep lives in this
   browser only.
 - **The words**: the button in the top bar is "Buy me a sheep"; the card is "A sheep of your own"; while placing,
@@ -54,9 +54,16 @@ None of these was decided with him. Each is small and easy to change.
 
 ## Step 3, as built: defaults for the owner to judge
 
-- **Paying in the card** (since 2026-11-22, the owner's word): Stripe's embedded form takes the place of the
-  card's buttons, and the sheep drops the moment it is paid; nobody leaves the game but for a bank that insists.
-- **The gift**: €2 to €100 (`LEAST`, `MOST` in `dress.ts`), in euros only, €3 filled in. Stripe's form says "Donate".
+- **Paying in the card** (the owner's word, 2026-11-23): Stripe's Payment Element is in the card from the moment it
+  opens, dressed as the card, and the sheep drops the moment it is paid; nobody leaves the game but for a bank that
+  insists. (Embedded Checkout came first, for a day: it needed a click to show the form.)
+- **The gift**: 2 to 100 (`LEAST`, `MOST` in `dress.ts`), 3 filled in, in euros or Swiss francs (the owner's word,
+  2026-11-23: francs so that the Swiss can pay by TWINT, which takes nothing else; MB WAY, Portugal's, takes only
+  euros). Francs to start with for a browser that says Switzerland, euros for everybody else, and a small switch on
+  the card. The button is the card's own ("Put it in the field").
+- **Ways of paying**: whatever is switched on in Stripe's dashboard and suits the currency, the amount and the giver;
+  card first, then TWINT, MB WAY, Apple Pay and Google Pay, PayPal (what does not suit the giver is left out, so the second row follows the country) (`ORDER` in the page), as rows in the card. Apple Pay
+  and Google Pay need the site's domain registered with Stripe and HTTPS: on localhost they never show.
 - **The sheep's number** is picked by the page (`newId`, 2^32 to 2^53, random) and its seed is that number's last nine
   digits, so what is dressed is what comes back. Two checkouts with one number: the second sheep gets a new one.
 - **The field, with a server**: Claude the sheep, always, and every real sheep with it. If the server is down, Claude
@@ -109,8 +116,8 @@ owner ──/admin (behind Cloudflare Access)──▶ worker: list messages, hi
 | Call | Who | What |
 | --- | --- | --- |
 | `GET /sheep` | the game, on load | every sheep: id, seed, look, name, message, date. No spot. Cached for a minute. |
-| `POST /checkout` | the game, on Buy | takes the id the game picked, the look, name, message, amount; creates a Stripe Checkout Session with them in `metadata`; returns its address |
-| `POST /stripe` | Stripe | checks the `Stripe-Signature` (Web Crypto, no SDK); on `checkout.session.completed`, saves the sheep. Must be safe to receive twice. |
+| `POST /checkout` | the game, on Buy | takes the id the game picked, the look, name, message, amount; creates a Stripe PaymentIntent with them in `metadata`; returns its client secret, which the card pays with |
+| `POST /stripe` | Stripe | checks the `Stripe-Signature` (Web Crypto, no SDK); on `payment_intent.succeeded`, saves the sheep. Must be safe to receive twice. |
 | `/admin` | the owner | messages, newest first, with a hide button. Cloudflare Access puts an email code in front of it. |
 
 - **Table `sheep`**: `id`, `session` (Stripe's, unique), `seed`, `look` (JSON), `name`, `message`, `amount`,

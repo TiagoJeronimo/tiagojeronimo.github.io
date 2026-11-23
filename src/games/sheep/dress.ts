@@ -35,12 +35,21 @@ export const NAME = 24
 export const MESSAGE = 80
 
 /**
- * A gift, in cents of a euro, between these. Stripe keeps €0.25 and a little of every payment, so less than €2 is
- * mostly theirs; the most is there so that a slip of the finger does not cost anyone a fortune. (The owner's to judge.)
+ * A gift, in cents (of a euro or of a franc), between these, whichever the currency. Stripe keeps 0.25 and a little of
+ * every payment, so less than 2 is mostly theirs; the most is there so that a slip of the finger does not cost anyone a
+ * fortune. (The owner's to judge. Stripe's own least is 0.50 in both.)
  */
 export const LEAST = 200
 export const MOST = 10000
-export const CURRENCY = 'eur'
+/**
+ * The currencies a gift can be in: euros, and Swiss francs, which TWINT (Switzerland's way of paying) takes and
+ * nothing else. The first is the one when nothing says otherwise.
+ */
+export const CURRENCIES = ['eur', 'chf'] as const
+export type Currency = (typeof CURRENCIES)[number]
+export const isCurrency = (currency: unknown): currency is Currency => CURRENCIES.some((one) => one === currency)
+/** How an amount is written in a currency: "€3", "CHF 3"; with `cents`, "€3.00", "CHF 3.00". */
+export const money = (amount: number, currency: Currency, cents = false) => `${currency === 'chf' ? 'CHF ' : '€'}${cents ? amount.toFixed(2) : amount}`
 
 /**
  * A new sheep's number, picked by the page before paying: 2^32 and up, so it is never the resident's (which is 1), and

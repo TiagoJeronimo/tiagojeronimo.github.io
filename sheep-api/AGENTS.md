@@ -13,7 +13,7 @@ CURRENCY`), the sheep's number (`newId isId`) and its seed (`seedOf`).
 | `src/access.ts` | `admitted(jwt, env)`: Cloudflare Access's JWT, RS256 by Web Crypto against the team's keys (kept an hour, fetched again at most once a minute for a new `kid`), `aud`, `iss`, `exp`, `nbf`, and the email in `ADMIN_EMAILS`. `bypassed(request, env)`: the way in on this machine. |
 | `src/signed.ts` | `signed(header, body, secret)`: Stripe's `t=...,v1=...`, HMAC-SHA256, 300 s either way (`TOLERANCE`). |
 | `src/sql.ts` | `Db` (the little of D1 used), `flock`, `taken`, `put`; for the owner, `ledger` and `hide`. |
-| `migrations/0001_sheep.sql` | The table `sheep`: `id session(unique) seed look name message amount created hidden`. |
+| `migrations/0001_sheep.sql`, `0002_currency.sql` | The table `sheep`: `id session(unique) seed look name message amount created hidden`, and then `currency` (`eur` or `chf`, `eur` for all before it). `npm run sheep-api:migrate` applies whatever is new, locally. |
 | `test/api.test.ts`, `test/admin.test.ts`, `test/d1.ts` | The handler over node's own SQLite (`node:sqlite`, with the real migration: `d1.ts`), a fake `fetch` for Stripe and for Access's keys, and JWTs signed with a key made in the test. In `npm test`. |
 | `wrangler.toml`, `.dev.vars.example` | Config with no secrets; the secrets go in `.dev.vars` (ignored by git). |
 
@@ -21,17 +21,28 @@ CURRENCY`), the sheep's number (`newId isId`) and its seed (`seedOf`).
 
 - `GET /sheep`: every sheep, oldest first: `id seed look name message date`. No spot, amount or session. A hidden one
   is listed as "a sheep" with no message (the plan: hiding keeps the sheep). `cache-control: max-age=60`.
-- `POST /checkout` (JSON, from one of `ORIGINS`, 4 KB at most): `{ id, amount, name, message, look }`. `amount` in
-  cents, whole, `LEAST` to `MOST`; `id` from `newId`, not taken. Tidied, then a Stripe Checkout Session (euro, donate,
-  `ui_mode: embedded_page`, API version pinned by `Stripe-Version`, `STRIPE_VERSION`) with the sheep in `metadata`,
-  `redirect_on_completion: if_required` and `return_url` `SITE/games/sheep/?sheep=<id>` (only a bank with a page of its
-  own sends anybody there). Answers `{ clientSecret }`: the session's, for Stripe.js in the game's card. It pays that
-  session and nothing else; the account's secret key never leaves the worker.
-- `POST /stripe` (256 KB at most): signature first; then `checkout.session.completed` (or
-  `async_payment_succeeded`) with `payment_status: 'paid'` puts the sheep in, tidied again, its seed from its number,
-  `amount` from `amount_total`. `session` is unique, so the same news twice is one sheep. A number taken by another
-  session gets a new one. Anything else: 200, `{ ignored: true }`.
-- `GET /admin`: every sheep, newest first, words and all, with date, amount, number, and a Hide or Show button.
+- `POST /checkout` (JSON, from one of `ORIGINS`, 4 KB at most): `{ id, amount, currency, name, message, look }`.
+  `amount` in cents (of the currency), whole, `LEAST` to `MOST`; `currency` `eur` or `chf` (`CURRENCIES`; euros if
+  none is given, `currency` error for anything else); `id` from `newId`, not taken. Tidied, then a Stripe
+  PaymentIntent in that currency with `automatic_payment_methods` (enabled, redirects allowed): the ways of paying are
+  the ones switched on in Stripe's dashboard that suit the currency, the amount and the giver, as in the page's
+  Payment Element, which names none either (the two must agree). API version pinned by `Stripe-Version`,
+  `STRIPE_VERSION`, which no longer takes `payment_method_types`. The sheep is in `metadata`. Answers
+  `{ clientSecret }`: the intent's, which the game's card confirms the payment with. It pays that intent and nothing
+  else; the account's secret key never leaves the worker. A refusal from Stripe is logged as its status, code and
+  field, never its message.
+- `POST /stripe` (256 KB at most): signature first; then `payment_intent.succeeded` (status `succeeded`, in euros or
+  francs, with a sheep in its `metadata`) puts the sheep in, tidied again, its seed from its number, `amount` from
+  `amount_received` and its `currency`. Every way of paying ends in that one event once the money is in: a card or
+  MB WAY at once, PayPal and TWINT once the giver is back from them, a slower one when it settles. The intent's id is unique (in the column `session`, named when it held a Checkout Session's), so
+  the same news twice is one sheep. A number taken by another payment gets a new one. Anything else: 200,
+  `{ ignored: true }`.
+- Stripe's events: the worker needs only `payment_intent.succeeded`. Locally `stripe listen` forwards everything;
+  live, the webhook endpoint (step 5) can be set to that one event.
+- Which ways of paying there are is the owner's, in Stripe's dashboard (Settings, Payment methods). Apple Pay and
+  Google Pay also need the site's domain registered there (Payment method domains) and show only over HTTPS.
+- `GET /admin`: every sheep, newest first, words and all, with date, amount and currency ("€3.00", "CHF 5.00"),
+  number, and a Hide or Show button; at the top a sum to each currency ("€22.50 and CHF 8.00 in all").
   `POST /admin/hide`, `POST /admin/show` (a form: `id`, `token`) set `hidden` and send the owner back (303). The same
   twice does nothing more. Nothing under `/admin` answers without a valid Access JWT for an email in `ADMIN_EMAILS`
   (401 without one, 403 with a bad one, the word "No." either way); with any of the three settings unset, nothing

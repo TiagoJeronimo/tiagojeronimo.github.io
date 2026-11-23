@@ -181,7 +181,8 @@
 }
 .dress .words {
   position: relative;
-  display: block;
+  display: grid;
+  gap: 10px;
 }
 .dress .words small {
   position: absolute;
@@ -219,6 +220,23 @@
 }
 .dress .gift input {
   width: 5.2em;
+}
+/* The gift: four chips sharing the width, then a small "or" and a box that takes the rest of the line. */
+.dress .row.amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.dress .amounts .pick {
+  padding: 8px 2px;
+  white-space: nowrap;
+}
+.dress .amounts .gift {
+  grid-column: 1 / -1;
+}
+.dress .amounts .gift input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
 }
 .dress .sum {
   opacity: 1;
@@ -423,10 +441,50 @@
   }
 }
 
-/* Stripe's form, where the buttons were, while a sheep is being paid for. Its colours are Stripe's, by the owner's
-   branding in Stripe's dashboard; this only gives it room and the card's round corners. */
+/* Stripe's form (the Payment Element), in the card from the moment it opens, dressed by `APPEARANCE` in
+   SheepPage.tsx to look like the card's own inputs. Faded and out of reach while the gift is one it may not ask for. */
 .dress .till {
-  min-height: 160px;
-  border-radius: 14px;
-  overflow: hidden;
+  min-height: 120px;
+  transition: opacity 0.2s;
+}
+.dress .till.off {
+  opacity: 0.35;
+}
+
+/* A payment that came back unpaid: the line offers the card again, so its button can be pressed. */
+.place .sound {
+  margin-left: 4px;
+  pointer-events: auto;
+}
+
+/* The heading of the gift's half, with the switch of currency at its end. */
+.dress .head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* Euros or Swiss francs: two small halves of one quiet pill, over the gift. */
+.dress .coins {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: #f1e9dc;
+}
+.dress .coins button {
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.dress .coins button[aria-checked='true'] {
+  background: #fffdf6;
+  opacity: 1;
+  box-shadow: 0 1px 0 rgb(61 53 80 / 0.18);
 }

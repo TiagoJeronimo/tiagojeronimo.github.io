@@ -85,8 +85,8 @@ const shut = (response: Response, what: string) => {
 
 const quiet = newId()
 const loud = newId()
-await put(env.DB, { id: loud, session: 'cs_1', seed: 1, look: '{}', name: 'Gwen', message: 'Baa', amount: 300 })
-await put(env.DB, { id: quiet, session: 'cs_2', seed: 2, look: '{}', name: '<script>alert(1)</script>', message: `"quoted" & 'single' <img src=x onerror=alert(1)>`, amount: 1250 })
+await put(env.DB, { id: loud, session: 'cs_1', seed: 1, look: '{}', name: 'Gwen', message: 'Baa', amount: 300, currency: 'eur' })
+await put(env.DB, { id: quiet, session: 'cs_2', seed: 2, look: '{}', name: '<script>alert(1)</script>', message: `"quoted" & 'single' <img src=x onerror=alert(1)>`, amount: 1250, currency: 'eur' })
 sqlite.prepare("UPDATE sheep SET created = '2026-11-20T10:00:00Z' WHERE id = ?").run(loud)
 
 {
@@ -100,6 +100,11 @@ sqlite.prepare("UPDATE sheep SET created = '2026-11-20T10:00:00Z' WHERE id = ?")
   assert.ok(html.includes('&quot;quoted&quot; &amp; &#39;single&#39; &lt;img src=x onerror=alert(1)&gt;'))
   assert.ok(html.indexOf(String(quiet)) < html.indexOf(String(loud)), 'newest first')
   assert.ok(html.includes('€12.50') && html.includes('€3.00') && html.includes('€15.50 in all'))
+  // A gift in francs: shown in francs, and summed apart from the euros.
+  await put(env.DB, { id: newId(), session: 'pi_chf', seed: 3, look: '{}', name: 'Heidi', message: '', amount: 800, currency: 'chf' })
+  const both = await look().then((r) => r.text())
+  assert.ok(both.includes('CHF 8.00 ·') && both.includes('3 sheep') && both.includes('€15.50 and CHF 8.00 in all'), 'a sum to each currency')
+  sqlite.prepare("DELETE FROM sheep WHERE session = 'pi_chf'").run()
   const tokens = [...html.matchAll(/name="token" value="([0-9a-f]{64})"/g)].map((m) => m[1])
   assert.equal(tokens.length, 2)
   const token = tokens[0]!

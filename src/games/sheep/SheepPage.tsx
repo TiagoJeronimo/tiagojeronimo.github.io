@@ -6,10 +6,11 @@ import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
 import { note } from '../../sound.ts'
-import { BLANKETS, BLANKET_NAMES, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isId, newId, plan, seedOf, tidy, type Look, type Memory, type Wear } from './dress.ts'
+import { BLANKETS, BLANKET_NAMES, CURRENCIES, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isCurrency, isId, money, newId, plan, seedOf, tidy, type Currency, type Look, type Memory, type Wear } from './dress.ts'
 import { woolOf } from './model.ts'
 import { Fitting } from './Fitting.tsx'
 import { CROWD } from './crowd.ts'
+import bricolage from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url'
 import { FLOCK, RECLUSE, type Entry } from './flock.ts'
 import { DOOR, HERMIT, MORNING, Sheep, SPAN } from './Sheep.ts'
 
@@ -61,13 +62,45 @@ const herd = async (fresh = false): Promise<Entry[]> => {
   }
 }
 // Stripe's form, in the card: Stripe.js, from Stripe and nowhere else (it may not be bundled or kept here), fetched
-// only when somebody presses to pay, and the account's publishable key, which is made to be public (`pk_...`). The
+// the first time the card opens, and the account's publishable key, which is made to be public (`pk_...`). The
 // script's address names the same API version as the worker's (`sheep-api/src/index.ts`).
 const STRIPE_JS = 'https://js.stripe.com/endive/stripe.js'
 const PUBLISHABLE: string = import.meta.env.VITE_STRIPE_PUBLISHABLE ?? ''
-type Embedded = { mount(where: HTMLElement): void; destroy(): void }
-type Embed = (options: { fetchClientSecret: () => Promise<string>; onComplete: () => void }) => Promise<Embedded>
-type Stripe = { createEmbeddedCheckoutPage?: Embed; initEmbeddedCheckout?: Embed }
+const KEYED = /^pk_(test|live)_/.test(PUBLISHABLE)
+type Wrong = { error?: { message?: string } }
+type Payment = { mount(where: HTMLElement): void; destroy(): void }
+type Elements = { create(kind: 'payment', options: object): Payment; update(options: { amount: number; currency: Currency }): void; submit(): Promise<Wrong> }
+type Stripe = {
+  elements(options: object): Elements
+  confirmPayment(options: object): Promise<Wrong & { paymentIntent?: { status: string } }>
+}
+/** The form dressed as the card is: its paper, ink, pink and corners (`sheep.css`), and the page's own letters. */
+const APPEARANCE = {
+  theme: 'flat',
+  variables: {
+    fontFamily: "'Bricolage Grotesque Variable', system-ui, sans-serif",
+    fontSizeBase: '15px',
+    colorPrimary: '#3d3550',
+    colorBackground: '#fffdf6',
+    colorText: '#3d3550',
+    colorTextSecondary: '#7a7189',
+    colorTextPlaceholder: '#a49cb0',
+    colorDanger: '#d4506a',
+    borderRadius: '10px',
+    spacingUnit: '3px',
+  },
+  rules: {
+    '.Input': { backgroundColor: '#f1e9dc', border: 'none', boxShadow: 'none', padding: '9px 11px' },
+    '.Input:focus': { boxShadow: 'inset 0 0 0 2px #3d3550' },
+    '.Input--invalid': { boxShadow: 'inset 0 0 0 2px #d4506a' },
+    '.Label': { fontSize: '12px', fontWeight: '700' },
+    // Each way of paying in a box of its own, with a border like the card's chips: the open one in ink.
+    '.AccordionItem': { backgroundColor: '#fffdf6', border: '2px solid #e6dccb', boxShadow: 'none', borderRadius: '12px' },
+    '.AccordionItem--selected': { borderColor: '#3d3550' },
+  },
+}
+// The page's letters, for inside Stripe's frame (its own address: it fetches them from here).
+const FONTS = [{ family: 'Bricolage Grotesque Variable', src: `url(${new URL(bricolage, location.href).href})`, weight: '200 800' }]
 let stripe: Promise<Stripe> | null = null
 /** Stripe.js, once a visit; a failed load is tried again next time. */
 const stripeJs = () =>
@@ -87,8 +120,39 @@ const stripeJs = () =>
     throw error
   }))
 
+/**
+ * The currency a gift starts in: Swiss francs for a browser that says it is in Switzerland (its language's region, as
+ * in de-CH or fr-CH, or Swiss German; or the clock of Zurich, whatever the language: an English browser in Zurich
+ * is the commonest case), so that TWINT is there;
+ * else euros. Nothing is asked of the browser for it, and nothing leaves it. A pick on the card is kept (`kept`).
+ */
+const COIN = 'sheep/currency'
+const homeCurrency = (): Currency => {
+  const picked = kept(COIN)
+  if (isCurrency(picked)) return picked
+  try {
+    const language = navigator.language ?? ''
+    const region = /^[a-z]{2,3}-(?:[a-z]{4}-)?([a-z]{2})\b/i.exec(language)?.[1]?.toUpperCase()
+    if (region === 'CH' || /^gsw\b/i.test(language) || Intl.DateTimeFormat().resolvedOptions().timeZone === 'Europe/Zurich') return 'chf'
+  } catch {
+    // then euros
+  }
+  return 'eur'
+}
+/** Which way of paying comes first, of those Stripe offers the giver: one list for both currencies, since a way that
+ * does not take the gift's currency (TWINT is francs only, MB WAY euros only) is simply not offered. */
+const ORDER = ['card', 'twint', 'mb_way', 'apple_pay', 'google_pay', 'paypal']
+
 /** The sheep in the address, `?sheep=<id>`: where Stripe sends a giver back to (or the fake pay of step 2). */
 const wanted = () => Number(new URLSearchParams(location.search).get('sheep'))
+/**
+ * How a way of paying that went away (PayPal, a bank) came back, by Stripe's `redirect_status`: paid, still being
+ * settled, or not paid. None at all is the fake pay of step 2, or an old address: taken as paid, and waited for.
+ */
+const returned = (): 'paid' | 'settling' | 'unpaid' => {
+  const status = new URLSearchParams(location.search).get('redirect_status')
+  return status === null || status === 'succeeded' ? 'paid' : status === 'processing' || status === 'pending' ? 'settling' : 'unpaid'
+}
 
 // The sheep this browser has put in the field, with no server: a sheep made here is seen here and nowhere else.
 const MINE = 'sheep/mine'
@@ -216,22 +280,34 @@ function Field({ given }: { given: Entry[] | null }) {
   const [called, setCalled] = useState('')
   const [words, setWords] = useState('')
   const [amount, setAmount] = useState(3)
+  const [currency, setCurrency] = useState<Currency>(() => (API ? homeCurrency() : 'eur')) // what the gift is in: euros, or (with a server) Swiss francs
+  const coin = (next: Currency) => {
+    setCurrency(next)
+    keep(COIN, next)
+  }
   const [taken, setTaken] = useState(false) // whether this visit has had its very old sheep: there is one
   const elder = amount === 0
   const shown = useMemo(() => ({ ...look, elder }), [look, elder]) // what the sheep in the window looks like: very old, at a gift of nothing
   const card = useRef<HTMLFormElement>(null)
   const [full, setFull] = useState(false)
   const [chosen, choose] = useState(-1)
-  // With a server: a giver back from Stripe before Stripe has told the server (`waiting`, the sheep's number), one
-  // whose sheep did not come in time (`late`), a checkout on its way (`paying`) or one that failed (`trouble`).
-  const [waiting, setWaiting] = useState(() => (given && !back && isId(wanted()) && wanted()) || 0)
-  const [late, setLate] = useState(false)
+  // With a server: a giver back from Stripe before Stripe has told the server (`waiting`, the sheep's number); what
+  // there is to say about it after (`news`: it did not come in time, its payment is still being settled, or it was
+  // not paid after all); a payment on its way (`paying`) or one that failed in the card (`trouble`).
+  const [waiting, setWaiting] = useState(() => (given && !back && isId(wanted()) && returned() === 'paid' && wanted()) || 0)
+  const [news, setNews] = useState<'' | 'late' | 'settling' | 'unpaid'>(() => (given && !back && isId(wanted()) && returned() !== 'paid' ? returned() as 'settling' | 'unpaid' : ''))
+  // (Nothing to wait for: the address goes back to plain, and Stripe's parameters with it.)
+  useEffect(() => void (news && history.replaceState(null, '', location.pathname)), [news])
   const [paying, setPaying] = useState(false)
   const [trouble, setTrouble] = useState('')
-  // Stripe's form in the card: the session to pay, and the sheep as it was sent (what is dropped once it is paid,
-  // whatever the card says by then). Null when the card shows its own buttons.
-  const [till, setTill] = useState<{ secret: string; entry: Entry } | null>(null)
+  // Stripe's form in the card (`counter`, where it goes; `elements`, Stripe's hold on it), and whether it is ready.
   const counter = useRef<HTMLDivElement>(null)
+  const elements = useRef<Elements | null>(null)
+  const [ready, setReady] = useState(false)
+  const held = useRef(false) // a payment on its way: the card cannot be put away until Stripe has answered
+  const cents = Math.round(amount * 100)
+  const fits = cents >= LEAST && cents <= MOST // a gift Stripe may be asked for
+  const paid = !!API && KEYED && mode === 'dress' && !elder // the card shows Stripe's form
   const bubble = useRef<HTMLDivElement>(null)
   const saying = useRef<HTMLElement>(null)
   const pick = useRef(-1)
@@ -279,47 +355,54 @@ function Field({ given }: { given: Entry[] | null }) {
       }
       if (gone) return
       setWaiting(0)
-      setLate(true)
-      history.replaceState(null, '', location.pathname)
+      setNews('late')
     })()
     return () => void (gone = true)
   }, [waiting, world])
 
-  // Stripe's form goes into the card while there is a session to pay, and away again with it: "Never mind", Escape
-  // or a click beside the card all take the session away, and so the form (Stripe allows one on a page at a time).
-  // Paid, the sheep comes to hang over the field at once, from what this page already knows: Stripe's word to the
-  // server is for everybody else, and comes in its own time.
+  // Stripe's form is in the card from the moment it opens (not for the very old sheep, who costs nothing), for the
+  // gift as it stands: no payment exists until the button is pressed (Stripe's "deferred intent"), so nothing is
+  // made by opening the card and closing it again. Stripe.js comes the first time the card opens.
+  const gift = useRef(cents)
+  const pence = useRef(currency)
   useEffect(() => {
-    if (!till) return
+    // (Before the form is made, below.)
+    gift.current = fits ? cents : LEAST
+    pence.current = currency
+  }, [fits, cents, currency])
+  useEffect(() => {
+    if (!paid) return
     let gone = false
-    let form: Embedded | null = null
-    const paid = () => {
-      if (gone) return
-      setTill(null)
-      if (world.bring(till.entry, eye.current?.pan.x, eye.current?.pan.z)) setMode('place')
-      else setMode('idle') // (no room: it is in the field all the same on the next visit)
-    }
+    let form: Payment | null = null
     void stripeJs()
       .then((made) => {
-        const embed = made.createEmbeddedCheckoutPage ?? made.initEmbeddedCheckout
-        if (!embed) throw new Error('no embedded checkout')
-        return embed.call(made, { fetchClientSecret: () => Promise.resolve(till.secret), onComplete: paid })
+        if (gone || !counter.current) return
+        const kept = made.elements({ mode: 'payment', amount: gift.current, currency: pence.current, appearance: APPEARANCE, fonts: FONTS })
+        // Whatever the owner has switched on in Stripe's dashboard, as far as it suits the gift and the giver (the
+        // worker's PaymentIntent says the same); Apple Pay or Google Pay where the device has them. One row a way of
+        // paying, open under the one picked, three and then "More": tabs hid all but two behind a small menu. Not
+        // Stripe's Link, which asks for an email and a telephone number to remember the card by, and doubles the
+        // card's height for it.
+        form = kept.create('payment', { paymentMethodOrder: ORDER, layout: { type: 'accordion', defaultCollapsed: false, radios: 'never', spacedAccordionItems: true, visibleAccordionItemsCount: 3 }, wallets: { link: 'never', applePay: 'auto', googlePay: 'auto' } })
+        form.mount(counter.current)
+        elements.current = kept
+        setReady(true)
       })
-      .then((made) => {
-        if (gone) return made.destroy()
-        form = made
-        if (counter.current) made.mount(counter.current)
-      })
-      .catch(() => {
-        if (gone) return
-        setTill(null)
-        setTrouble("Stripe's form would not load. Nothing was paid; try again in a minute.")
+      .catch((error: unknown) => {
+        console.error('sheep: stripe', error) // (for whoever builds this; the giver gets the line)
+        if (!gone) setTrouble("Stripe's form would not load. Nothing was paid; try again in a minute.")
       })
     return () => {
       gone = true
       form?.destroy()
+      elements.current = null
+      setReady(false)
     }
-  }, [till, world])
+  }, [paid])
+  // The gift changes: so does what the form will ask for (only ever a gift it may ask for).
+  useEffect(() => {
+    if (ready && fits) elements.current?.update({ amount: cents, currency })
+  }, [ready, fits, cents, currency])
 
   /** A new sheep comes to be dressed: in the card, in a window of its own. */
   const begin = () => {
@@ -328,19 +411,15 @@ function Field({ given }: { given: Entry[] | null }) {
     const id = API ? newId() : Date.now()
     setFresh({ id, seed: API ? seedOf(id) : Math.floor(Math.random() * 1e9), name: 'a sheep', message: '', date: new Date().toISOString().slice(0, 10), look: {} })
     choose(-1)
-    setLate(false)
+    setNews('')
     setTrouble('')
-    setTill(null)
     setLook({})
     setCalled('')
     setWords('')
     setAmount(3)
     setMode('dress')
   }
-  const close = useCallback(() => {
-    setTill(null)
-    setMode('idle')
-  }, [])
+  const close = useCallback(() => void (held.current || setMode('idle')), [])
   // The card is a dialogue: Escape puts it away, and Tab goes round inside it and not out into the page behind.
   useEffect(() => {
     if (mode !== 'dress') return
@@ -366,7 +445,7 @@ function Field({ given }: { given: Entry[] | null }) {
     setAmount(gift)
   }
   /**
-   * With a server, Stripe's form in the card (see `till`): paid there, the sheep drops; a bank that wants its own page
+   * With a server, Stripe's form in the card (see `paid`): paid there, the sheep drops; a bank that wants its own page
    * sends the giver back to `?sheep=<id>`. Without one, "paid" is nothing at all: the sheep is written down in this
    * browser, and the page is as it is when Stripe sends somebody back.
    */
@@ -383,26 +462,47 @@ function Field({ given }: { given: Entry[] | null }) {
       return setMode('place')
     }
     if (API) {
-      if (!/^pk_(test|live)_/.test(PUBLISHABLE)) return setTrouble('This build has no Stripe key (VITE_STRIPE_PUBLISHABLE), so nothing can be paid. Nothing was.')
+      if (!KEYED) return setTrouble('This build has no Stripe key (VITE_STRIPE_PUBLISHABLE), so nothing can be paid. Nothing was.')
+      const form = elements.current
+      if (!form || !fits) return
+      // The sheep as it is sent: what drops once it is paid, whatever the card says by then.
+      const entry: Entry = { ...fresh, ...tidy({ name: called, message: words, look }) }
       setPaying(true)
+      held.current = true
       setTrouble('')
-      void stripeJs().catch(() => {}) // (on its way while the server is asked; `till` waits for it)
       try {
+        // The form checks what was typed in it, then the worker makes the payment, then the form pays it: a bank
+        // that wants a word (3-D Secure) asks in a window of its own here, and only one that must have its own page
+        // sends the giver away, and back to `?sheep=<id>`.
+        const typed = await form.submit()
+        if (typed.error) return setTrouble(typed.error.message ?? 'Something in the form is not right yet.')
         const answer = await fetch(`${API}/checkout`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ id: fresh.id, amount: Math.round(amount * 100), name: called, message: words, look }),
+          body: JSON.stringify({ id: fresh.id, amount: cents, currency, name: called, message: words, look }),
         })
         const { clientSecret, error } = (await answer.json()) as { clientSecret?: unknown; error?: unknown }
-        if (answer.ok && typeof clientSecret === 'string') {
-          setTill({ secret: clientSecret, entry: { ...fresh, ...tidy({ name: called, message: words, look }) } })
-          return setPaying(false)
+        if (!answer.ok || typeof clientSecret !== 'string') return setTrouble(error === 'amount' ? `From ${money(LEAST / 100, currency)} to ${money(MOST / 100, currency)}, please.` : 'That did not go through. Nothing was paid; try again in a minute.')
+        const done = await (await stripeJs()).confirmPayment({ elements: form, clientSecret, confirmParams: { return_url: `${location.origin}${location.pathname}?sheep=${fresh.id}` }, redirect: 'if_required' })
+        if (done.error) return setTrouble(`${done.error.message ?? 'That did not go through.'} Nothing was paid.`)
+        held.current = false
+        if (done.paymentIntent?.status !== 'succeeded') {
+          // Taken, but still being settled (some ways of paying take a while): the card goes, and the sheep comes to
+          // the field when Stripe tells the worker it is paid, on this visit's next reload or on the next visit.
+          setMode('idle')
+          return setNews('settling')
         }
-        setTrouble(error === 'amount' ? `From €${LEAST / 100} to €${MOST / 100}, please.` : 'That did not go through. Nothing was paid; try again in a minute.')
+        // Paid: the sheep comes to hang over the field at once, from what this page knows. Stripe's word to the
+        // worker is for everybody else, and comes in its own time.
+        if (world.bring(entry, eye.current?.pan.x, eye.current?.pan.z)) setMode('place')
+        else setMode('idle') // (no room: it is in the field all the same on the next visit)
       } catch {
         setTrouble('The sheep office cannot be reached just now. Nothing was paid; try again in a minute.')
+      } finally {
+        held.current = false
+        setPaying(false)
       }
-      return setPaying(false)
+      return
     }
     const entry: Entry = { ...fresh, ...tidy({ name: called, message: words, look }) }
     keep(MINE, JSON.stringify([...mine(), entry]))
@@ -460,7 +560,7 @@ function Field({ given }: { given: Entry[] | null }) {
               void pay()
             }}
           >
-            <section className="fit" inert={!!till}>
+            <section className="fit" inert={paying}>
               <div className="window">
                 <Fitting seed={fresh.seed} look={shown} />
               </div>
@@ -505,15 +605,32 @@ function Field({ given }: { given: Entry[] | null }) {
               </label>
             </section>
             <section className="pay">
-              <strong>{elder ? 'A very old sheep' : 'A sheep of your own'}</strong>
-              <div className="row" role="radiogroup" aria-label="The gift, in euros" inert={!!till}>
-                {[0, 3, 5, 10].map((euros) => (
-                  <button type="button" key={euros} className={euros ? 'pick' : 'pick nought'} role="radio" aria-checked={amount === euros} onClick={() => give(euros)}>
-                    €{euros}
+              <div className="head">
+                <strong>{elder ? 'A very old sheep' : 'A sheep of your own'}</strong>
+                {/* Euros or Swiss francs, over the gift (with a server: TWINT takes only francs, MB WAY only euros).
+                    The numbers stay as they are. Not for the very old sheep, who costs nothing in either. */}
+                {API && !elder && (
+                  <span className="coins" role="radiogroup" aria-label="Currency" inert={paying}>
+                    {CURRENCIES.map((one) => (
+                      <button type="button" key={one} role="radio" aria-checked={currency === one} onClick={() => coin(one)}>
+                        {one === 'chf' ? 'CHF' : '€'}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </div>
+              <span className="tag" aria-hidden="true">
+                {elder ? 'Your gift' : `Your gift, in ${currency === 'chf' ? 'Swiss francs' : 'euros'}`}
+              </span>
+              <div className="row amounts" role="radiogroup" aria-label={`The gift, in ${currency === 'chf' ? 'Swiss francs' : 'euros'}`} inert={paying}>
+                {[0, 3, 5, 10].map((gift) => (
+                  <button type="button" key={gift} className={gift ? 'pick' : 'pick nought'} role="radio" aria-checked={amount === gift} aria-label={money(gift, currency)} onClick={() => give(gift)}>
+                    {/* The sign is short so that the row stays one row: "Fr." for francs, "CHF" is too wide for four chips. */}
+                    {currency === 'chf' ? `Fr. ${gift}` : `€${gift}`}
                   </button>
                 ))}
                 <label className="gift">
-                  or €
+                  or
                   <input name="amount" type="number" min={elder ? 0 : LEAST / 100} max={MOST / 100} step="0.01" required inputMode="decimal" value={amount} onChange={(event) => give(Number(event.target.value))} />
                 </label>
               </div>
@@ -528,7 +645,7 @@ function Field({ given }: { given: Entry[] | null }) {
                   {taken && <p>One old sheep to a visit, and this visit has had hers.</p>}
                 </div>
               ) : API ? (
-                <p>{trouble || (till ? 'Paid here, through Stripe. Once it goes through, your sheep comes down to the field.' : `A gift to the person who made all this, paid through Stripe without leaving the field. The sheep is the thank-you, and it stays. From €${LEAST / 100}.`)}</p>
+                <p>{trouble || (fits ? `A gift to the person who made all this, paid here through Stripe. The sheep is the thank-you, and it stays.` : `From ${money(LEAST / 100, currency)} to ${money(MOST / 100, currency)}, please: Stripe takes nothing outside that.`)}</p>
               ) : (
                 <p>The paying part is not switched on yet: nothing is charged, whatever is picked. This one is on the house, and lives in this browser only.</p>
               )}
@@ -543,25 +660,16 @@ function Field({ given }: { given: Entry[] | null }) {
                 )}
                 .
               </p>
-              {/* Stripe's form, in place of the buttons, once there is something to pay: its own colours are the
-                  owner's, set in Stripe's dashboard. "Never mind" under it goes back to the buttons, and the session
-                  with it, unpaid. */}
-              {till && <div className="till" ref={counter} />}
+              {/* Stripe's form, from the moment the card opens: put away (`inert`, faded) while the gift is one it may
+                  not ask for, and the line above says why. */}
+              {paid && <div className={fits ? 'till' : 'till off'} ref={counter} inert={!fits || paying} />}
               <div className="row foot">
-                {till ? (
-                  <button type="button" className="sound" onClick={() => setTill(null)}>
-                    Never mind
-                  </button>
-                ) : (
-                  <>
-                    <button className="btn" disabled={paying || (elder && taken)}>
-                      {elder ? 'Take her in' : paying ? 'A moment…' : 'Put it in the field'}
-                    </button>
-                    <button type="button" className="sound" onClick={close}>
-                      Never mind
-                    </button>
-                  </>
-                )}
+                <button className="btn" disabled={paying || (elder && taken) || (paid && (!ready || !fits))}>
+                  {elder ? 'Take her in' : paying ? 'A moment…' : 'Put it in the field'}
+                </button>
+                <button type="button" className="sound" onClick={close} disabled={paying}>
+                  Never mind
+                </button>
               </div>
             </section>
           </form>
@@ -569,7 +677,16 @@ function Field({ given }: { given: Entry[] | null }) {
       )}
       {mode === 'place' && <p className="place">Click where it should land. It will wander off anyway.</p>}
       {mode === 'idle' && waiting > 0 && <p className="place">Your sheep is on its way from Stripe. A moment.</p>}
-      {mode === 'idle' && late && <p className="place">Your sheep has not turned up yet. It will be in the field once Stripe says so: look again in a minute.</p>}
+      {mode === 'idle' && news === 'late' && <p className="place">Your sheep has not turned up yet. It will be in the field once Stripe says so: look again in a minute.</p>}
+      {mode === 'idle' && news === 'settling' && <p className="place">Thank you. The payment is still being settled, which some ways of paying take their time over. Your sheep comes to the field once it is: look again later.</p>}
+      {mode === 'idle' && news === 'unpaid' && (
+        <p className="place">
+          That payment did not go through, so nothing was paid and no sheep was made.{' '}
+          <button className="sound" onClick={begin} disabled={full}>
+            Try again
+          </button>
+        </p>
+      )}
       <header className="top">
         <Back />
         {mode === 'idle' && (
