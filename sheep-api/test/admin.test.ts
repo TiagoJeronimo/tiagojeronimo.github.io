@@ -189,7 +189,7 @@ sqlite.prepare("UPDATE sheep SET created = '2026-11-20T10:00:00Z' WHERE id = ?")
   const field = await worker.fetch(new Request(`${PAGE}/sheep`, { headers: { origin: 'https://tiagojeronimo.github.io' } }), env)
   assert.equal(field.status, 200)
   assert.equal(field.headers.get('access-control-allow-origin'), 'https://tiagojeronimo.github.io')
-  assert.equal(field.headers.get('cache-control'), 'public, max-age=60')
+  assert.equal(field.headers.get('cache-control'), 'public, max-age=5')
   assert.equal((await worker.fetch(new Request(`${PAGE}/administrator`), env)).status, 404)
 }
 console.log('sheep-api admin: all good')

@@ -50,11 +50,23 @@ Cloudflare account itself, whose email must match `ADMIN_EMAILS`. Done when `/ad
 
 1. Stripe: switch the account to live (it asks for your details and a bank account: that is Stripe's, not mine).
 2. Repeat 2 with **live** mode: a live webhook endpoint on the same address, `payment_intent.succeeded` only.
-3. `npx wrangler secret put STRIPE_SECRET ...` with `sk_live_...`, and `STRIPE_WEBHOOK_SECRET` with the live one.
+3. `npx wrangler secret put STRIPE_SECRET ...` with a **restricted** live key (`rk_live_...`, the one permission
+   PaymentIntents: Write: the worker only creates payments), and `STRIPE_WEBHOOK_SECRET` with the live endpoint's.
+   The live webhook must be made in the live account itself (the sandbox has its own, apart); a payment with no
+   endpoint to hear of it makes no sheep, and the buyer still sees theirs drop.
 4. Change the GitHub variable `VITE_STRIPE_PUBLISHABLE` to `pk_live_...` and push (or re-run the workflow).
 5. One real purchase of the smallest gift, yourself. Refund it from Stripe's dashboard if you like.
 
-## 6. Afterwards
+## 6. What is left (2026-11-23)
 
-- Cloudflare, Security, WAF, Rate limiting: a rule on `/checkout` (say 10 a minute per address).
-- A card on the front page, when you want the game seen (`src/home/projects.ts`).
+Done since: the rate limit on `/checkout` (ten a minute per address, a binding in `wrangler.toml`), the card on the front
+page (a sign-off at its foot), the cave sheep's line, the worker's logs kept (`[observability]`).
+
+- **TWINT** is under Stripe's review. It wants a legal-notice page with a full address; not wanted, so skip it.
+- **PayPal**: connect it in Stripe (it asks to share details with PayPal) or leave it out.
+- **A legal notice, terms and privacy page**: probably wanted for selling online from Switzerland or the EU; ask someone
+  who knows. It says who you are, what is kept (a sheep's name and words are public), who takes the money (Stripe),
+  the analytics (PostHog), and that tips are not refunded but for a mistake.
+- **Two-factor** on Cloudflare (the `/admin` login is that account), Stripe and GitHub.
+- **Stripe's emails**: for a payment, and for a webhook that fails, so that a payment with no sheep reaches you.
+- **Hide** what should not be in the field, on `/admin`: a refunded or disputed payment's sheep stays until you do.

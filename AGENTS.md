@@ -12,8 +12,8 @@ there (each folder's `CLAUDE.md` is one line, `@AGENTS.md`).
 | any game, or a new one | `src/games/AGENTS.md`: the shared kit, the page skeleton, how to add a game, how a world looks and its creatures move, speed |
 | the island | `src/games/island/AGENTS.md`: files, `Island` methods, things, maps, settled choices |
 | the castle | `src/games/castle/AGENTS.md`: files, the world's API, the rules of a day, settled choices |
-| the sheep (steps 1 to 4 built) | `src/games/sheep/AGENTS.md`: the island, the flock, how they move; `PLAN.md` beside it holds the plan |
-| the sheep's server | `sheep-api/AGENTS.md`: a Cloudflare Worker and D1, Stripe by `fetch`, the owner's `/admin` behind Access; local only so far; `sheep-api/GO-LIVE.md` is the owner's step-by-step to put it live |
+| the sheep (live, taking real payments) | `src/games/sheep/AGENTS.md`: the island, the flock, how they move; `PLAN.md` beside it holds the plan |
+| the sheep's server | `sheep-api/AGENTS.md`: a Cloudflare Worker and D1, Stripe by `fetch`, the owner's `/admin` behind Access; deployed on his `workers.dev`; `sheep-api/GO-LIVE.md` is the owner's step-by-step to put it live |
 | the front page, a card | `src/home/AGENTS.md`: cards, pictures, why the page stays light, the toys |
 | a word you do not know | `CONTEXT.md`: the project's vocabulary (card, tier, pump, isle, ask, ...) |
 | analytics, PostHog | `README.md`, "Analytics": events, env vars, the dashboard script |
@@ -106,12 +106,17 @@ The four checks pass before work is called done. One test alone: `node test/cast
 `node_modules/`, `dist/`, `package-lock.json`, images in `public/`, `.env` (local PostHog keys; `.env.example` shows them),
 `sheep-api/.dev.vars` (Stripe test keys) and `.wrangler/`.
 
-## Status (2026-11-22)
+## Status (2026-11-23)
 
-- Live: the front page, `/cv/`, the island. The castle is built and playable; still open with the owner: its name.
-- The sheep: steps 1 to 4 built (the server and its admin page only locally, untried against Stripe and Access themselves); see its `PLAN.md`.
+- Live: the front page, `/cv/`, the island, and **Buy me a sheep** (`/games/sheep/`), which takes real money (Stripe
+  live mode, a restricted key that can only create payments; the worker is on the owner's `workers.dev`, `/admin` is
+  behind Cloudflare Access). A sign-off at the foot of the front page links to it. The castle is built and playable;
+  still open with the owner: its name.
+- The sheep's open points: TWINT is under Stripe's review and needs a legal-notice page with an address he does not
+  want to publish; PayPal is not connected; no legal or terms page yet (see "What is left" in `sheep-api/GO-LIVE.md`).
+  The sound has never been heard by anybody but the owner.
 - Types, lint and tests pass. No known bugs recorded.
-- Next: whatever the owner asks; ideas for the castle wait for his pick.
+- Next: whatever the owner asks.
 
 ## Voice, for anything a visitor reads
 

@@ -9,6 +9,7 @@ import { music, note, sfx } from '../../sound.ts'
 import { BLANKETS, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isCurrency, isId, money, newId, plan, seedOf, tidy, type Currency, allowed, isWear, pairs, type Extra, type Item, type Look, type Memory, type Wear } from './dress.ts'
 import { GREY, woolOf } from './model.ts'
 import { Fitting } from './Fitting.tsx'
+import posthog from '../../posthog.ts'
 import { CROWD } from './crowd.ts'
 import bricolage from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url'
 import { FLOCK, RECLUSE, type Entry } from './flock.ts'
@@ -462,6 +463,7 @@ function Field({ given }: { given: Entry[] | null }) {
   /** A new sheep comes to be dressed: in the card, in a window of its own. */
   const begin = (like: Look = {}) => {
     if (!world.room()) return setFull(true)
+    posthog.capture('sheep_card_opened')
     setHello(false)
     // With a server its number is one nobody can guess, and its seed comes from that, as the server's will.
     const id = API ? newId() : Date.now()
@@ -567,6 +569,8 @@ function Field({ given }: { given: Entry[] | null }) {
         const done = await (await stripeJs()).confirmPayment({ elements: form, clientSecret, confirmParams: { return_url: `${location.origin}${location.pathname}?sheep=${fresh.id}` }, redirect: 'if_required' })
         if (done.error) return setTrouble(`${done.error.message ?? 'That did not go through.'} Nothing was paid.`)
         held.current = false
+        // What was paid, and in what, and how many things it wears: no name, no words, nobody.
+        posthog.capture('sheep_paid', { currency, amount: cents / 100, status: done.paymentIntent?.status ?? 'unknown', items: look.items?.length ?? 0 })
         if (done.paymentIntent?.status !== 'succeeded') {
           // Taken, but still being settled (some ways of paying take a while): the card goes, and the sheep comes to
           // the field when Stripe tells the worker it is paid, on this visit's next reload or on the next visit.
@@ -602,6 +606,7 @@ function Field({ given }: { given: Entry[] | null }) {
     setMode('idle')
   }
   const planted = useCallback(() => learn('g'), [])
+  useEffect(() => void (chosen !== -1 && learn('s')), [chosen]) // (a sheep has been clicked: that hint is done)
   const sheep = chosen === HERMIT ? RECLUSE : world.ewes[chosen]?.entry
   return (
     <main className="sheep">
@@ -610,6 +615,7 @@ function Field({ given }: { given: Entry[] | null }) {
       {/* One more hint, the field's own, in the same style and gone once done: a click on the grass plants a snack. */}
       {mode === 'idle' && (
         <ul className="hints snack">
+          <li data-done={known.includes('s')}>{FINGERS ? 'Tap' : 'Click'} a sheep to see what it is thinking</li>
           <li data-done={known.includes('g')}>{FINGERS ? 'Tap' : 'Click'} the grass to plant a snack</li>
         </ul>
       )}

@@ -189,7 +189,7 @@ main:has(.bubble) .top .sound.buy {
 .welcome {
   position: fixed;
   z-index: 2;
-  bottom: 72px;
+  bottom: 108px;
   left: 50%;
   display: grid;
   gap: 8px;

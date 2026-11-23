@@ -180,7 +180,7 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   // The field.
   const seen = await field()
   assert.equal(seen.status, 200)
-  assert.equal(seen.headers.get('cache-control'), 'public, max-age=60')
+  assert.equal(seen.headers.get('cache-control'), 'public, max-age=5')
   const gwen = seen.body.find((one: { id: number }) => one.id === id)
   assert.deepEqual(gwen, { id, seed: seedOf(id), look: { wool: 2, items: ['butterflies'] }, name: 'Gwen', message: 'Baa', date: new Date().toISOString().slice(0, 10) })
   assert.ok(seen.body.every((one: object) => !('spot' in one) && !('amount' in one) && !('session' in one)), 'no spot, no amount, no session')

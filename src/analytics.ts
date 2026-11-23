@@ -5,7 +5,7 @@ export function linkProperties(href: string, label: string, source: string) {
   if (href.startsWith('mailto:')) return { link_type: 'email', destination: 'email', link_label: label, source }
   const url = new URL(href, 'https://tiagojeronimo.github.io')
   const internal = url.origin === 'https://tiagojeronimo.github.io'
-  const game = internal && ['/games/island/', '/games/castle/'].includes(url.pathname)
+  const game = internal && ['/games/island/', '/games/castle/', '/games/sheep/'].includes(url.pathname)
   const social = /(^|\.)(linkedin\.com|github\.com|instagram\.com)$/.test(url.hostname)
   return {
     link_type: internal ? (url.pathname === '/cv/' ? 'cv' : game ? 'game' : 'internal') : social ? 'social' : 'external',

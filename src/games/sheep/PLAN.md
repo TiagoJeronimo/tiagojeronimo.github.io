@@ -1,7 +1,10 @@
 # Buy me a sheep: the plan
 
-Brainstormed with the owner on 2026-11-22. Steps 1 to 4 of the build order are built (see `AGENTS.md` beside this,
-and `sheep-api/AGENTS.md` for the server); the rest is still the plan.
+Brainstormed with the owner on 2026-11-22. All of it is built and live since 2026-11-23, with Stripe in live mode (see
+`AGENTS.md` beside this, `sheep-api/AGENTS.md` for the server and `sheep-api/GO-LIVE.md` for how it was put live). What
+follows is the plan as it was made; where the owner later chose otherwise, the notes beside it say so (for example:
+PayPal and MB WAY and TWINT came with the Payment Element, a bigger gift brings butterflies or a dog, and the sheep
+can wear two things).
 
 ## The idea
 
@@ -16,7 +19,7 @@ Working name: "Buy me a sheep". It's a coffee, but woolly.
 ## Decided
 
 - **Payments: Stripe directly**, not Ko-fi or Buy Me a Coffee. The fee is only Stripe's (below), Apple Pay and Google
-  Pay come with it, and it is the only option that sends the donor back to the game afterwards. The cost: no PayPal.
+  Pay come with it, and it is the only option that sends the donor back to the game afterwards. (Stripe's Payment Element later brought PayPal, MB WAY and TWINT too, each switched on in the dashboard.)
 - **Server: one Cloudflare Worker with a D1 database**, on the free plan. Vercel's free Hobby plan is for
   "personal or non-commercial use", and taking money for a sheep is at best a grey area there, so Vercel would mean
   Pro at about $20 a month.

@@ -146,7 +146,7 @@ async function handle(request: Request, env: Env) {
   }
   if (request.method === 'GET' && pathname === '/sheep') {
     const sheep = (await flock(env.DB)).map(({ look, ...rest }) => ({ ...rest, look: JSON.parse(look) as unknown }))
-    return json(sheep, 200, { ...allow, 'cache-control': 'public, max-age=60' })
+    return json(sheep, 200, { ...allow, 'cache-control': 'public, max-age=5' })
   }
   if (request.method === 'POST' && pathname === '/checkout') {
     // (By the caller's address: ten a minute is far more than a giver needs, and far less than a script would.)

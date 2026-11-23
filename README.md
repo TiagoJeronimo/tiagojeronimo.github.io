@@ -62,6 +62,8 @@ The named events are:
 | `island_hint_requested` | Tip is pressed, with the current percentage of puzzles found. |
 | `island_game_restarted` | New game is pressed, with the progress being left behind. |
 | `island_postcard_created` | A postcard image is created. |
+| `sheep_card_opened` | The card for buying a sheep opens, from any of the ways in. |
+| `sheep_paid` | A payment in the card comes back: `currency`, `amount`, `status` (`succeeded` or still settling) and `items` (how many things the sheep has). Never the name or the words. |
 | `castle_day_started` | A new castle day starts running. |
 | `castle_day_ended` | The day ends, with `outcome` (`win` or `loss`) and `ending` (`wedding`, `castle` or `camp`). |
 | `castle_day_restarted` | The player presses Start over or Another day. |

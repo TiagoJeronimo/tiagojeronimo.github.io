@@ -20,7 +20,7 @@ CURRENCY`), the sheep's number (`newId isId`) and its seed (`seedOf`).
 ## The calls
 
 - `GET /sheep`: every sheep, oldest first: `id seed look name message date`. No spot, amount or session. A hidden one
-  is listed as "a sheep" with no message (the plan: hiding keeps the sheep). `cache-control: max-age=60`.
+  is listed as "a sheep" with no message (the plan: hiding keeps the sheep). `cache-control: max-age=5` (it was a minute, and a buyer who reloaded straight after paying did not see their own sheep).
 - `POST /checkout` (JSON, from one of `ORIGINS`, 4 KB at most): `{ id, amount, currency, name, message, look }`.
   `amount` in cents (of the currency), whole, `LEAST` to `MOST`; `currency` `eur` or `chf` (`CURRENCIES`; euros if
   none is given, `currency` error for anything else); `id` from `newId`, not taken. Tidied, then a Stripe
