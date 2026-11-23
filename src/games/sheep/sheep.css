@@ -52,27 +52,75 @@
 }
 .bubble {
   z-index: 1;
+  box-sizing: border-box;
   width: max-content;
-  max-width: min(230px, 70vw);
-  padding: 9px 13px 10px;
+  max-width: min(212px, 64vw);
+  padding: 9px 11px 8px;
   border-radius: 14px;
   transform: translate(-50%, calc(-100% - 24px));
+  display: grid;
+  gap: 6px;
 }
+/* Who it is: its name, with a small square of its wool before it. */
 .bubble strong {
-  display: block;
-  font-size: 15px;
-}
-.bubble p {
-  margin: 3px 0 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
+  line-height: 1.15;
+}
+.bubble strong i {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.5px rgb(61 53 80 / 0.22);
+}
+/* What its giver wrote: the main thing, set in a little as a thing said. */
+.bubble q {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #f6eee2;
+  font-size: 12.5px;
   line-height: 1.3;
+  quotes: none;
 }
-.bubble small {
-  font-size: 12px;
-  opacity: 0.7;
+/* What it is doing now, and what it has with it: small tags, each a kind of its own by its colour. */
+.bubble .pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
-.bubble em {
+.bubble .pills > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #efe6f6;
+  font-size: 10.5px;
   font-style: normal;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.bubble .pills em {
+  background: #dff0d6;
+}
+.bubble .pills em:empty {
+  display: none;
+}
+.bubble .pills svg {
+  width: 11px;
+  height: 11px;
+  shape-rendering: crispEdges;
+}
+/* When it came: small print. */
+.bubble small {
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.6;
 }
 @keyframes say {
   from {
@@ -228,6 +276,7 @@
 }
 .dress .amounts .pick {
   padding: 8px 2px;
+  font-size: 14px;
   white-space: nowrap;
 }
 .dress .amounts .gift {
@@ -237,11 +286,6 @@
   flex: 1;
   width: auto;
   min-width: 0;
-}
-.dress .sum {
-  opacity: 1;
-  font-size: 14px;
-  font-weight: 650;
 }
 @keyframes veil {
   from {
@@ -289,10 +333,38 @@
   box-shadow: inset 0 0 0 2px rgb(61 53 80 / 0.14);
   cursor: pointer;
 }
-.dress .swatch[aria-checked='true'] {
+.dress .swatch[aria-checked='true'],
+.dress .swatch[aria-pressed='true'] {
   box-shadow:
     inset 0 0 0 2px #fffaf0,
     0 0 0 3px #3d3550;
+}
+/* What a bigger gift can bring, at the end of the row of things to wear: chips like the others, in the same row at the same spacing. Shut
+   until the gift reaches one: dim then, with the gift it takes written small across its foot. */
+.dress .swatch.perk {
+  position: relative;
+  box-sizing: border-box;
+}
+.dress .swatch.perk:disabled {
+  cursor: default;
+}
+.dress .swatch.perk:disabled svg {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}
+.dress .swatch.perk small {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  translate: -50% 0;
+  padding: 0 3px;
+  border-radius: 5px;
+  background: #fffaf0;
+  box-shadow: 0 0 0 1px rgb(61 53 80 / 0.14);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 .dress .swatch svg {
   display: block;
@@ -426,6 +498,13 @@
   color: var(--ink);
   box-shadow: 0 3px 0 #c2935a;
 }
+.dress.elder input {
+  background: #fffaf0;
+  box-shadow: inset 0 0 0 2px #e3d3bb;
+}
+.dress.elder .pick {
+  box-shadow: inset 0 0 0 2px #e3d3bb;
+}
 .dress .terms {
   display: grid;
   gap: 9px;
@@ -487,4 +566,34 @@
   background: #fffdf6;
   opacity: 1;
   box-shadow: 0 1px 0 rgb(61 53 80 / 0.18);
+}
+
+/* Small text buttons inside the gift: another amount, the other currency. */
+.dress .more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.dress .amounts .more {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+/* Wide: the gift's half is as tall as the other, and its buttons sit at the bottom, level with the last field there. */
+@media (min-width: 641px) {
+  .dress .pay {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dress .pay .foot {
+    margin-top: auto;
+    padding-top: 4px;
+  }
 }

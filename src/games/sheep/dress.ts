@@ -4,7 +4,7 @@
 
 /** The wools there are. A look names one by its place here; a sheep with no look takes one by its seed. */
 export const WOOL = [0xfffaf0, 0xf7ecd9, 0xffd9e6, 0xe6dcf7, 0xd6f0e0, 0xd4e8fb, 0xfff0b8, 0xf9d9c4]
-/** The things to wear. One at a time: a sheep is not a hatstand. */
+/** The things to wear. */
 export const WEARS = ['hat', 'bell', 'scarf', 'flowers'] as const
 export type Wear = (typeof WEARS)[number]
 /**
@@ -29,7 +29,24 @@ export const REMEMBERS: Record<Memory, string> = {
  * `elder` is for the very old sheep that is had for nothing (see `plan`): pale, stooped and slow. It is the page's own
  * to say, of a sheep that lives in the page and nowhere else: `fit` leaves it out, so no server ever keeps one.
  */
-export type Look = { wool?: number; wear?: Wear; memory?: Memory; elder?: boolean }
+export type Look = { wool?: number; items?: Item[]; memory?: Memory; elder?: boolean }
+/**
+ * What a sheep may have, of which a look names two at the most (`items`), in any mix: the things to wear, and the two
+ * things a bigger gift can bring along, in either currency: from 5, butterflies about the sheep; from 10, a small dog
+ * that follows it. Those two are the giver's to choose, of what the gift allows (`allowed`): the server keeps what was
+ * asked for and paid for, and no more (a page cannot ask its way to one).
+ */
+export const EXTRAS = ['butterflies', 'dog'] as const
+export type Extra = (typeof EXTRAS)[number]
+export const ITEMS = [...WEARS, ...EXTRAS] as const
+export type Item = (typeof ITEMS)[number]
+export const isWear = (item: Item): item is Wear => WEARS.some((one) => one === item)
+export const allowed = (cents: number): Extra[] => (cents >= 1000 ? ['butterflies', 'dog'] : cents >= 500 ? ['butterflies'] : [])
+/** Whether a sheep can have two things at once: two that are not the same thing, and not the hat with the flowers, which are in the same place on its head. */
+export const pairs = (one: Item, other: Item) => one !== other && !(one === 'hat' && other === 'flowers') && !(one === 'flowers' && other === 'hat')
+/** What of a look's items is worn, and what of them came with the gift. */
+export const worn = (look: Look = {}) => (look.items ?? []).filter(isWear)
+export const extras = (look: Look = {}) => (look.items ?? []).filter((item): item is Extra => !isWear(item))
 /** How long a name and a message may be, in letters. */
 export const NAME = 24
 export const MESSAGE = 80
@@ -84,12 +101,16 @@ const plain = (text: unknown, most: number) =>
  */
 export const plan = (gift: number, server: boolean) => (gift === 0 ? 'elder' : server ? 'checkout' : 'stand-in')
 
-/** A look with only what there is in it: a wool that exists, a thing that can be worn, a memory there is. Anything else is left out. */
+/** A look with only what there is in it: a wool that exists, two items at the most that there are and that go together, a memory there is. Anything else is left out. */
 export function fit(look: unknown): Look {
-  const { wool, wear, memory } = (look && typeof look === 'object' ? look : {}) as { wool?: unknown; wear?: unknown; memory?: unknown }
-  const worn = WEARS.find((one) => one === wear)
+  const { wool, items, memory } = (look && typeof look === 'object' ? look : {}) as { wool?: unknown; items?: unknown; memory?: unknown }
   const kept = MEMORIES.find((one) => one === memory)
-  return { ...(typeof wool === 'number' && Number.isInteger(wool) && wool >= 0 && wool < WOOL.length ? { wool } : {}), ...(worn ? { wear: worn } : {}), ...(kept ? { memory: kept } : {}) }
+  const got: Item[] = []
+  for (const asked of Array.isArray(items) ? items : []) {
+    const item = ITEMS.find((one) => one === asked)
+    if (item && got.length < 2 && got.every((had) => pairs(had, item))) got.push(item)
+  }
+  return { ...(typeof wool === 'number' && Number.isInteger(wool) && wool >= 0 && wool < WOOL.length ? { wool } : {}), ...(got.length ? { items: got } : {}), ...(kept ? { memory: kept } : {}) }
 }
 
 /** What a giver wrote, made fit to show: a short name (or "a sheep"), a message of plain words, a look that exists. */

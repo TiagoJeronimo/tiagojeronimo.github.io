@@ -1,6 +1,6 @@
 // The sheep's server: a Cloudflare Worker with a D1 database (see `../AGENTS.md`). Plain web Requests and Responses,
 // no SDK: Stripe is spoken to with `fetch`, and its signature is checked here with Web Crypto. All SQL is in `sql.ts`.
-import { CURRENCIES, LEAST, MOST, isCurrency, isId, newId, seedOf, tidy } from '../../src/games/sheep/dress.ts'
+import { CURRENCIES, LEAST, MOST, allowed, isCurrency, isId, isWear, newId, seedOf, tidy } from '../../src/games/sheep/dress.ts'
 import type { Gate } from './access.ts'
 import { admin } from './admin.ts'
 import { signed } from './signed.ts'
@@ -118,6 +118,11 @@ async function stripe(request: Request, env: Env) {
     // then it wears nothing
   }
   const kept = tidy({ name: meta.name, message: meta.message, look })
+  // What the gift brings along: what the giver chose, of what the money that came allows. Never more than was paid for.
+  const paid = allowed(intent.amount_received as number)
+  const items = (kept.look.items ?? []).filter((item) => isWear(item) || paid.includes(item))
+  delete kept.look.items
+  if (items.length) kept.look.items = items
   let id = Number(meta.id)
   // ponytail: a race between two checkouts of one id is caught here and not in the checkout, by giving the second a
   // number of its own; its giver then finds no sheep of theirs to drop, but it is in the field all the same.

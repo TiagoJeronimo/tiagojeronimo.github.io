@@ -6,8 +6,8 @@ import type { Look } from './dress.ts'
 
 export type Entry = { id: number; seed: number; name: string; message: string; date: string; look?: Look }
 
-export const FLOCK: Entry[] = [{ id: 1, seed: 101, name: 'Claude the sheep', message: 'Test sheep. Walked a thousand simulated days before you came. Never once fed.', date: '2026-11-22', look: { wool: 0, wear: 'scarf' } }]
+export const FLOCK: Entry[] = [{ id: 1, seed: 101, name: 'Claude the sheep', message: 'Test sheep. Walked a thousand simulated days before you came. Never once fed.', date: '2026-11-22', look: { wool: 0, items: ['scarf'] } }]
 
 // The sheep in the cave at the back of the mountain. It is nobody's gift and none of the flock: it is there to be found.
-// TODO(owner): its line is a placeholder until he writes the real one.
-export const RECLUSE: Entry = { id: 0, seed: 7, name: 'A sheep in a cave', message: 'It will have something to say.', date: '', look: { wool: 0 } }
+// TODO(owner): it has no line until he writes one: its card shows its name and where it is, and no made-up words.
+export const RECLUSE: Entry = { id: 0, seed: 7, name: 'A sheep in a cave', message: '', date: '', look: { wool: 0 } }

@@ -10,7 +10,7 @@ import { DirectionalLight, Group, HemisphereLight, MeshStandardMaterial, Neutral
 import { BARK, LEAF, NEVER, STONE, any, rnd } from '../basics.ts'
 import { Bits, Cubes } from '../cubes.ts'
 import type { Look } from './dress.ts'
-import { BUBBLE, GLAD, LINES, SLOTS, clothe, limbs, pose, speak, type Body } from './model.ts'
+import { FLIT, PUP, flutter, hound, kennel, swarm, type Pup, BUBBLE, GLAD, LINES, SLOTS, clothe, limbs, pose, speak, type Body } from './model.ts'
 
 const flat = () => 0 // the ground under the sheep: level
 const GRASS = [0x8fd16b, 0x9fd872, 0xb4de6e]
@@ -29,6 +29,13 @@ class Stand {
   private land = new Cubes(160, new MeshStandardMaterial({ roughness: 0.9 }), 'wind')
   private cubes = new Cubes(SLOTS, new MeshStandardMaterial({ roughness: 0.95 }))
   private sheep: Body
+  // What a bigger gift brings, shown as it will be in the field: a dog sitting by the sheep, or butterflies about it.
+  private pets = new Cubes(PUP.length + FLIT * 3, new MeshStandardMaterial({ roughness: 0.95 }))
+  private dog: Pup
+  private flits: number[]
+  private dogged = false
+  private flitted = false
+  private seed = 0
   private glints = new Bits(8) // the small warm glints over a very old sheep
   private tree: number[] // the tree, and the bench that is there in its place for a very old sheep
   private bench: number[]
@@ -81,12 +88,20 @@ class Stand {
     sun.shadow.bias = -0.0004
     sun.shadow.normalBias = 0.04
     Object.assign(sun.shadow.camera, { near: 1, far: 14, left: -2.4, right: 2.4, top: 2.8, bottom: -2 })
-    this.group.add(land.mesh, this.cubes.mesh, this.glints.mesh, sun, sun.target, new HemisphereLight(0xf2f6ff, 0xffe3d0, 1.75))
+    this.dog = { s: 1, x: 0.62, y: 0, z: 0.1, face: 0, stride: 0, lie: 0, bark: 0, cubes: kennel(this.pets, seed) }
+    this.flits = swarm(this.pets, seed)
+    this.group.add(land.mesh, this.cubes.mesh, this.pets.mesh, this.glints.mesh, sun, sun.target, new HemisphereLight(0xf2f6ff, 0xffe3d0, 1.75))
   }
 
   /** It is given a look, and gives a hop: so, that suits. And says so, the first time excepted. */
   dress(seed: number, look: Look) {
     clothe(this.cubes, this.sheep, seed, look)
+    this.seed = seed
+    const has = look.elder ? [] : (look.items ?? [])
+    this.dogged = has.includes('dog')
+    this.flitted = has.includes('butterflies')
+    if (!this.dogged) for (const c of this.dog.cubes) this.pets.hide(c)
+    if (!this.flitted) for (const c of this.flits) this.pets.hide(c)
     this.sheep.hop = GLAD
     for (const c of this.tree) if (look.elder) this.land.hide(c)
       else this.land.show(c)
@@ -120,6 +135,13 @@ class Stand {
     // Over a very old sheep, now and then, a small warm glint: here as in the field.
     if (sheep.old && Math.random() < dt * 0.9) this.glints.spawn(any() * 0.4, sheep.y + sheep.s + Math.random() * 0.2, any() * 0.4, 0, 0.25, 0, 0.06, 0xffe38a, 0.8, NEVER, 0, -0.15, 3)
     this.glints.update(dt)
+    // The dog sits by it, wags, and barks now and then; the butterflies go round it, a little higher than in the field
+    // (the tree here is taller than a sheep).
+    this.dog.bark = Math.max(0, this.dog.bark - dt)
+    if (this.dogged && this.time % 5.3 < dt) this.dog.bark = 0.9
+    if (this.dogged) hound(this.pets, this.dog, this.time)
+    if (this.flitted) flutter(this.pets, this.flits, 0, sheep.y + 0.15, 0, sheep.s, this.time, this.seed)
+    this.pets.update(dt)
     land.wind.value.set(0.1, 0.05, this.time)
     land.update(dt)
     this.cubes.update(dt)
@@ -129,6 +151,7 @@ class Stand {
     this.cubes.mesh.dispose()
     this.land.mesh.dispose()
     this.glints.mesh.dispose()
+    this.pets.mesh.dispose()
   }
 }
 

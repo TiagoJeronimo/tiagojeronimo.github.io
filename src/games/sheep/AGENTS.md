@@ -128,6 +128,47 @@ over the nearest place it fits, `drop(x?, z?)` lets it go (it is in `ewes` from 
   - Not to be added, by the owner's word: anything outside the card but the sheep herself, changes to the tab's
     title or icon, sound, or anything that gets in the way of closing the tab (no `beforeunload`). The earlier,
     darker idea for the free sheep (others ran from it) is gone, words and all: do not bring it back.
+- What a sheep has: `Look.items`, two at the most of the six there are, in any mix (`ITEMS` in `dress.ts`: the
+  four things to wear, `WEARS`, and the two a bigger gift can bring, `EXTRAS`: the butterflies from a gift of 5, the
+  dog too from 10, `allowed(cents)`). `pairs` says which two go together: not the same thing twice, not the hat with
+  the flowers, which are in one place. `fit` keeps the first two that are real and go together; the worker then drops
+  an extra that the money that came does not allow, and never adds one. `worn(look)` and `extras(look)` split the
+  list. `clothe` puts on the parts of what is worn: five boxes at the most, in the six kept (a test says so of
+  every pair). The very old sheep has none of this: one memory. Extras are drawn by `model.ts` for the field and the
+  window alike, in a pool of their own (`pets` in `Sheep.ts` and in `Fitting.tsx`); `pet(e)` makes them wherever a
+  sheep joins `ewes`.
+  - In the card, one row of seven chips at one spacing ("nothing" and the six): `don` keeps two at the most (a
+    third takes the earlier one's place, a tap on one that is on takes it off, the hat and the flowers take each
+    other's place, "nothing" clears). The butterflies and the dog are shut (disabled, dim, with the gift they take:
+    `money(5, currency)`) until the gift is that much; `give` lets go of one when the gift goes back under it.
+    Nothing is ever chosen for the giver.
+  - `butterflies` (from 5): three to a sheep (`swarm`, `flutter`, `flits`), each in a slow loop round it, out past
+    the thought over its head and above its hat, wings going. They have no state: where they are is the time.
+    They are in nothing of their own sheep's (the test says so); a tree or a neighbour's thought they may brush.
+  - `dog` (from 10): `PUP` (thirteen boxes, three of them the marks over its head when it barks), `kennel`, `hound`;
+    in the world a `Dog` in `dogs`, moved by `heel`. It is on the ground by the sheep's rule: `sits` is its `fits`
+    (level grass only, no water, clear of blocks, tufts, every sheep, every dog), `fits` and `plantable` mind its
+    `rect`, and it goes at a hop, the way it looks, across then along. It keeps near its sheep (behind one that is
+    walking), barks at another sheep near by (which turns to look, with a `what` over it: `wuffed`), and when its
+    sheep stands it jumps up on its back for a few seconds (`jump`, `up`, `down`: by a clock, up first and then
+    across, its sheep `pinned` the while, its `rect` nowhere; `rode`). It lies down when its sheep sleeps, and is
+    `away` until its sheep has landed. The bark is three yellow marks, not the word: words cannot be cubes.
+- A sheep's card (`.bubble` in `sheep.css`, the markup in `SheepPage.tsx`): four kinds of thing, kept apart. Its
+  name, with a small square of its wool; what its giver wrote, set in as a thing said (the main thing; none, for the
+  sheep in the cave, until the owner writes it); small tags for what it is doing (green, `doing(e)`) and for each
+  thing it has (lilac, with the chip's picture; for the very old sheep, her memory); and "Arrived" with the date,
+  small. What it is doing stays on the card for `HOLD` (3.5 s) once written, whatever the sheep does underneath.
+- Calm (asked for by the owner: the label on a card changed every second or so). Measured over three days of
+  twenty sheep, a `doing` label lasted a median of 1.1 s, and 93% of them under 5 s; it is now 8 s, and 23%. What
+  did it, and is to be kept: `rest` is 4.5 to 11.5 s; a mouthful is 6 to 10 s, a drink 6 to 9; they sleep from
+  `SLEEP` 0.75 to `WAKE` 0.7 of the dark (about 30 s); `go` does not begin a walk whose first move does not fit
+  (`begins`): the sheep stays as it is, and backs off half a tile (goal `back`, the one time it does not go the way
+  it looks) or turns, to make itself room, since a sheep hemmed in against a bank or a tree used to try the same
+  walk for ever; one that is hungry goes to where its nose will be over the grass, not to the middle of the tile;
+  one that is thirsty and did not get there tries another third of the bank, and every fourth time wanders
+  (`dry`). `doing` says "leaping over a friend" from the stamp to the landing, "playing chase" for both of a game,
+  "grazing" for the last step or two to the grass, and "off for a snack" for the planted grass. So that the field
+  is not sleepy for it, a sheep that does think is likelier to play (leap, zoom, chase, sniff: the odds in `choose`).
 - The card's two buttons (`.dress .foot`): small (36 px), side by side on one line at every width, as tall as each
   other and on the same 3 px lip. If a label will not fit, the label is made shorter: they never stack.
 - "Put it in the field": with no server (`VITE_SHEEP_API` unset) nothing is charged and the card says so; the entry

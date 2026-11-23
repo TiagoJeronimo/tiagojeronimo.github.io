@@ -68,7 +68,7 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
 // A checkout.
 {
   const id = newId()
-  const good = { id, amount: 300, name: 'Wooliam  <b>', message: 'Hello see https://spam.example and www.x.com or buy.cheap.io now', look: { wool: 3, wear: 'hat', crown: true } }
+  const good = { id, amount: 300, name: 'Wooliam  <b>', message: 'Hello see https://spam.example and www.x.com or buy.cheap.io now', look: { wool: 3, items: ['hat'], crown: true } }
   const done = await buy(good)
   assert.equal(done.status, 200)
   assert.deepEqual(done.body, { clientSecret: 'pi_test_1_secret_abc' }, "the intent's client secret, and nothing else")
@@ -91,7 +91,7 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   assert.equal(sent.get('metadata[id]'), String(id))
   assert.equal(sent.get('metadata[name]'), 'Wooliam b', 'angle brackets out')
   assert.equal(sent.get('metadata[message]'), 'Hello see and or now', 'links out')
-  assert.equal(sent.get('metadata[look]'), '{"wool":3,"wear":"hat"}', 'only what there is')
+  assert.equal(sent.get('metadata[look]'), '{"wool":3,"items":["hat"]}', 'only what there is')
   for (const [key, value] of sent) if (key.startsWith('metadata')) assert.ok(value.length <= 500, `${key} fits in Stripe's metadata`)
   assert.equal((await buy({ ...good, id: newId(), message: 'x'.repeat(500) })).status, 200)
   assert.equal((asked as URLSearchParams).get('metadata[message]'), 'x'.repeat(80), 'a long message is cut to 80')
@@ -127,7 +127,7 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
 // Stripe says a sheep is paid for: it is in the field, once, however many times Stripe says so.
 {
   const id = newId()
-  const session = { id: 'pi_test_paid', object: 'payment_intent', status: 'succeeded', amount: 700, amount_received: 750, currency: 'eur', metadata: { id: String(id), name: 'Gwen', message: 'Baa', look: '{"wool":2,"wear":"bell"}' } }
+  const session = { id: 'pi_test_paid', object: 'payment_intent', status: 'succeeded', amount: 700, amount_received: 750, currency: 'eur', metadata: { id: String(id), name: 'Gwen', message: 'Baa', look: '{"wool":2,"items":["dog","butterflies"]}' } }
   const body = news(session)
   assert.equal((await tell(body)).status, 200)
   assert.equal((await tell(body)).status, 200, 'the same news twice is fine')
@@ -168,8 +168,14 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   assert.equal(seen.status, 200)
   assert.equal(seen.headers.get('cache-control'), 'public, max-age=60')
   const gwen = seen.body.find((one: { id: number }) => one.id === id)
-  assert.deepEqual(gwen, { id, seed: seedOf(id), look: { wool: 2, wear: 'bell' }, name: 'Gwen', message: 'Baa', date: new Date().toISOString().slice(0, 10) })
+  assert.deepEqual(gwen, { id, seed: seedOf(id), look: { wool: 2, items: ['butterflies'] }, name: 'Gwen', message: 'Baa', date: new Date().toISOString().slice(0, 10) })
   assert.ok(seen.body.every((one: object) => !('spot' in one) && !('amount' in one) && !('session' in one)), 'no spot, no amount, no session')
+
+  // What a gift brings is what was asked for, of what the money allows: a gift of 10 that asked for a scarf and the dog
+  // has both (and the one above, which asked for both and paid 7.50, has the butterflies alone).
+  const rex = newId()
+  assert.equal((await tell(news({ id: 'pi_test_dog', object: 'payment_intent', status: 'succeeded', amount: 1000, amount_received: 1000, currency: 'chf', metadata: { id: String(rex), name: 'Rex', message: '', look: '{"items":["scarf","dog"]}' } }))).status, 200)
+  assert.deepEqual((await field()).body.find((one: { id: number }) => one.id === rex).look, { items: ['scarf', 'dog'] })
 
   // Hidden: the sheep stays, its words do not.
   sqlite.prepare('UPDATE sheep SET hidden = 1 WHERE id = ?').run(id)

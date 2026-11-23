@@ -6,8 +6,8 @@ import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
 import { note } from '../../sound.ts'
-import { BLANKETS, BLANKET_NAMES, CURRENCIES, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isCurrency, isId, money, newId, plan, seedOf, tidy, type Currency, type Look, type Memory, type Wear } from './dress.ts'
-import { woolOf } from './model.ts'
+import { BLANKETS, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isCurrency, isId, money, newId, plan, seedOf, tidy, type Currency, allowed, isWear, pairs, type Extra, type Item, type Look, type Memory, type Wear } from './dress.ts'
+import { GREY, woolOf } from './model.ts'
 import { Fitting } from './Fitting.tsx'
 import { CROWD } from './crowd.ts'
 import bricolage from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url'
@@ -15,10 +15,9 @@ import { FLOCK, RECLUSE, type Entry } from './flock.ts'
 import { DOOR, HERMIT, MORNING, Sheep, SPAN } from './Sheep.ts'
 
 const _v = new Vector3()
+const HOLD = 3500 // for how long, in milliseconds, what a sheep is doing stays on its card once it is there
 const when = (date: string) => new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 const hex = (colour: number) => `#${colour.toString(16).padStart(6, '0')}`
-/** What a sheep has on, said after what it is doing. */
-const WORN: Record<Wear, string> = { hat: 'in a straw hat', bell: 'with a bell on', scarf: 'in a scarf', flowers: 'with flowers in its wool' }
 /** A picture for each thing to wear, of a few squares, as the things themselves are; and one for nothing at all. */
 const squares = (...boxes: (number | string)[][]) => (
   <svg viewBox="0 0 12 12" aria-hidden="true">
@@ -27,7 +26,10 @@ const squares = (...boxes: (number | string)[][]) => (
     ))}
   </svg>
 )
-const PICTURES: Record<Wear | Memory | '', ReactNode> = {
+const PICTURES: Record<Wear | Memory | Extra | '', ReactNode> = {
+  // What a bigger gift brings: a butterfly, and a small dog.
+  butterflies: squares([1, 2, 4, 4, '#ffc2d9'], [7, 2, 4, 4, '#ffc2d9'], [2, 6, 3, 3, '#c4a4f0'], [7, 6, 3, 3, '#c4a4f0'], [5, 2, 2, 8, '#5f4f5a']),
+  dog: squares([2, 5, 7, 4, '#d9a066'], [7, 2, 4, 4, '#d9a066'], [10, 4, 2, 2, '#fff6e0'], [7, 1, 1, 2, '#6b5248'], [1, 3, 1, 3, '#d9a066'], [3, 9, 1, 2, '#6b5248'], [7, 9, 1, 2, '#6b5248']),
   '': squares([2, 5, 8, 2, '#cfc6d6']),
   hat: squares([1, 8, 10, 2, '#f2d98a'], [3, 4, 6, 4, '#e9c46a']),
   bell: squares([4, 2, 4, 6, '#ffc93c'], [3, 8, 6, 2, '#ffc93c'], [5, 10, 2, 1, '#b98a1e']),
@@ -95,6 +97,12 @@ const APPEARANCE = {
     '.Input--invalid': { boxShadow: 'inset 0 0 0 2px #d4506a' },
     '.Label': { fontSize: '12px', fontWeight: '700' },
     // Each way of paying in a box of its own, with a border like the card's chips: the open one in ink.
+    // The tabs too: each a box with a border, the chosen one in ink, so that they read as buttons.
+    '.Tab': { backgroundColor: '#fffdf6', border: '2px solid #e6dccb', boxShadow: 'none', borderRadius: '12px' },
+    '.Tab:hover': { borderColor: '#b9aec4' },
+    '.Tab--selected': { backgroundColor: '#3d3550', borderColor: '#3d3550' },
+    '.TabLabel--selected': { color: '#fffdf6' },
+    '.TabIcon--selected': { fill: '#fffdf6' },
     '.AccordionItem': { backgroundColor: '#fffdf6', border: '2px solid #e6dccb', boxShadow: 'none', borderRadius: '12px' },
     '.AccordionItem--selected': { borderColor: '#3d3550' },
   },
@@ -141,7 +149,15 @@ const homeCurrency = (): Currency => {
 }
 /** Which way of paying comes first, of those Stripe offers the giver: one list for both currencies, since a way that
  * does not take the gift's currency (TWINT is francs only, MB WAY euros only) is simply not offered. */
-const ORDER = ['card', 'twint', 'mb_way', 'apple_pay', 'google_pay', 'paypal']
+const portugal = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone === 'Europe/Lisbon' || /-PT\b/i.test(navigator.language ?? '')
+  } catch {
+    return false
+  }
+})()
+// (Card first; TWINT second for francs; MB WAY second for a Portuguese browser, else PayPal.)
+const ORDER = portugal ? ['card', 'mb_way', 'twint', 'paypal', 'apple_pay', 'google_pay'] : ['card', 'twint', 'paypal', 'apple_pay', 'google_pay', 'mb_way']
 
 /** The sheep in the address, `?sheep=<id>`: where Stripe sends a giver back to (or the fake pay of step 2). */
 const wanted = () => Number(new URLSearchParams(location.search).get('sheep'))
@@ -286,6 +302,7 @@ function Field({ given }: { given: Entry[] | null }) {
     keep(COIN, next)
   }
   const [taken, setTaken] = useState(false) // whether this visit has had its very old sheep: there is one
+  const [other, setOther] = useState(false) // whether the box for a gift of one's own is out
   const elder = amount === 0
   const shown = useMemo(() => ({ ...look, elder }), [look, elder]) // what the sheep in the window looks like: very old, at a gift of nothing
   const card = useRef<HTMLFormElement>(null)
@@ -310,6 +327,7 @@ function Field({ given }: { given: Entry[] | null }) {
   const paid = !!API && KEYED && mode === 'dress' && !elder // the card shows Stripe's form
   const bubble = useRef<HTMLDivElement>(null)
   const saying = useRef<HTMLElement>(null)
+  const said = useRef(0) // when what the sheep is doing was last written on its card
   const pick = useRef(-1)
   const told = useRef(-1) // the last time of day that was written down, in twos of seconds
   // The sheep's thought bubbles are the world's own (cubes over their heads). None over the sheep whose bubble with
@@ -332,10 +350,14 @@ function Field({ given }: { given: Entry[] | null }) {
     if (!e || !bubble.current) return
     _v.set(e.x, e.y + e.s * 1.15, e.z).project(camera) // just over its head (and its hat), and up with it when it hops
     bubble.current.style.translate = `${width / 2 + _v.x * 0.5 * width}px ${height / 2 - _v.y * 0.5 * height}px`
-    // (What it is at, and what it has on; or, of a very old sheep, what she is remembering.)
-    const { wear, memory, elder } = e.entry.look ?? {}
-    const now = world.doing(e) + (elder ? (memory ? `, ${REMEMBERS[memory]}` : '') : wear ? `, ${WORN[wear]}` : '')
-    if (saying.current && saying.current.textContent !== now) saying.current.textContent = now
+    // What it is at, in a word or two. Once said it stays said for a few seconds, whatever the sheep is at
+    // underneath: a label that changes as fast as a sheep changes its mind cannot be read.
+    const now = world.doing(e)
+    const tag = saying.current
+    if (tag && tag.textContent !== now && (!tag.textContent || performance.now() - said.current > HOLD)) {
+      tag.textContent = now
+      said.current = performance.now()
+    }
   }, [])
 
   // Stripe's word to the server can be a few seconds behind its giver: ask again for a while, then let it be. The
@@ -383,7 +405,7 @@ function Field({ given }: { given: Entry[] | null }) {
         // paying, open under the one picked, three and then "More": tabs hid all but two behind a small menu. Not
         // Stripe's Link, which asks for an email and a telephone number to remember the card by, and doubles the
         // card's height for it.
-        form = kept.create('payment', { paymentMethodOrder: ORDER, layout: { type: 'accordion', defaultCollapsed: false, radios: 'never', spacedAccordionItems: true, visibleAccordionItemsCount: 3 }, wallets: { link: 'never', applePay: 'auto', googlePay: 'auto' } })
+        form = kept.create('payment', { paymentMethodOrder: ORDER, layout: { type: 'tabs', defaultCollapsed: false }, wallets: { link: 'never', applePay: 'auto', googlePay: 'auto' } })
         form.mount(counter.current)
         elements.current = kept
         setReady(true)
@@ -440,9 +462,22 @@ function Field({ given }: { given: Entry[] | null }) {
   const wear = (more: Look) => setLook({ ...look, ...more })
   // The gift is changed. To or from nothing, the sheep is another sheep (a very old one has a blanket and a memory,
   // any other a wool and something on): what was picked for the one is not kept for the other.
+  // (And what only a bigger gift can bring is let go of when the gift goes back under it. Nothing is chosen for anybody.)
   const give = (gift: number) => {
-    if ((gift === 0) !== elder) setLook({})
+    const may = allowed(Math.round(gift * 100))
+    const base: Look = (gift === 0) !== elder ? {} : look
+    const items = base.items?.filter((item) => isWear(item) || may.includes(item))
+    setLook({ ...base, items: items?.length ? items : undefined })
     setAmount(gift)
+  }
+  // One of the six things a sheep may have is tapped: the four to wear, the butterflies, the dog. Two at the most are
+  // on, in any mix: a third takes the place of the earlier, a tap on one that is on takes it off, and one that cannot
+  // go with another (the hat, the flowers) takes that one's place. "Nothing" takes them all off.
+  const don = (thing: Item | '') => {
+    const on = look.items ?? []
+    const keep = on.filter((one) => thing && pairs(one, thing))
+    const next = !thing ? [] : on.includes(thing) ? on.filter((one) => one !== thing) : [...keep.slice(keep.length === 2 ? 1 : 0), thing]
+    setLook({ ...look, items: next.length ? next : undefined })
   }
   /**
    * With a server, Stripe's form in the card (see `paid`): paid there, the sheep drops; a bank that wants its own page
@@ -532,15 +567,26 @@ function Field({ given }: { given: Entry[] | null }) {
           <li data-done={known.includes('g')}>{FINGERS ? 'Tap' : 'Click'} the grass to plant a snack</li>
         </ul>
       )}
-      {/* What a sheep's giver wrote, and what it is doing just now. It is over the sheep it is about. */}
+      {/* A sheep's card, over the sheep it is about, in four kinds that are kept apart: who it is (and the colour of
+          its wool); what its giver wrote, which is the main thing; small tags for what it is doing now and what it
+          has with it; and, small and last, when it came. */}
       {sheep && (
-        <div className="bubble" ref={bubble} key={sheep.id}>
-          <strong>{sheep.name}</strong>
-          {sheep.message && <p>{sheep.message}</p>}
-          <small>
-            {sheep.date && `${when(sheep.date)} · `}
+        <div className="bubble" ref={bubble} key={sheep.id} role="note">
+          <strong>
+            <i style={{ background: hex(sheep.look?.elder ? GREY : WOOL[woolOf(sheep.seed, sheep.look)]) }} aria-hidden="true" />
+            {sheep.name}
+          </strong>
+          {sheep.message && <q>{sheep.message}</q>}
+          <span className="pills">
             <em ref={saying} />
-          </small>
+            {(sheep.look?.elder ? (sheep.look.memory ? [sheep.look.memory] : []) : (sheep.look?.items ?? [])).map((thing) => (
+              <span key={thing}>
+                {PICTURES[thing]}
+                {sheep.look?.elder ? REMEMBERS[thing as Memory].replace('remembering ', '') : thing}
+              </span>
+            ))}
+          </span>
+          {sheep.date && <small>Arrived {when(sheep.date)}</small>}
         </div>
       )}
       {/* Buying a sheep: one card in the middle of the window, in two halves. On the right the sheep itself in a small
@@ -552,7 +598,7 @@ function Field({ given }: { given: Entry[] | null }) {
             className={elder ? 'dress elder' : 'dress'}
             role="dialog"
             aria-modal="true"
-            aria-label="A sheep of your own"
+            aria-label="Buy me a sheep"
             tabIndex={-1}
             ref={card}
             onSubmit={(event) => {
@@ -584,12 +630,22 @@ function Field({ given }: { given: Entry[] | null }) {
                   ))}
                 </div>
               ) : (
-                <div className="row" role="radiogroup" aria-labelledby="tag-wear">
+                <div className="row" role="group" aria-labelledby="tag-wear">
                   {(['', ...WEARS] as const).map((thing) => (
-                    <button type="button" key={thing} className="swatch" role="radio" aria-checked={(look.wear ?? '') === thing} aria-label={thing || 'nothing'} onClick={() => wear({ wear: thing || undefined })}>
+                    <button type="button" key={thing} className="swatch" aria-pressed={thing ? !!look.items?.includes(thing) : !look.items?.length} aria-label={thing || 'nothing'} onClick={() => don(thing)}>
                       {PICTURES[thing]}
                     </button>
                   ))}
+                  {/* What a bigger gift can bring, after what is worn: chips of the same row and the same two at the most, but shut (dim, with the gift it takes) until the gift is that much. */}
+                  {([['butterflies', 5], ['dog', 10]] as const).map(([thing, from]) => {
+                    const open = amount >= from
+                    return (
+                      <button type="button" key={thing} className="swatch perk" disabled={!open} aria-pressed={open && !!look.items?.includes(thing)} aria-label={`${thing === 'dog' ? 'a small dog' : 'butterflies'}${open ? '' : `: with a gift from ${money(from, currency)}`}`} onClick={() => don(thing)}>
+                        {PICTURES[thing]}
+                        {!open && <small>{money(from, currency)}</small>}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
               <label className="field">
@@ -606,33 +662,24 @@ function Field({ given }: { given: Entry[] | null }) {
             </section>
             <section className="pay">
               <div className="head">
-                <strong>{elder ? 'A very old sheep' : 'A sheep of your own'}</strong>
-                {/* Euros or Swiss francs, over the gift (with a server: TWINT takes only francs, MB WAY only euros).
-                    The numbers stay as they are. Not for the very old sheep, who costs nothing in either. */}
-                {API && !elder && (
-                  <span className="coins" role="radiogroup" aria-label="Currency" inert={paying}>
-                    {CURRENCIES.map((one) => (
-                      <button type="button" key={one} role="radio" aria-checked={currency === one} onClick={() => coin(one)}>
-                        {one === 'chf' ? 'CHF' : '€'}
-                      </button>
-                    ))}
-                  </span>
-                )}
+                <strong>{elder ? 'A very old sheep' : 'Buy me a sheep'}</strong>
               </div>
-              <span className="tag" aria-hidden="true">
-                {elder ? 'Your gift' : `Your gift, in ${currency === 'chf' ? 'Swiss francs' : 'euros'}`}
-              </span>
               <div className="row amounts" role="radiogroup" aria-label={`The gift, in ${currency === 'chf' ? 'Swiss francs' : 'euros'}`} inert={paying}>
                 {[0, 3, 5, 10].map((gift) => (
                   <button type="button" key={gift} className={gift ? 'pick' : 'pick nought'} role="radio" aria-checked={amount === gift} aria-label={money(gift, currency)} onClick={() => give(gift)}>
-                    {/* The sign is short so that the row stays one row: "Fr." for francs, "CHF" is too wide for four chips. */}
-                    {currency === 'chf' ? `Fr. ${gift}` : `€${gift}`}
+                    {/* The sign in front of the number, so that it reads as a price; the chips are small enough for "CHF 10" in one row. */}
+                    {currency === 'chf' ? `CHF ${gift}` : `€${gift}`}
                   </button>
                 ))}
+                {other || ![0, 3, 5, 10].includes(amount) ? (
                 <label className="gift">
-                  or
                   <input name="amount" type="number" min={elder ? 0 : LEAST / 100} max={MOST / 100} step="0.01" required inputMode="decimal" value={amount} onChange={(event) => give(Number(event.target.value))} />
                 </label>
+                ) : (
+                  <button type="button" className="more" onClick={() => setOther(true)}>
+                    Another amount
+                  </button>
+                )}
               </div>
               {elder ? (
                 // The very old sheep: who she is, and for how long. Said only here, in this card, and never why she is the one on offer.
@@ -645,27 +692,26 @@ function Field({ given }: { given: Entry[] | null }) {
                   {taken && <p>One old sheep to a visit, and this visit has had hers.</p>}
                 </div>
               ) : API ? (
-                <p>{trouble || (fits ? `A gift to the person who made all this, paid here through Stripe. The sheep is the thank-you, and it stays.` : `From ${money(LEAST / 100, currency)} to ${money(MOST / 100, currency)}, please: Stripe takes nothing outside that.`)}</p>
+                <p>
+                  {trouble || (fits ? `Thank you. Genuinely. The money comes to me, Stripe carries it, and neither of us has to make eye contact. In return you get a sheep. It's the least I can do, and also the most.` : `From ${money(LEAST / 100, currency)} to ${money(MOST / 100, currency)}, please: Stripe takes nothing outside that.`)}
+                  {fits && !trouble && (
+                    <>
+                      {' '}
+                      <button type="button" className="more" onClick={() => coin(currency === 'chf' ? 'eur' : 'chf')} disabled={paying}>
+                        {currency === 'chf' ? 'Pay in euros instead' : 'Pay in Swiss francs instead'}
+                      </button>
+                    </>
+                  )}
+                </p>
               ) : (
                 <p>The paying part is not switched on yet: nothing is charged, whatever is picked. This one is on the house, and lives in this browser only.</p>
               )}
-              <p className="sum">
-                {tidy({ name: called }).name === 'a sheep' ? 'A sheep' : tidy({ name: called }).name}, {elder ? 'very old, ' : ''}
-                {elder ? (look.memory ? REMEMBERS[look.memory] : 'keeping her memories to herself') : look.wear ? WORN[look.wear] : 'with nothing on but its wool'}
-                {elder && (
-                  // (Which blanket, by name and in its own colour, a little deeper so that it reads on the paper.)
-                  <>
-                    , under <span style={{ color: `color-mix(in srgb, ${hex(BLANKETS[woolOf(fresh.seed, look)])} 48%, #4a3550)` }}>a {BLANKET_NAMES[woolOf(fresh.seed, look)]} blanket</span>
-                  </>
-                )}
-                .
-              </p>
               {/* Stripe's form, from the moment the card opens: put away (`inert`, faded) while the gift is one it may
                   not ask for, and the line above says why. */}
               {paid && <div className={fits ? 'till' : 'till off'} ref={counter} inert={!fits || paying} />}
               <div className="row foot">
                 <button className="btn" disabled={paying || (elder && taken) || (paid && (!ready || !fits))}>
-                  {elder ? 'Take her in' : paying ? 'A moment…' : 'Put it in the field'}
+                  {elder ? 'Take her in' : paying ? 'A moment…' : 'Take my money'}
                 </button>
                 <button type="button" className="sound" onClick={close} disabled={paying}>
                   Never mind

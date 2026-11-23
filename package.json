@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "test": "node test/analytics.test.ts && node test/dashboard.test.mjs && node test/projects.test.ts && node test/isles.test.ts && node test/play.test.ts && node test/castle.test.ts && node test/sheep.test.ts && node --disable-warning=ExperimentalWarning sheep-api/test/api.test.ts && node --disable-warning=ExperimentalWarning sheep-api/test/admin.test.ts",
     "sheep-api:dev": "WRANGLER_SEND_METRICS=false wrangler dev --local --config sheep-api/wrangler.toml",
+    "sheep-api:migrate:remote": "WRANGLER_SEND_METRICS=false wrangler d1 migrations apply sheep --remote --config sheep-api/wrangler.toml",
+    "sheep-api:deploy": "WRANGLER_SEND_METRICS=false wrangler deploy --config sheep-api/wrangler.toml",
     "sheep-api:migrate": "WRANGLER_SEND_METRICS=false wrangler d1 migrations apply sheep --local --config sheep-api/wrangler.toml",
     "analytics:dashboard": "node scripts/posthog-dashboard.mjs"
   },

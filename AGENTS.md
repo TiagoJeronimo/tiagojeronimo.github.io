@@ -13,7 +13,7 @@ there (each folder's `CLAUDE.md` is one line, `@AGENTS.md`).
 | the island | `src/games/island/AGENTS.md`: files, `Island` methods, things, maps, settled choices |
 | the castle | `src/games/castle/AGENTS.md`: files, the world's API, the rules of a day, settled choices |
 | the sheep (steps 1 to 4 built) | `src/games/sheep/AGENTS.md`: the island, the flock, how they move; `PLAN.md` beside it holds the plan |
-| the sheep's server | `sheep-api/AGENTS.md`: a Cloudflare Worker and D1, Stripe by `fetch`, the owner's `/admin` behind Access; local only so far |
+| the sheep's server | `sheep-api/AGENTS.md`: a Cloudflare Worker and D1, Stripe by `fetch`, the owner's `/admin` behind Access; local only so far; `sheep-api/GO-LIVE.md` is the owner's step-by-step to put it live |
 | the front page, a card | `src/home/AGENTS.md`: cards, pictures, why the page stays light, the toys |
 | a word you do not know | `CONTEXT.md`: the project's vocabulary (card, tier, pump, isle, ask, ...) |
 | analytics, PostHog | `README.md`, "Analytics": events, env vars, the dashboard script |

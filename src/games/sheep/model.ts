@@ -3,7 +3,7 @@
 // one model, so that what is dressed is what lands in the field.
 import { rnd } from '../basics.ts'
 import type { Cubes } from '../cubes.ts'
-import { BLANKETS, WOOL, type Look, type Memory, type Wear } from './dress.ts'
+import { BLANKETS, WOOL, worn, type Look, type Memory, type Wear } from './dress.ts'
 
 /** A box of a thing: where it is from the thing's own middle (across, how high its foot is, along), its size, and its colour. */
 export type Part = number[]
@@ -116,7 +116,7 @@ export function clothe(flock: Cubes, e: Body, seed: number, look: Look = {}) {
   e.wool = e.old ? GREY : WOOL[pick]
   // What it wears, in the first places. A very old sheep has on what she remembers, and nothing else; and in the last
   // places her beard and her blanket, which is of the colour that would have been her wool's.
-  e.wear = e.old ? (look.memory ? [...KEEPSAKES[look.memory]] : []) : look.wear ? [...WORN[look.wear]] : []
+  e.wear = e.old ? (look.memory ? [...KEEPSAKES[look.memory]] : []) : worn(look).flatMap((thing) => WORN[thing])
   if (e.old) AGED.forEach((part, k) => (e.wear[SPARE + k] = part[6] ? part : [...part.slice(0, 6), BLANKETS[pick], 1]))
   EWE.forEach(([, , , , , , ink], k) => {
     if (!ink) flock.paint(e.cubes[k], e.wool)
@@ -244,5 +244,91 @@ export function speak(pool: Cubes, cubes: number[], say: string, fresh: boolean,
     }
     pool.place(cube, x + (a * part[0] + b * part[2]) * grow, foot + part[1] * grow, z + (c * part[0] + d * part[2]) * grow)
     pool.size(cube, (odd ? part[5] : part[3]) * grow, part[4] * grow, (odd ? part[3] : part[5]) * grow)
+  }
+}
+
+// What a bigger gift brings with a sheep (among the `items` of its look): butterflies about it, a small dog of its own, or both. Drawn
+// here for the field and for the window alike, of cubes that are not the sheep's: whoever draws them has a pool for
+// them.
+
+/**
+ * A small dog, looking along: four short legs, a body, a head with a snout, two ears, a tail that is up; and, after
+ * those, the three marks that stand over its head while it barks. No box is in another. `PUP_WIDE` and `PUP_LONG`
+ * are the half of the ground it stands over, across and along.
+ */
+const [EAR, SNOUT, WUF] = [0x6b5248, 0xfff6e0, 0xffc93c]
+export const PUP: Part[] = [
+  [-0.06, 0, 0.1, 0.05, 0.07, 0.05, EAR], [0.06, 0, 0.1, 0.05, 0.07, 0.05, EAR], [-0.06, 0, -0.1, 0.05, 0.07, 0.05, EAR], [0.06, 0, -0.1, 0.05, 0.07, 0.05, EAR],
+  [0, 0.07, 0, 0.17, 0.13, 0.32, 0], [0, 0.13, 0.22, 0.15, 0.14, 0.12, 0], [0, 0.14, 0.305, 0.08, 0.06, 0.05, SNOUT],
+  [-0.055, 0.27, 0.2, 0.04, 0.05, 0.05, EAR], [0.055, 0.27, 0.2, 0.04, 0.05, 0.05, EAR], [0, 0.17, -0.185, 0.04, 0.09, 0.05, 0],
+  [0, 0.37, 0.22, 0.03, 0.07, 0.03, WUF], [-0.07, 0.35, 0.22, 0.03, 0.05, 0.03, WUF], [0.07, 0.35, 0.22, 0.03, 0.05, 0.03, WUF],
+]
+export const PUP_WIDE = 0.1
+export const PUP_LONG = 0.34
+/** The coats a dog comes in: its seed picks one. */
+export const COATS = [0xd9a066, 0xfff1d6, 0x9a7868, 0xc9c2d0]
+/** What of a dog its drawing goes by. */
+export type Pup = {
+  s: number
+  x: number
+  y: number // how high its feet are (the ground, or the back it sits on)
+  z: number
+  face: number // which quarter turn it looks: see `TURNS`
+  stride: number // how far along its stride it is: it goes at a hop, as the sheep do
+  lie: number // how far it has lain down, 0 to 1: its legs are folded away
+  bark: number // for how long it goes on barking
+  cubes: number[] // one for each part of `PUP`
+}
+/** The cubes of one dog, in a pool, not on show yet. */
+export const kennel = (pool: Cubes, seed: number) => PUP.map(([, , , sx, sy, sz, ink]) => pool.add(0, -40, 0, sx, sy, sz, ink || COATS[Math.floor(rnd(seed * 7 + 9) * COATS.length)], -1, false))
+/** Puts a dog's cubes where it is: up at every step, a small jump at every bark, its tail going, and down on its belly when it lies. */
+export function hound(pool: Cubes, d: Pup, time: number) {
+  const { s, cubes } = d
+  const [a, b, c, e] = TURNS[d.face]
+  const odd = d.face & 1
+  const lift = (Math.abs(Math.sin(d.stride * Math.PI)) * 0.07 + (d.bark > 0 ? Math.abs(Math.sin(d.bark * 16)) * 0.05 : 0)) * s
+  for (let k = 0; k < PUP.length; k++) {
+    const [dx, dy, dz, sx, sy, sz] = PUP[k]
+    const shown = k < 4 ? d.lie < 0.5 : k < 10 || d.bark > 0
+    if (!shown) {
+      pool.hide(cubes[k])
+      continue
+    }
+    const wag = k === 9 && d.lie < 0.5 ? Math.sin(time * 12 + s * 30) * 0.02 : 0
+    pool.show(cubes[k])
+    pool.size(cubes[k], (odd ? sz : sx) * s, sy * s, (odd ? sx : sz) * s)
+    pool.place(cubes[k], d.x + (a * (dx + wag) + b * dz) * s, d.y + lift + (dy - (k < 4 ? 0 : 0.14 * Math.max(0, d.lie - 0.5)) + sy / 2) * s, d.z + (c * (dx + wag) + e * dz) * s)
+  }
+}
+
+export const FLIT = 3 // how many butterflies a sheep has about it,
+export const WINGS = [0xffc2d9, 0xc4a4f0, 0xffe07a, 0x9cc4f0] // and what colours their wings may be
+/** The cubes of a sheep's butterflies, in a pool, not on show yet: for each a body and two wings. */
+export const swarm = (pool: Cubes, seed: number) =>
+  Array.from({ length: FLIT * 3 }, (_, k) => pool.add(0, -40, 0, 0.05, 0.04, 0.13, k % 3 ? WINGS[Math.floor(rnd(seed * 7 + 11 + Math.floor(k / 3)) * WINGS.length)] : FACE, -1, false))
+/**
+ * Puts a sheep's butterflies where they are: each goes round the sheep in a slow loop of its own, a little out from
+ * it and well over its head (clear of its hat, and of the thought over it, which is narrower than the loop), rising
+ * and falling, wings going. Cubes do not turn: a butterfly looks the quarter turn nearest to the way it goes.
+ * @param y how high the sheep's feet are
+ */
+export function flutter(pool: Cubes, cubes: number[], x: number, y: number, z: number, s: number, time: number, seed: number) {
+  for (let k = 0; k < FLIT; k++) {
+    const way = k & 1 ? -1 : 1
+    const turn = way * time * (0.55 + 0.2 * k) + k * 2.1 + seed
+    const out = 0.72 + 0.07 * Math.sin(time * 0.6 + k * 1.3)
+    const [bx, by, bz] = [x + Math.sin(turn) * out, y + (1.3 + 0.13 * k) * s + 0.07 * Math.sin(time * 2.1 + k * 1.7), z + Math.cos(turn) * out]
+    const odd = Math.abs(Math.cos(turn)) > Math.abs(Math.sin(turn)) // (it goes mostly across: its wings are out along)
+    const wide = 0.04 + 0.1 * Math.abs(Math.sin(time * 13 + k * 2))
+    pool.show(cubes[k * 3])
+    pool.size(cubes[k * 3], odd ? 0.13 : 0.05, 0.04, odd ? 0.05 : 0.13)
+    pool.place(cubes[k * 3], bx, by, bz)
+    for (let side = -1; side <= 1; side += 2) {
+      const c = cubes[k * 3 + (side > 0 ? 2 : 1)]
+      const off = side * (0.025 + wide / 2)
+      pool.show(c)
+      pool.size(c, odd ? 0.11 : wide, 0.02, odd ? wide : 0.11)
+      pool.place(c, bx + (odd ? 0 : off), by + 0.025, bz + (odd ? off : 0))
+    }
   }
 }
