@@ -229,7 +229,7 @@ const PAUSE = 0.35 // and how long after one is planted before the next can be
 const THOUGHTS = 6 // how many bubbles there can be at once
 const ALOFT = 6 // how high over the grass a new sheep hangs, being dressed and waiting to be put down: up in the sky,
 const GRAVITY = 22 // from where it falls like anything else (as the loose bits of `../cubes.ts` do)
-const SPARE = 8 // how many more sheep than it began with a field has cubes for (until step 3: see `PLAN.md`)
+const SPARE = 8 // how many more sheep than it began with a field has cubes for
 /** A sheep's dog: what its drawing goes by (`Pup`), whose it is, the ground it keeps, and what it is at. */
 type Dog = Pup & {
   owner: Ewe

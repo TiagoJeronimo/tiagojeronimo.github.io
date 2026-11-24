@@ -1,10 +1,10 @@
-import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
+import { type ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
 import { Back, Hints, Sound } from '../hints.tsx'
 import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
-import { View } from '../View.ts'
+import { useStage } from '../useStage.ts'
 import { Castle, DAY, SIGHT, type Item, type Want } from './Castle.ts'
 import posthog from '../../posthog.ts'
 import { gameEvents, gameVisit, milestones, type GameVisit } from '../tracking.ts'
@@ -48,16 +48,12 @@ function castleTracking() {
 function Stage({ tier, onKnown, each, onVisit }: { tier: number; onKnown: (known: string) => void; each: Each; onVisit: (visit: GameVisit | null) => void }) {
   const world = useMemo(() => new Castle(), [])
   const tracking = useMemo(() => castleTracking(), [])
-  const gl = useThree((state) => state.gl)
-  const view = useRef<View>(null)
-  useEffect(() => {
-    // (The picture sits a little below the middle of the window: the keep is tall, and at the back.)
-    const held = (view.current = new View(gl.domElement, world.solid.mesh, SIGHT, onKnown, -70))
-    held.yaw = -0.55 // from the south-west: the gate, the winch on the west wall, and the farm and the camp in front
-    if (import.meta.env.DEV) Object.assign(window, { castle: world, view: held }) // at hand in the console
-    return () => held.dispose()
-  }, [gl, world, onKnown])
-  useEffect(() => () => world.dispose(), [world])
+  // (The picture sits a little below the middle of the window, `lift`: the keep is tall, and at the back. `yaw`: from
+  // the south-west, to see the gate, the winch on the west wall, and the farm and the camp in front.)
+  useStage(world, tier, { name: 'castle', land: world.solid.mesh, span: SIGHT, onKnown, lift: -70, yaw: -0.55 }, (_view, camera, width, height) => {
+    tracking.report(world)
+    each(world, camera, width, height)
+  })
   useEffect(() => {
     onVisit(tracking.visit)
     addEventListener('visibilitychange', tracking.visibility)
@@ -67,13 +63,6 @@ function Stage({ tier, onKnown, each, onVisit }: { tier: number; onKnown: (known
       onVisit(null)
     }
   }, [tracking, onVisit])
-  useEffect(() => world.shadows(tier), [world, tier])
-  useFrame(({ camera, size }, dt) => {
-    world.update(Math.min(dt, 0.05))
-    tracking.report(world)
-    view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
-    each(world, camera as PerspectiveCamera, size.width, size.height)
-  })
   // Which cube of the land the cursor is on (none, on anything else), and where: a hair into whatever was hit, so that
   // the side of a thing means that thing, and not the ground beside it.
   const met = (event: ThreeEvent<MouseEvent>): [number, number, number] => [event.object === world.solid.mesh ? (event.instanceId ?? -1) : -1, event.point.x - (event.face?.normal.x ?? 0) * 0.02, event.point.z - (event.face?.normal.z ?? 0) * 0.02]

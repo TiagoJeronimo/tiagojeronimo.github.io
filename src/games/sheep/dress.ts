@@ -1,6 +1,6 @@
 // What a sheep can be given: a colour of wool, one thing to wear, a name and a few words. Nothing here knows of the
-// picture or of the page: `tidy` is the one place that says what a giver may write, and the server of step 3 (see
-// `PLAN.md`) is to run the same function on what it is sent, since a page can be made to send anything.
+// picture or of the page: `tidy` is the one place that says what a giver may write, and the server (`sheep-api/`)
+// runs the same function on what it is sent, since a page can be made to send anything.
 
 /** The wools there are. A look names one by its place here; a sheep with no look takes one by its seed. */
 export const WOOL = [0xfffaf0, 0xf7ecd9, 0xffd9e6, 0xe6dcf7, 0xd6f0e0, 0xd4e8fb, 0xfff0b8, 0xf9d9c4]

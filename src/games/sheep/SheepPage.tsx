@@ -1,10 +1,11 @@
-import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
+import { type ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
 import { Back, FINGERS, Hints, Sound } from '../hints.tsx'
 import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
+import { useStage } from '../useStage.ts'
 import { music, note, sfx } from '../../sound.ts'
 import { BLANKETS, LEAST, MEMORIES, MESSAGE, MOST, NAME, REMEMBERS, WEARS, WOOL, isCurrency, isId, money, newId, plan, seedOf, tidy, type Currency, allowed, isWear, pairs, type Extra, type Item, type Look, type Memory, type Wear } from './dress.ts'
 import { GREY, woolOf } from './model.ts'
@@ -197,20 +198,10 @@ const clock = () => {
 
 /** The picture: the field, moved on and drawn every frame, seen through the same camera as the castle's. */
 function Stage({ world, tier, mode, open, onView, onKnown, onSelect, onDrop, onPlant, each }: { world: Sheep; tier: number; mode: Mode; open: boolean; onPlant: () => void; onView: (view: View) => void; onKnown: (known: string) => void; onSelect: (sheep: number) => void; onDrop: (sheep: number) => void; each: (world: Sheep, camera: PerspectiveCamera, width: number, height: number) => void }) {
-  const gl = useThree((state) => state.gl)
-  const view = useRef<View>(null)
-  useEffect(() => {
-    const held = (view.current = new View(gl.domElement, world.ground.mesh, SPAN, onKnown))
-    onView(held) // (the page moves it in on a sheep that is being dressed)
-    if (import.meta.env.DEV) Object.assign(window, { sheep: world, view: held }) // at hand in the console
-    return () => held.dispose()
-  }, [gl, world, onKnown, onView])
-  useEffect(() => world.shadows(tier), [world, tier])
-  useFrame(({ camera, size }, dt) => {
-    world.update(Math.min(dt, 0.05))
-    view.current?.update(Math.min(dt, 0.05), camera as PerspectiveCamera, size.width, size.height)
-    if (view.current) world.watch(view.current.yaw) // (the sheep's thought bubbles face whoever is looking)
-    each(world, camera as PerspectiveCamera, size.width, size.height)
+  // (`onView`: the page moves the camera in on a sheep that is being dressed.)
+  useStage(world, tier, { name: 'sheep', land: world.ground.mesh, span: SPAN, onKnown, onView }, (view, camera, width, height) => {
+    if (view) world.watch(view.yaw) // (the sheep's thought bubbles face whoever is looking)
+    each(world, camera, width, height)
   })
   /** What was hit: a sheep (its place in the flock), the one in the cave, the door in the mountain, or nothing that answers (-1). */
   const which = (event: ThreeEvent<MouseEvent | PointerEvent>) => (event.object === world.flock.mesh ? world.pick(event.instanceId) : event.object === world.ground.mesh && world.portal(event.instanceId) ? DOOR : -1)
@@ -288,7 +279,6 @@ function Field({ given }: { given: Entry[] | null }) {
     const world = new Sheep([...home, ...own.filter((one) => one !== back)], 1, clock())
     return [world, !!back && world.bring(back)] as const
   }, [given])
-  useEffect(() => () => world.dispose(), [world])
   const eye = useRef<View>(null)
   const seeing = useCallback((view: View) => void (eye.current = view), [])
   const [mode, setMode] = useState<Mode>(back ? 'place' : 'idle')

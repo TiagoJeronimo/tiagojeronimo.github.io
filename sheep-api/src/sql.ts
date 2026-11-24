@@ -13,7 +13,7 @@ export type Row = { id: number; seed: number; look: string; name: string; messag
 
 /**
  * Every sheep, oldest first. A hidden one stays in the field, since somebody paid for it, but says nothing: its name
- * and message are left out (`PLAN.md`: delete hides the message and keeps the sheep).
+ * and message are left out (hiding keeps the sheep, since somebody paid for it).
  */
 export const flock = (db: Db) =>
   db

@@ -1,5 +1,5 @@
-# The sheep's server. `npm run sheep-api:dev` (from the root) runs it on this machine with a local D1; nothing here is
-# deployed until step 5 of `src/games/sheep/PLAN.md`. Secrets are not here: in `.dev.vars` locally (see
+# The sheep's server. `npm run sheep-api:dev` (from the root) runs it on this machine with a local D1; it is deployed by
+# `npm run sheep-api:deploy` (see `GO-LIVE.md`). Secrets are not here: in `.dev.vars` locally (see
 # `.dev.vars.example`), in Cloudflare's settings when live.
 name = "sheep-api"
 main = "src/index.ts"

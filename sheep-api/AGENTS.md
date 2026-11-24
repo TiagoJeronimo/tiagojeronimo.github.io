@@ -1,4 +1,4 @@
-# sheep-api: the sheep's server (steps 3 and 4 of `src/games/sheep/PLAN.md`: built; deployed on the owner's `workers.dev`, see `GO-LIVE.md`)
+# sheep-api: the sheep's server (deployed on the owner's `workers.dev`; see `GO-LIVE.md`)
 
 One Cloudflare Worker and a D1 database. Plain web `Request`s and `Response`s, no SDK: Stripe is called with `fetch`,
 and its signature is checked by hand with Web Crypto. Every word of SQL is in `src/sql.ts`, so moving to Vercel

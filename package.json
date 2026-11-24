@@ -13,7 +13,8 @@
     "sheep-api:migrate:remote": "WRANGLER_SEND_METRICS=false wrangler d1 migrations apply sheep --remote --config sheep-api/wrangler.toml",
     "sheep-api:deploy": "WRANGLER_SEND_METRICS=false wrangler deploy --config sheep-api/wrangler.toml",
     "sheep-api:migrate": "WRANGLER_SEND_METRICS=false wrangler d1 migrations apply sheep --local --config sheep-api/wrangler.toml",
-    "analytics:dashboard": "node scripts/posthog-dashboard.mjs"
+    "analytics:dashboard": "node scripts/posthog-dashboard.mjs",
+    "new-game": "node scripts/new-game.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
