@@ -365,7 +365,7 @@ export default function GamePage() {
     const from = shot.current?.()
     if (!from) return
     const line = `Island no. ${seed} · ${state.life}% awake · ${state.knocks} knocks`
-    void drawPostcard(from, { title: 'Wake the island', line, stamp: state.done ? 'WOKEN' : undefined }).then((blob) => {
+    void drawPostcard(from, { title: 'A very dry island', line, stamp: state.done ? 'WOKEN' : undefined }).then((blob) => {
       if (!blob) return
       visit.current?.capture('island_postcard_created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
       posthogLogger.info('island postcard created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
@@ -519,7 +519,7 @@ export default function GamePage() {
           {tab === 'Map' && (
             <section>
               <div className="tally">
-                <h1>Wake the island</h1>
+                <h1>A very dry island</h1>
                 <div className="meter" role="progressbar" aria-label="Life" aria-valuenow={state.life} aria-valuemin={0} aria-valuemax={100}>
                   <span style={{ width: `${state.life}%` }} />
                   <i className="sprout" style={{ left: `${state.life}%` }}>
@@ -800,7 +800,7 @@ export default function GamePage() {
       </div>
 
       {/* The postcard, once one has been made: the picture, and a way to keep it. */}
-      <Postcard card={card} file={`wake-the-island-${seed}.png`} label="A postcard of your island" onClose={away} />
+      <Postcard card={card} file={`a-very-dry-island-${seed}.png`} label="A postcard of your island" onClose={away} />
     </>
   )
 }

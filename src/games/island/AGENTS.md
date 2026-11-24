@@ -1,4 +1,4 @@
-# The island: "Wake the island", at `/games/island/`
+# The island: "A very dry island", at `/games/island/`
 
 A click-to-explore game. The island starts dry. Water wakes the ground near it; about 27 things hold the water back or
 the life in, and finding them is the game. Finding some makes more isles rise. Not needed to finish, each with a count

@@ -124,7 +124,7 @@ export default function CastlePage() {
   useEffect(() => keep('castle/known', known), [known])
   const [round, setRound] = useState(0) // a new world for each: what is left of the last is thrown away
   const world = useRef<Castle>(null)
-  const snap = usePostcard('storm-the-castle.png', 'A postcard of the castle')
+  const snap = usePostcard('castle.png', 'A postcard of the castle')
   const visit = useRef<GameVisit | null>(null)
   const onVisit = useCallback((session: GameVisit | null) => { visit.current = session }, [])
   const bubbles = useRef<Record<number, HTMLElement | null>>({})
@@ -239,7 +239,7 @@ export default function CastlePage() {
             <button className="sound" onClick={() => restart('manual')} title="The same morning again, from the start">
               New game
             </button>
-            <button className="sound" onClick={() => snap.make('Storm the castle', `${Math.min(4, world.current?.love ?? 0)} of 4 gifts delivered`, world.current?.over === 'wedding' ? 'WED' : undefined)} title="A picture of the castle as it looks right now, on a card, to keep or to send to somebody.">
+            <button className="sound" onClick={() => snap.make('Castle', `${Math.min(4, world.current?.love ?? 0)} of 4 gifts delivered`, world.current?.over === 'wedding' ? 'WED' : undefined)} title="A picture of the castle as it looks right now, on a card, to keep or to send to somebody.">
               Postcard
             </button>
           </div>

@@ -64,7 +64,7 @@ export interface Project {
 const made: Project[] = [
   {
     slug: 'wake-the-island',
-    title: 'Wake the island',
+    title: 'A very dry island',
     kind: 'games',
     when: '2020–2026',
     blurb: 'A game where you poke a dry little island back to life. Because it’s kind of reassuring when something gets better the more you click on it.',
@@ -82,7 +82,7 @@ const made: Project[] = [
   },
   {
     slug: 'storm-the-castle',
-    title: 'Storm the castle',
+    title: 'Castle',
     kind: 'games',
     when: '2021–2025',
     blurb: 'Keep both sides of a tiny war supplied. Nobody’s winning, but business is good.',

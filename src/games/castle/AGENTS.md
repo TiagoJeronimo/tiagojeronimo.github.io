@@ -1,4 +1,4 @@
-# The castle: "Storm the castle" (a working title), at `/games/castle/`
+# The castle: "Castle", at `/games/castle/`
 
 A war that gets nowhere, and the one who feeds both sides of it. The castle's six stand on its wall; the camp's six
 charge it and go back to their fire; nobody is hurt. With every charge both sides ask the helper for things, in
