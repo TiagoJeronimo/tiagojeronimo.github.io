@@ -507,12 +507,6 @@ main:has(.bubble) .top .sound.buy {
   }
 }
 
-/* The field's own hint, in the shared style of `../hints.css`: at the foot of the window, where the others are not. */
-.hints.snack {
-  top: auto;
-  bottom: 18px;
-}
-
 /* The two buttons at the foot of the gift: small, side by side on one line always, as tall as each other and each on
    the same thin lip, so that their faces are level; the main one a little the wider. */
 .dress .foot {

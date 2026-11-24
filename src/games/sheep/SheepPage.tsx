@@ -1,7 +1,9 @@
 import { type ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
-import { Back, FINGERS, Hints, Sound } from '../hints.tsx'
+import { Back, FINGERS, Gear, Hints, SheepFace, Sound } from '../hints.tsx'
+import { usePostcard, type Shot } from '../postcard.ts'
+import { Postcard } from '../Postcard.tsx'
 import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
@@ -197,9 +199,9 @@ const clock = () => {
 }
 
 /** The picture: the field, moved on and drawn every frame, seen through the same camera as the castle's. */
-function Stage({ world, tier, mode, open, onView, onKnown, onSelect, onDrop, onPlant, each }: { world: Sheep; tier: number; mode: Mode; open: boolean; onPlant: () => void; onView: (view: View) => void; onKnown: (known: string) => void; onSelect: (sheep: number) => void; onDrop: (sheep: number) => void; each: (world: Sheep, camera: PerspectiveCamera, width: number, height: number) => void }) {
+function Stage({ world, tier, mode, open, onView, onShot, onKnown, onSelect, onDrop, onPlant, each }: { world: Sheep; tier: number; mode: Mode; open: boolean; onPlant: () => void; onView: (view: View) => void; onShot: (take: Shot | null) => void; onKnown: (known: string) => void; onSelect: (sheep: number) => void; onDrop: (sheep: number) => void; each: (world: Sheep, camera: PerspectiveCamera, width: number, height: number) => void }) {
   // (`onView`: the page moves the camera in on a sheep that is being dressed.)
-  useStage(world, tier, { name: 'sheep', land: world.ground.mesh, span: SPAN, onKnown, onView }, (view, camera, width, height) => {
+  useStage(world, tier, { name: 'sheep', land: world.ground.mesh, span: SPAN, onKnown, onView, onShot }, (view, camera, width, height) => {
     if (view) world.watch(view.yaw) // (the sheep's thought bubbles face whoever is looking)
     each(world, camera, width, height)
   })
@@ -279,6 +281,7 @@ function Field({ given }: { given: Entry[] | null }) {
     const world = new Sheep([...home, ...own.filter((one) => one !== back)], 1, clock())
     return [world, !!back && world.bring(back)] as const
   }, [given])
+  const snap = usePostcard('buy-me-a-sheep.png', 'A postcard of the field')
   const eye = useRef<View>(null)
   const seeing = useCallback((view: View) => void (eye.current = view), [])
   const [mode, setMode] = useState<Mode>(back ? 'place' : 'idle')
@@ -600,14 +603,16 @@ function Field({ given }: { given: Entry[] | null }) {
   const sheep = chosen === HERMIT ? RECLUSE : world.ewes[chosen]?.entry
   return (
     <main className="sheep">
-      <Picture>{(tier) => <Stage world={world} tier={tier} mode={mode} open={chosen !== -1} onPlant={planted} onView={seeing} onKnown={learn} onSelect={choose} onDrop={dropped} each={each} />}</Picture>
-      {mode === 'idle' && <Hints known={known} />}
-      {/* One more hint, the field's own, in the same style and gone once done: a click on the grass plants a snack. */}
+      <Picture>{(tier) => <Stage world={world} tier={tier} mode={mode} open={chosen !== -1} onPlant={planted} onView={seeing} onShot={snap.onShot} onKnown={learn} onSelect={choose} onDrop={dropped} each={each} />}</Picture>
+      {/* The three ways of getting about, and the field's own two with them: gone once done. */}
       {mode === 'idle' && (
-        <ul className="hints snack">
-          <li data-done={known.includes('s')}>{FINGERS ? 'Tap' : 'Click'} a sheep to see what it is thinking</li>
-          <li data-done={known.includes('g')}>{FINGERS ? 'Tap' : 'Click'} the grass to plant a snack</li>
-        </ul>
+        <Hints
+          known={known}
+          extra={[
+            ['s', `${FINGERS ? 'Tap' : 'Click'} a sheep to see what it is thinking`],
+            ['g', `${FINGERS ? 'Tap' : 'Click'} the grass to plant a snack`],
+          ]}
+        />
       )}
       {/* A sheep's card, over the sheep it is about, in four kinds that are kept apart: who it is (and the colour of
           its wool); what its giver wrote, which is the main thing; small tags for what it is doing now and what it
@@ -729,7 +734,7 @@ function Field({ given }: { given: Entry[] | null }) {
                   <p>She is very old. Nobody is sure how old, herself included: she stopped counting some time ago, and has not missed it.</p>
                   <p>She has had a good life, as these things go. A great deal of grass. A river, once, which she still brings up. A duck who sat on her for most of a summer and never said why. A brief affair with a hat.</p>
                   <p>She is tired now, the way you are tired after a nice day out.</p>
-                  <p>And then you will close this tab, as you were always going to, and she will die. Quietly. She will not mind. Nothing keeps her anywhere: not a server, not this browser's memory. That is the arrangement. It is everybody's arrangement, really; hers is just shorter, and has a button.</p>
+                  <p>And then you will <b>close this tab, as you were always going to, and she will die.</b> Quietly. She will not mind. Nothing keeps her anywhere: not a server, not this browser's memory. That is the arrangement. It is everybody's arrangement, really; hers is just shorter, and has a button.</p>
                   <p>So that is the offer: a little while, in a field, with company. She thinks it is a very good one.</p>
                   {taken && <p>One old sheep to a visit, and this visit has had hers.</p>}
                 </div>
@@ -804,12 +809,20 @@ function Field({ given }: { given: Entry[] | null }) {
         {mode === 'idle' && (
           <button className="sound buy" onClick={() => begin()} disabled={full}>
             {/* A small sheep's face before the words, of squares as everything here is. */}
-            {squares([2, 1, 8, 2, '#fffaf0'], [1, 3, 10, 5, '#fffaf0'], [4, 5, 4, 6, '#5f4f5a'], [2, 6, 2, 2, '#5f4f5a'], [8, 6, 2, 2, '#5f4f5a'], [5, 10, 2, 1, '#ffa8b8'])}
+            <SheepFace />
             {full ? 'The field is full for now' : 'Buy me a sheep'}
           </button>
         )}
         <Sound />
+        <Gear act="Click a sheep, or the grass" buy={false}>
+          <div className="pair">
+            <button className="sound" onClick={() => snap.make('Buy me a sheep', `${world.ewes.length} sheep in the field`)} title="A picture of the field as it looks right now, on a card, to keep or to send to somebody.">
+              Postcard
+            </button>
+          </div>
+        </Gear>
       </header>
+      <Postcard {...snap.props} scrim />
     </main>
   )
 }

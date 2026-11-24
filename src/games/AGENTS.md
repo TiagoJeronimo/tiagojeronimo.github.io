@@ -17,7 +17,8 @@ of its own (inside `Island.ts`).
 | `View.ts` | The camera: drag moves, right-drag or a twist turns, wheel or pinch zooms to the cursor, keys do all three (never a key typed into a text field). `near` is how close it is, 0 to 1. |
 | `cubes.ts` | `Cubes(capacity, material, 'wind' \| 'waves'?)`: boxes in one draw call (`add` returns an index; `show hide poke paint place size lean drop`, `update(dt)`). `Bits(n)`: loose cubes (`spawn(...)`). |
 | `basics.ts` | The palette, `NEAR` and `RING`, `rnd(n)` (the same every visit), `any()` (differs every time), `shade(sun, tier)`, `ARROW` and `POINTER` (the yellow arrow over what to click). |
-| `hints.tsx`, `hints.css` | `<Back />`, `<Hints known="mz" />` (how to get about, minus what has been done), `<Sound />` (shows "Sound?" until pressed), `FINGERS`. Styles of `.top`, `.sound`, `.icon`, `.hints`. |
+| `hints.tsx`, `hints.css` | `<Back />`, `<Hints known="mz" extra={[['s', 'words']]} />` (how to get about plus the game's own lines, each gone once done, with a few specks lifting off as it goes), `<Sound />` (shows "Sound?" until pressed), `<Gear act="…">` (the gear: controls, About me, and the game's own buttons as children; the way to the sheep), `FINGERS`. Styles of `.top`, `.sound`, `.icon`, `.hints`, `.gear`. |
+| `postcard.ts`, `Postcard.tsx` | `usePostcard(file, label)` for a page (`onShot` goes to `useStage`, `make(title, line, stamp?)` is the gear's Postcard button, `props` go to `<Postcard scrim />`); `drawPostcard` is the card itself. |
 | `kept.ts` | `kept(key)`, `keep(key, value)`: what the browser remembers, when it will. |
 | `../sound.ts` | `thump()`, `note(height)`, `sfx(what)` (`baa pop tinkle bark jingle`), `music(yes)`, `setSound`, `toggleSound`. Silent until the visitor turns sound on, every visit. A world makes no sound itself: it counts, and its page listens. |
 | `tracking.ts` | `gameVisit`, `gameEvents`, `milestones`: analytics events that never block play. |

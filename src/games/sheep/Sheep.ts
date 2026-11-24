@@ -532,10 +532,16 @@ export class Sheep {
     // and a foot). It is locked, and stays so. A lantern by it, and hoof marks on the step.
     const [dx, dz] = [PORCH[0][0], PORCH[0][1] + 0.5]
     const door = (parts: Part[]) => parts.map(([x, y, z, sx, sy, sz, ink]) => ground.add(dx + x, 2 + y + sy / 2, dz + z, sx, sy, sz, ink, DOOR))
-    door([[-0.31, 0, 0.035, 0.08, 0.78, 0.07, STONE[0]], [0.31, 0, 0.035, 0.08, 0.78, 0.07, STONE[0]], [-0.23, 0.62, 0.035, 0.08, 0.16, 0.07, STONE[2]], [0.23, 0.62, 0.035, 0.08, 0.16, 0.07, STONE[2]], [0, 0.78, 0.035, 0.7, 0.1, 0.07, STONE[0]]])
+    door([[-0.31, 0, 0.08, 0.08, 0.78, 0.16, STONE[0]], [0.31, 0, 0.08, 0.08, 0.78, 0.16, STONE[0]], [-0.23, 0.62, 0.08, 0.08, 0.16, 0.16, STONE[2]], [0.23, 0.62, 0.08, 0.08, 0.16, 0.16, STONE[2]], [0, 0.78, 0.08, 0.7, 0.1, 0.16, STONE[0]]])
     door([[-0.36, 0, 0.3, 0.1, 0.05, 0.1, BARK], [-0.36, 0.17, 0.3, 0.1, 0.04, 0.1, BARK], [-0.08, 0, 0.42, 0.07, 0.02, 0.1, 0x8f8a96], [0.08, 0, 0.5, 0.07, 0.02, 0.1, 0x8f8a96], [-0.08, 0, 0.72, 0.07, 0.02, 0.1, 0x8f8a96], [0.08, 0, 0.8, 0.07, 0.02, 0.1, 0x8f8a96]])
     ground.paint(door([[-0.36, 0.05, 0.3, 0.08, 0.12, 0.08, 0xffd45c]])[0], 0xffd45c, 2.2)
-    this.door.cubes = door([[0, 0, 0.03, 0.54, 0.62, 0.06, WOOD], [0, 0.62, 0.03, 0.38, 0.16, 0.06, WOOD], [0.17, 0.3, 0.075, 0.05, 0.05, 0.03, 0xffc93c], [0.17, 0.2, 0.07, 0.07, 0.09, 0.02, 0xffc93c], [0.17, 0.225, 0.087, 0.025, 0.04, 0.012, 0x4a3b3b], [-0.06, 0.3, 0.07, 0.06, 0.24, 0.02, 0xffc93c], [0.03, 0.3, 0.07, 0.12, 0.06, 0.02, 0xffc93c]])
+    // A pot of flowers on the step, across from the lantern.
+    door([[0.36, 0, 0.3, 0.1, 0.09, 0.1, 0xd98b6a], [0.36, 0.09, 0.3, 0.1, 0.02, 0.1, 0x6fbf73], [0.34, 0.11, 0.3, 0.04, 0.04, 0.04, 0xff8fb1], [0.38, 0.11, 0.32, 0.04, 0.04, 0.04, 0xffd45c], [0.37, 0.11, 0.26, 0.04, 0.04, 0.04, 0xfff4f0]])
+    // The door itself sits well back inside its frame (the frame stands out 0.16 from the rock, the planks' faces only 0.06),
+    // in three planks of two tones that each show their edge, with a stepped round top; and what is on it stands out
+    // from the wood by 0.05, so that the gold throws a shadow.
+    const plank = [WOOD, 0x866a54, WOOD]
+    this.door.cubes = door([...[-0.18, 0, 0.18].map((x, n): Part => [x, 0, 0.03, 0.18, 0.62, 0.06, plank[n]]), [-0.14, 0.62, 0.03, 0.1, 0.1, 0.06, plank[0]], [0.14, 0.62, 0.03, 0.1, 0.1, 0.06, plank[2]], [0, 0.62, 0.03, 0.18, 0.16, 0.06, plank[1]], [0.17, 0.3, 0.085, 0.05, 0.05, 0.05, 0xffc93c], [0.17, 0.2, 0.085, 0.07, 0.09, 0.05, 0xffc93c], [0.17, 0.225, 0.116, 0.025, 0.04, 0.012, 0x4a3b3b], [-0.06, 0.3, 0.085, 0.06, 0.24, 0.05, 0xffc93c], [0.03, 0.3, 0.085, 0.12, 0.06, 0.05, 0xffc93c]])
     for (let k = 0; k < THOUGHTS; k++) this.thoughts.push({ owner: null, say: '', cubes: [...BUBBLE, ...Array<Part>(LINES).fill(BUBBLE[0])].map(([, , , sx, sy, sz, ink]) => ground.add(0, -40, 0, sx, sy, sz, ink, -1, false)) })
     this.arrow = ARROW.map(([, , , sx, sy, sz]) => ground.add(0, -40, 0, sx, sy, sz, POINTER))
     for (const c of this.arrow) ground.paint(c, POINTER, 1.7)

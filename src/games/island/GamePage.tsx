@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
-import { Back, FINGERS, Hints, Sound } from '../hints.tsx'
+import { Back, FINGERS, Hints, Sound, SheepLink } from '../hints.tsx'
+import { drawPostcard } from '../postcard.ts'
+import { Postcard } from '../Postcard.tsx'
 import { Picture } from '../Picture.tsx'
 import { Island, forget, type GameState, type Said } from './Island.ts'
 import { draw, sketch } from './sprites.ts'
@@ -17,6 +19,23 @@ const FACES: Record<string, string> = {
   frog: 'frog/7fca6c', ghost: 'ghost/f4f8ff', crab: 'crab/ff7a5c', dragon: 'dragon/7fd6a8', mole: 'mole/5d5560', marmot: 'marmot/c9a06b', goat: 'goat/f4efe6', eagle: 'bird/9a7b62', owl: 'owl/b9a58a',
 }
 const TABS = ['Map', 'Friends', 'Finds', 'Log']
+// Small pictures a character a pixel, for the journal's corners: on each tab, and in the log when it has little to say.
+const PAINT: Record<string, string> = { g: '#8fd16b', b: '#86b6f5', h: '#ff8fb1', y: '#ffd45c', k: '#5b5568', s: '#d8c7a4', t: '#e2c48e', w: '#fffdf6' }
+const PIXELS: Record<string, string[]> = {
+  Map: ['..gggg..', '.gggbgg.', 'gggbbggg', '.ggbgggg', '..gggg..'],
+  Friends: ['.hh..hh.', 'hhhhhhhh', 'hhhhhhhh', '.hhhhhh.', '..hhhh..', '...hh...'],
+  Finds: ['...yy...', '...yy...', 'yyyyyyyy', '.yyyyyy.', '..yyyy..', '.yy..yy.'],
+  Log: ['ssssss..', 'swwwws..', 'swkkws..', 'swwwws..', 'swkkws..', 'ssssss..'],
+  quiet: ['.........kk.', '.....g....k.', '....ggg..kk.', '...ggggg....', '.tttttttttt.', 'tttttttttttt', 'bbbbbbbbbbbb'],
+}
+function Pixels({ name }: { name: string }) {
+  const rows = PIXELS[name]
+  return (
+    <svg className="pixels" viewBox={`0 0 ${rows[0].length} ${rows.length}`} shapeRendering="crispEdges" aria-hidden="true">
+      {rows.flatMap((row, y) => [...row].map((c, x) => (c === '.' ? null : <rect key={`${x} ${y}`} x={x} y={y} width={1.04} height={1.04} fill={PAINT[c]} />)))}
+    </svg>
+  )
+}
 // In the log, a line about a friend has its face in front of it. A few other things have a picture too.
 const SIGNS: Record<string, string> = {
   ...FACES, snail: 'snail/ff7a6b', bottle: 'bottle', secret: 'heart', combo: 'heart', capybara: 'capybara/b98a5e', axolotl: 'axolotl/ffb3c7', balloon: 'balloon/ffffff', bats: 'bat/5b4a66', 'falling star': 'star/fff3a8',
@@ -344,47 +363,9 @@ export default function GamePage() {
   // (And a stamp, once the whole world is awake.) The buttons and the words are not in the picture.
   const postcard = () => {
     const from = shot.current?.()
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!from || !ctx) return
-    Object.assign(canvas, { width: 1500, height: 1050 })
-    ctx.fillStyle = '#fffaf0'
-    ctx.fillRect(0, 0, 1500, 1050)
-    // The middle of the picture, cut to the shape of the card.
-    const size = Math.max(1400 / from.width, 800 / from.height)
-    ctx.save()
-    ctx.beginPath()
-    ctx.roundRect(50, 50, 1400, 800, 28)
-    ctx.clip()
-    ctx.drawImage(from, (from.width - 1400 / size) / 2, (from.height - 800 / size) / 2, 1400 / size, 800 / size, 50, 50, 1400, 800)
-    ctx.restore()
-    const font = '"Bricolage Grotesque Variable", system-ui, sans-serif'
-    ctx.fillStyle = '#3f3b4e'
-    ctx.font = `800 68px ${font}`
-    ctx.fillText('Wake the island', 52, 952)
-    ctx.globalAlpha = 0.7
-    ctx.font = `600 30px ${font}`
-    ctx.fillText(`Island no. ${seed} · ${state.life}% awake · ${state.knocks} knocks · ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`, 54, 1004)
-    ctx.globalAlpha = 1
-    if (state.done) {
-      // The stamp: a ring of ink a little askew, as on the map.
-      ctx.translate(1350, 950)
-      ctx.rotate(-0.2)
-      ctx.strokeStyle = ctx.fillStyle = '#e0527f'
-      ctx.lineWidth = 5
-      ctx.beginPath()
-      ctx.arc(0, 0, 62, 0, 7)
-      ctx.stroke()
-      ctx.lineWidth = 2
-      ctx.setLineDash([7, 6])
-      ctx.beginPath()
-      ctx.arc(0, 0, 51, 0, 7)
-      ctx.stroke()
-      ctx.font = `800 24px ${font}`
-      ctx.textAlign = 'center'
-      ctx.fillText('WOKEN', 0, 9)
-    }
-    canvas.toBlob((blob) => {
+    if (!from) return
+    const line = `Island no. ${seed} · ${state.life}% awake · ${state.knocks} knocks`
+    void drawPostcard(from, { title: 'Wake the island', line, stamp: state.done ? 'WOKEN' : undefined }).then((blob) => {
       if (!blob) return
       visit.current?.capture('island_postcard_created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
       posthogLogger.info('island postcard created', { life_percent: state.life, knocks: state.knocks, completed: state.done })
@@ -419,7 +400,7 @@ export default function GamePage() {
       <div className="words" ref={words} aria-hidden="true" />
 
       {/* While the cog's sheet is open, a click anywhere else only shuts it: it does not reach the world. */}
-      {(menu || card) && <div className="scrim" onClick={() => (card ? away() : setMenu(false))} />}
+      {(menu || card || map) && <div className={map && !menu && !card ? 'scrim veil' : 'scrim'} onClick={() => (card ? away() : menu ? setMenu(false) : setMap(false))} />}
       {/* The three ways of getting about, in the corner nobody else is using, until each has been used once on this
           island. */}
       <Hints known={state.ended ? 'mzt' : state.known} />
@@ -444,7 +425,7 @@ export default function GamePage() {
           {/* How far along the game is: a thin line under the word, which fills as the things are found. All of them
               count, those on land still under the sea too, so it only ever goes forward. */}
           <i className="gauge" aria-hidden="true">
-            <i style={{ width: `${(100 * state.found) / things}%` }} />
+            <i style={{ width: `${state.life}%` }} />
           </i>
         </button>
         {/* And a dot on this one when nothing has been found for a good while. */}
@@ -512,6 +493,9 @@ export default function GamePage() {
             <p className="about">
               I’m Tiago Jerónimo Silva, a senior full-stack engineer in Zürich. <a href="/">More things I’ve made</a> · <a href="/cv/">My CV</a>
             </p>
+            <p className="about">
+              <SheepLink />
+            </p>
           </div>
         </div>
       </header>
@@ -520,11 +504,14 @@ export default function GamePage() {
         <div className="tabs" role="tablist">
           {TABS.map((name) => (
             <button key={name} role="tab" aria-selected={tab === name} data-dot={name === 'Log' && tab !== 'Log' && state.fresh.length > 0} onClick={() => open(name)}>
+              <Pixels name={name} />
               {name}
             </button>
           ))}
           <button className="shut" aria-label="Close the journal" onClick={() => setMap(false)}>
-            ×
+            <svg viewBox="0 0 10 10" aria-hidden="true">
+              <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+            </svg>
           </button>
         </div>
 
@@ -535,6 +522,9 @@ export default function GamePage() {
                 <h1>Wake the island</h1>
                 <div className="meter" role="progressbar" aria-label="Life" aria-valuenow={state.life} aria-valuemin={0} aria-valuemax={100}>
                   <span style={{ width: `${state.life}%` }} />
+                  <i className="sprout" style={{ left: `${state.life}%` }}>
+                    <b key={state.life} />
+                  </i>
                 </div>
                 <p className="count">
                   {state.life}% alive · {state.found} of {state.total} found
@@ -565,7 +555,7 @@ export default function GamePage() {
                 </span>
               </div>
               <p className="note">
-                {stamps} of {places.length + unknown.length} stamps. An isle gets its stamp when everything on it is found: its things, its secrets and its snail. A stamp means nothing. You will want all of them.
+                {stamps} of {places.length + unknown.length} stamps. One for each isle once everything on it is found. They are purely decorative, like most things worth having.
                 {unknown.length > 0 && ' The map only shows what has come up out of the sea. There is more out there. There usually is.'}
               </p>
               <ul className="ledger">
@@ -592,7 +582,6 @@ export default function GamePage() {
 
           {tab === 'Friends' && (
             <section>
-              <p className="note">A heart for every wish granted. A name takes you to see them. They do not know they are in a book. Do not tell them.</p>
               <ul className="cards">
                 {friends.map((friend) => (
                   <li key={friend.id} data-met={friend.met}>
@@ -628,7 +617,6 @@ export default function GamePage() {
               <h3>
                 Secrets, {secrets[0]} of {secrets[1]}
               </h3>
-              <p className="note">Bottles wash up on the beach with clues. A clue stays here until what it points at is found. Yes, the game leaves you notes about itself. It worries.</p>
               <ul className="stickers">
                 {finds.map((find, k) => (
                   <li key={k} data-found={!!find.name}>
@@ -710,6 +698,13 @@ export default function GamePage() {
                     )
                   })}
               </ul>
+              {/* Not much said yet: a small sleeping island, so that the page is not just empty. */}
+              {said.length < 6 && (
+                <div className="quiet">
+                  <Pixels name="quiet" />
+                  <p>That is all it has said so far. The island is thinking of something.</p>
+                </div>
+              )}
             </section>
           )}
         </div>
@@ -799,20 +794,13 @@ export default function GamePage() {
         <p className="about">
           I’m Tiago Jerónimo Silva, a senior full-stack engineer in Zürich. <a href="/">More things I’ve made</a> · <a href="/cv/">My CV</a>
         </p>
+        <p className="about">
+          <SheepLink />
+        </p>
       </div>
 
       {/* The postcard, once one has been made: the picture, and a way to keep it. */}
-      <div className="postcard" data-open={!!card} role="dialog" aria-label="A postcard of your island">
-        {card && <img src={card} alt="A postcard of your island" />}
-        <div className="buttons">
-          <a className="btn" href={card || undefined} download={`wake-the-island-${seed}.png`}>
-            Save the picture
-          </a>
-          <button className="sound" onClick={away}>
-            Close
-          </button>
-        </div>
-      </div>
+      <Postcard card={card} file={`wake-the-island-${seed}.png`} label="A postcard of your island" onClose={away} />
     </>
   )
 }

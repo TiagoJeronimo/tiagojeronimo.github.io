@@ -441,6 +441,7 @@ export class Island {
   private blooms: number[] = [] // the head of every flower: they shut at night
   private shaking = 0
   private orbit = 0 // until when the camera drifts round the finished world
+  private lifting = -1 // how much of the picture the line across the bottom takes, eased (see `update`): not yet worked out, to begin with
   private hover = -1
   private label = ['', 9, 9, 0] as [string, number, number, number] // what the cursor last rested on, where it was then, and where the camera was
   private bg = new Color(0xeadcc2)
@@ -2063,8 +2064,8 @@ export class Island {
     balloon.tip = 'A balloon. It came to see what you did'
     const drift = () => this.critters.go(balloon, centre.x + any() * span, GROUND + 5.5 + Math.random() * 2, centre.z + any() * span, 14 + Math.random() * 8)
     const up = () => [balloon.x, balloon.y + 2.4, balloon.z]
-    this.critters.go(balloon, centre.x + 2, GROUND + 6, centre.z + 1, 10, 0, () => (balloon.next = drift))
-    this.after(1.5, () => this.epilogue(up)) // it starts on its piece almost as soon as it is in sight
+    this.critters.go(balloon, centre.x + 2, GROUND + 6, centre.z + 1, 7, 0, () => (balloon.next = drift))
+    this.epilogue(up) // it starts on its piece as it comes in
     this.after(2.5, () => this.notice(up, 6)) // everybody watches it come in
     balloon.onPat = () => {
       if (this.hush) return this.stop() // in the middle of saying its piece: that will do
@@ -2098,6 +2099,7 @@ export class Island {
     }
     const land = this.tiles.flat().filter((u) => this.exists[u])
     const lines = [
+      'The whole world is awake. You did that, with one finger. Do not let it go to your head. Let it go to your head a little.',
       'Hello. Up here, in the balloon. I have been watching. That is most of what a balloon is for.',
       `You woke a whole island by knocking on it. ${this.knocks} knocks. I counted. Somebody should.`,
       'I should say it was a game. The island was never dry. Somebody drew it dry, so that you could fix it.',
@@ -2697,17 +2699,14 @@ export class Island {
     if (won && !this.over) {
       // Once: the camera pulls back to take it all in and drifts round it, and everybody jumps for joy.
       this.over = true
-      this.say('The whole world is awake. You did that, with one finger. Do not let it go to your head. Let it go to your head a little.')
       this.show = { x: this.centre.x, z: this.centre.z, zoom: 1, until: time + 14, free: true }
       this.orbit = time + 14
       for (const critter of this.critters.list) critter.pet = 1
       for (let k = 0; k < 5; k++) this.after(k * 0.16, () => note(0.3 + k * 0.17, 0.14))
-      // The balloon comes once what is still being said has been said (or after twenty seconds of that, at most): what
-      // it has to say takes the whole picture.
-      const come = (tries: number) => ((this.lines.length || this.time < this.until + 1) && tries < 34 ? this.after(0.5, () => come(tries + 1)) : this.balloon())
-      this.after(3, () => come(0))
-      // The rest of the end is said from the balloon, as soon as it is there. A game that is only being put back as it was
-      // has had its ending.
+      // The balloon comes at once, and the ending begins with it, as the island starts to turn: whatever was still being
+      // waited for goes into the log unsaid (see `epilogue`), and the first thing the ending says is the news that
+      // the whole world is awake. A game that is only being put back as it was has had its ending.
+      this.after(0.4, () => this.balloon())
       this.notes.took ||= this.notes.played
       if (this.fast) this.ended = true
     }
@@ -2854,7 +2853,11 @@ export class Island {
     const tan = Math.tan((camera.fov / 2) * (Math.PI / 180))
     const { pitch } = this
     // On a narrow screen there is room to spare above and below the land: it keeps clear of the line being said, at the bottom.
-    const words = width < 900 ? Math.min(120 / height, 0.3) : 0
+    // (On a narrow screen the land sits a little high, to leave room for the line across the bottom. While the ending rolls
+    // there is no such line, and the credits go down the middle: the island comes down to the middle with them.)
+    const room = width < 900 && !this.reel ? Math.min(120 / height, 0.3) : 0
+    this.lifting = this.lifting < 0 ? room : this.lifting + (room - this.lifting) * (1 - Math.exp(-dt * 3))
+    const words = this.lifting
     this.spare = words
     // How far off the camera has to be to take in land that reaches this far from its middle: room for the land across
     // the screen, and for it plus hills, trees and the cloud up and down.

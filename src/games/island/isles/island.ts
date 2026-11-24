@@ -1,6 +1,6 @@
 import { thump } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
-import { BARK, GROUND, NEAR, RING, STONE, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
+import { BARK, GROUND, NEAR, RING, STONE, W, WOOD, any, deal, step, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
 
 const DEEP = 4.3 // how far the old tree's roots and the well reach
@@ -24,6 +24,14 @@ function openWell(w: Island, tile: number, quiet = false) {
   w.things[w.standing[tile][0]].tip = 'The well. It takes a wish, and gives back a splash'
   w.grow(w.standing[tile][0])
   w.source(tile, DEEP, 0.8)
+}
+
+/** The river tile beside a tile of the isle's map, if there is one: where the old tree's thorns reach out. */
+function riverBeside(w: Island, tile: number) {
+  const rows = deal(island, w.seed)
+  const n = tile - (island.at[0] + island.at[1] * W)
+  const [i, j] = [n % W, Math.floor(n / W)]
+  for (const [di, dj] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (rows[j + dj]?.[i + di] === 'r') return tile + di + dj * W
 }
 
 function freeBird(w: Island, bird: Critter) {
@@ -166,9 +174,9 @@ export const island: Isle = {
     'b.pp.To..r..eee ',
     '....T....r....T.',
     '........rr..b.G.',
-    '......T.r....4..',
-    '...o..M.r..T....',
-    ' ..O....rr...W. ',
+    '......T.rO...4..',
+    '...o..M.r.......',
+    ' ..W....rr..... ',
     '  .......r..b.  ',
     '   ...T..r...   ',
     '     ....r.     ',
@@ -199,11 +207,11 @@ export const island: Isle = {
         'eeee..eee.T..r.T',
         '...eeee.....rrb.',
         '.T.......rrDr.. ',
-        '....b..rrrV.r.G.',
-        '...ppppr....r...',
+        '....b..rrrV.r...',
+        '...ppppr....rO..',
         '..opppp.T..rr...',
         'T...pp..M..r....',
-        ' .W.......rr.O. ',
+        ' .W.......rr.G. ',
         '  ....T..rr...  ',
         '   ....b.rT..   ',
         '     ....r.     ',
@@ -228,12 +236,12 @@ export const island: Isle = {
         '.....e...rr..4..',
         'eeeeee...r.....T',
         '........rrDrr.. ',
-        '.T.M..o.r..Vppb.',
+        '.T.M..o.rO.Vppb.',
         '.......rr..ppp..',
         '......Tr...ppp..',
-        '...O..rr....pp..',
+        '...W..rr....pp..',
         ' .....r..T....T ',
-        '  b...r...W...  ',
+        '  b...r.......  ',
         '   .T.r....b.   ',
         '     .r....     ',
       ],
@@ -248,7 +256,7 @@ export const island: Isle = {
     },
   ],
   beds: 'SBrDphe',
-  loose: 'OWCGMTbo',
+  loose: 'CGMTbo',
   finds: 'BVhOWCGM4',
   look: {
     dry: [0xdbc9a3, 0xd2bf97, 0xe2d2ad], green: [0x8fd16b, 0x9fd872, 0xb4de6e], tuft: 0x7fca6c, tufts: 3, soil: 0xba936d, bed: 0xd3bd92, wet: 0xb9a67e,
@@ -325,17 +333,42 @@ export const island: Isle = {
       const t = w.thing(tile, {
         auto: false,
         hits: 3,
-        tip: 'Thorns, round the old tree. They think of it as a hug',
-        clue: '[Thorns] are choking the big old tree. The thorns would call it support. Cut them off.',
+        tip: 'Thorns, round the old tree and across the river. They think of it as a hug',
+        clue: '[Thorns] are choking the big old tree, and have crept out over the river as well. The thorns would call it support. Cut them off.',
         onBreak: () => {
-          w.say('The old tree can breathe. Its roots wake the ground around it. It is very old, and somebody has only now asked how it was.', 'old tree')
+          if (river !== undefined) w.blocked[river] = 0
+          w.say(river !== undefined && w.memo.river ? 'The old tree can breathe, and the water is through the gap before the thorns have landed. Its roots wake the ground around it. It is very old, and somebody has only now asked how it was.' : 'The old tree can breathe. Its roots wake the ground around it. It is very old, and somebody has only now asked how it was.', 'old tree')
           w.things[old].tip = 'The old tree. Very old, and only now getting on with it'
           w.grow(old)
           w.source(tile, DEEP, 0.6)
         },
       })
-      const thorns = Array.from({ length: 12 }, (_, k) => w.put(t, Math.cos(k * 1.9) * 0.5, 0.25 + k * 0.2, Math.sin(k * 1.9) * 0.5, 0.36, 0.24, 0.36, k % 2 ? 0x7a5c7a : 0x6a4f6d))
-      Object.assign(w.things[t], { sound: 'snip', marks: [thorns.slice(8), thorns.slice(4, 8)] }) // stripped from the top down
+      // Round the trunk: small purple knots, with a pink berry on every fourth.
+      const thorns = Array.from({ length: 12 }, (_, k) => w.put(t, Math.cos(k * 1.9) * 0.5, 0.25 + k * 0.2, Math.sin(k * 1.9) * 0.5, k % 4 === 3 ? 0.16 : 0.28, k % 4 === 3 ? 0.16 : 0.2, k % 4 === 3 ? 0.16 : 0.28, k % 4 === 3 ? 0xf07fae : k % 2 ? 0x7a5c7a : 0x6a4f6d))
+      // The tree stands beside the river, and its thorns have crept out from the foot of it and across the water: thin
+      // canes of bramble, lying from one bank to the other at different heights and places, some not quite reaching,
+      // with a few spikes and berries. Nothing gets past until they are cut, from the top down.
+      const river = riverBeside(w, tile)
+      const upper: number[] = []
+      const lower: number[] = []
+      if (river !== undefined) {
+        const [dx, dz] = [tx(river) - x, tz(river) - z]
+        // Each cane: where across the bed and how high. All run the whole width, from bank to bank, so every one rests on
+        // the ground at both ends, and none rises above the banks.
+        const canes = [[-0.3, -0.5], [0.25, -0.34], [-0.2, -0.18], [0.15, -0.04]]
+        canes.forEach(([side, y], n) => {
+          const px = dx * 1 + side * dz * dz
+          const pz = dz * 1 + side * dx * dx
+          const [sx, sz] = [Math.abs(dx) + 0.11 * (1 - Math.abs(dx)), Math.abs(dz) + 0.11 * (1 - Math.abs(dz))]
+          const cane = w.put(t, px, y, pz, sx, 0.11, sz, n % 2 ? 0x7a5c7a : 0x6a4f6d)
+          const spike = n % 2 === 0 ? w.put(t, px, y + 0.08, pz, 0.05, 0.05, 0.05, 0xd9c4e0) : -1
+          const berry = n > 1 ? w.put(t, px + dx * 0.15, y + 0.105, pz + dz * 0.15, 0.1, 0.1, 0.1, 0xf07fae) : -1
+          const layer = y >= -0.1 ? upper : y >= -0.35 ? lower : undefined
+          layer?.push(...[cane, spike, berry].filter((cube) => cube >= 0))
+        })
+        w.blocked[river] = 1
+      }
+      Object.assign(w.things[t], { sound: 'snip', marks: [[...thorns.slice(8), ...upper], [...thorns.slice(4, 8), ...lower]] }) // stripped from the top down
       w.things[old].guard = t
     } else if (c === 'W') {
       // With water in it, it is a wishing well.

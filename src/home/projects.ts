@@ -84,7 +84,7 @@ const made: Project[] = [
     slug: 'storm-the-castle',
     title: 'Storm the castle',
     kind: 'games',
-    when: '2021–2026',
+    when: '2021–2025',
     blurb: 'Keep both sides of a tiny war supplied. Nobody’s winning, but business is good.',
     body: [
       'Nobody knows yet what this unfinished game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. There is probably something to learn from this, but somebody needs bread. It is probably a metaphor for something, but I do not know what.',

@@ -1,9 +1,11 @@
 import { type ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
-import { Back, Hints, Sound } from '../hints.tsx'
+import { Back, Gear, Hints, Sound } from '../hints.tsx'
 import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
+import { usePostcard, type Shot } from '../postcard.ts'
+import { Postcard } from '../Postcard.tsx'
 import { useStage } from '../useStage.ts'
 import { Castle, DAY, SIGHT, type Item, type Want } from './Castle.ts'
 import posthog from '../../posthog.ts'
@@ -45,12 +47,12 @@ function castleTracking() {
  * something of the land is one more thing for the helper to see to; on open ground, somewhere for him to go.
  * @param tier the step the picture is at (see `../Picture.tsx`): the world draws its shadows to match
  */
-function Stage({ tier, onKnown, each, onVisit }: { tier: number; onKnown: (known: string) => void; each: Each; onVisit: (visit: GameVisit | null) => void }) {
+function Stage({ tier, onKnown, each, onVisit, onShot }: { tier: number; onKnown: (known: string) => void; each: Each; onVisit: (visit: GameVisit | null) => void; onShot: (take: Shot | null) => void }) {
   const world = useMemo(() => new Castle(), [])
   const tracking = useMemo(() => castleTracking(), [])
   // (The picture sits a little below the middle of the window, `lift`: the keep is tall, and at the back. `yaw`: from
   // the south-west, to see the gate, the winch on the west wall, and the farm and the camp in front.)
-  useStage(world, tier, { name: 'castle', land: world.solid.mesh, span: SIGHT, onKnown, lift: -70, yaw: -0.55 }, (_view, camera, width, height) => {
+  useStage(world, tier, { name: 'castle', land: world.solid.mesh, span: SIGHT, onKnown, lift: -70, yaw: -0.55, onShot }, (_view, camera, width, height) => {
     tracking.report(world)
     each(world, camera, width, height)
   })
@@ -122,6 +124,7 @@ export default function CastlePage() {
   useEffect(() => keep('castle/known', known), [known])
   const [round, setRound] = useState(0) // a new world for each: what is left of the last is thrown away
   const world = useRef<Castle>(null)
+  const snap = usePostcard('storm-the-castle.png', 'A postcard of the castle')
   const visit = useRef<GameVisit | null>(null)
   const onVisit = useCallback((session: GameVisit | null) => { visit.current = session }, [])
   const bubbles = useRef<Record<number, HTMLElement | null>>({})
@@ -182,7 +185,7 @@ export default function CastlePage() {
   return (
     <main className="castle">
       {/* The same picture as the island's: its finish, and its lighter steps for a machine that cannot keep up. */}
-      <Picture>{(tier) => <Stage key={round} tier={tier} onKnown={learn} each={each} onVisit={onVisit} />}</Picture>
+      <Picture>{(tier) => <Stage key={round} tier={tier} onKnown={learn} each={each} onVisit={onVisit} onShot={snap.onShot} />}</Picture>
       {/* The three ways of getting about, as on the island: each goes the first time it is used. */}
       <Hints known={known} />
       {/* The day: the sun goes along it to the evening, and waits there until the day is decided. */}
@@ -230,10 +233,19 @@ export default function CastlePage() {
       <header className="top">
         <Back />
         <Sound />
-        <button className="sound" onClick={() => restart('manual')} title="The same morning again, from the start">
-          Start over
-        </button>
+        <Gear act="Send the helper">
+          {/* The same two buttons as the island's sheet: the day again from the start, and a picture of it as it is. */}
+          <div className="pair">
+            <button className="sound" onClick={() => restart('manual')} title="The same morning again, from the start">
+              New game
+            </button>
+            <button className="sound" onClick={() => snap.make('Storm the castle', `${Math.min(4, world.current?.love ?? 0)} of 4 gifts delivered`, world.current?.over === 'wedding' ? 'WED' : undefined)} title="A picture of the castle as it looks right now, on a card, to keep or to send to somebody.">
+              Postcard
+            </button>
+          </div>
+        </Gear>
       </header>
+      <Postcard {...snap.props} scrim />
     </main>
   )
 }

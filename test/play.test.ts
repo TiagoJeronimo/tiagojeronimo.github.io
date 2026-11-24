@@ -199,7 +199,7 @@ function play(seed: number) {
   const film = game as unknown as { reel?: { lines: string[]; seconds: number }; critters: { list: { kind: string; onPat?: () => void }[] } }
   for (let k = 0; k < 60 && !film.reel && !game.ended; k++) wait(1)
   if (film.reel) {
-    assert.ok(film.reel.lines.length === 10 && film.reel.seconds > 40 && film.reel.seconds < 90, say(`an odd ending: ${film.reel.lines.length} lines in ${film.reel.seconds} seconds`))
+    assert.ok(film.reel.lines.length === 11 && film.reel.seconds > 40 && film.reel.seconds < 100, say(`an odd ending: ${film.reel.lines.length} lines in ${film.reel.seconds} seconds`))
     game.next()
     assert.ok(game.ended && !film.reel, say('the space bar did not cut the ending short'))
     endings++
@@ -560,6 +560,9 @@ function watch(seed: number, then?: (game: Game, seen: () => number[]) => void) 
   run(3)
   const before = seen()
   for (let k = 0; k < 3; k++) game.strike(boulder)
+  // (The thorns of the old tree are across the river: they are cut at once, so that the water goes the whole way.)
+  const thorns = game.things.findIndex((thing) => thing.tip?.startsWith('Thorns'))
+  for (let k = 0; k < 3; k++) game.strike(thorns)
   let widest = 0
   for (let k = 0; k < 20; k++) {
     run(0.25) // five seconds: the river is still on its way, and the beach has not come up yet

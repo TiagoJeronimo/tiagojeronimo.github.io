@@ -45,6 +45,32 @@ body {
   background: #f0719a;
   box-shadow: 0 0 0 2px var(--bg);
 }
+/* It pulses, a ring going out from it: for whoever is looking elsewhere. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-dot='true']::after {
+    animation: dot-pulse 1.8s ease-out infinite;
+  }
+}
+@keyframes dot-pulse {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--bg),
+      0 0 0 2px rgb(240 113 154 / 0.7);
+    scale: 1;
+  }
+  60% {
+    box-shadow:
+      0 0 0 2px var(--bg),
+      0 0 0 10px rgb(240 113 154 / 0);
+    scale: 1.15;
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px var(--bg),
+      0 0 0 10px rgb(240 113 154 / 0);
+    scale: 1;
+  }
+}
 .tabs button {
   position: relative;
 }
@@ -54,30 +80,82 @@ body {
 }
 .tally h1 {
   margin: 0 0 0.5em;
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: clamp(1.25rem, 2.4vw, 1.5rem);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.03em;
 }
 .meter {
-  height: 14px;
-  border-radius: 7px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  position: relative;
+  height: 12px;
+  --cubes: repeating-linear-gradient(90deg, #000 0 9px, transparent 9px 12px);
+}
+/* The bar is a row of little cubes: a faint one for each that is not yet awake, a green one for each that is, lit from above. */
+.meter::before,
+.meter span {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  -webkit-mask-image: var(--cubes);
+  mask-image: var(--cubes);
+}
+.meter::before {
+  width: 100%;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .meter span {
   display: block;
-  height: 100%;
-  border-radius: 7px;
-  background: #7fca6c;
+  background: #8fd16b;
+  box-shadow: inset 0 4px 0 rgb(255 255 255 / 0.35);
   transition: width 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
 }
+/* At the end of the green, a sapling: it goes along as the island wakes. */
+.meter .sprout {
+  position: absolute;
+  bottom: 100%;
+  width: 16px;
+  height: 16px;
+  translate: -50% 3px;
+  transition: left 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+  transform-origin: 50% 100%;
+}
+/* The drawing is inside, and is made anew at every step of progress, which starts its growing again. */
+.meter .sprout b {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Crect x='3' y='4' width='2' height='4' fill='%238a6d58'/%3E%3Crect x='1' y='2' width='3' height='2' fill='%238fd16b'/%3E%3Crect x='4' y='1' width='3' height='3' fill='%236fbf73'/%3E%3C/svg%3E") center / contain no-repeat;
+  transform-origin: 50% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .meter .sprout b {
+    animation: sprout-grow 0.9s cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+  .meter .sprout {
+    animation: sway 3s ease-in-out infinite;
+  }
+}
+@keyframes sprout-grow {
+  from {
+    scale: 0.35 0.1;
+  }
+  60% {
+    scale: 1.15 1.3;
+  }
+}
+@keyframes sway {
+  50% {
+    rotate: 6deg;
+  }
+}
 .count {
-  margin: 0.5em 0 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  margin: 0.6em 0 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  opacity: 0.75;
 }
 /* Small print under it. */
 .keys {
@@ -195,6 +273,10 @@ body {
   font-size: 0.8rem;
   opacity: 0.8;
 }
+/* Behind the journal, a soft veil: the world is still there, a little further off. */
+.scrim.veil {
+  background: rgb(60 50 80 / 0.16);
+}
 /* While the sheet is open, the rest of the page is covered by nothing you can see: a click on it shuts the sheet. */
 .scrim {
   position: fixed;
@@ -252,13 +334,85 @@ body {
 }
 /* The map: the isles laid out as they lie, and under them the friends and what has been found. */
 .atlas {
-  top: 64px;
-  right: clamp(10px, 3.5vw, 52px);
+  top: 50%;
+  left: 50%;
   display: flex;
   flex-direction: column;
-  width: min(46rem, calc(100vw - 2 * clamp(10px, 3.5vw, 52px))); /* as far from the left edge as from the right, at the least */
-  height: min(48rem, calc(100vh - 84px));
-  overflow: hidden;
+  width: min(36rem, calc(100vw - 24px));
+  height: min(44rem, calc(100dvh - 32px));
+  translate: -50% -50%;
+  /* Paper: warm, with a faint grain and the edge of a second sheet under it. Nothing is clipped here, so that the
+     tape can go on out over the edge; what scrolls inside is clipped by its own box (`.page`). */
+  border-radius: 22px 26px 24px 20px;
+  background:
+    radial-gradient(circle at 20% 15%, rgb(255 255 255 / 0.7), transparent 55%),
+    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
+    #fbf5e6;
+  backdrop-filter: none;
+  box-shadow:
+    3px 4px 0 -1px #f1e8d2,
+    5px 7px 0 -2px #e8ddc3,
+    0 18px 50px rgb(40 30 60 / 0.22);
+  rotate: -0.4deg; /* a little askew, like the postcard */
+}
+/* It is a sheet of paper, held up by tape: a strip over each top corner, laid across it the way tape is, pink and cream. */
+.atlas::before,
+.atlas::after,
+.chart::before,
+.chart::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  width: 78px;
+  height: 22px;
+  background: repeating-linear-gradient(45deg, #ffd9e6 0 8px, #fff1c9 8px 16px);
+  opacity: 0.88;
+  box-shadow: 0 1px 3px rgb(40 30 60 / 0.12);
+  pointer-events: none;
+}
+.atlas::before {
+  top: -6px;
+  left: -30px;
+  rotate: -38deg;
+}
+.atlas::after {
+  top: -6px;
+  right: -30px;
+  rotate: 38deg;
+  background: repeating-linear-gradient(45deg, #d6ecff 0 8px, #fff1c9 8px 16px);
+}
+/* The chart is a picture stuck down at two corners. */
+.chart::before {
+  top: -8px;
+  left: -16px;
+  rotate: -32deg;
+  width: 56px;
+  height: 18px;
+}
+.chart::after {
+  bottom: -8px;
+  right: -16px;
+  rotate: -32deg;
+  width: 56px;
+  height: 18px;
+  background: repeating-linear-gradient(45deg, #d6ecff 0 8px, #fff1c9 8px 16px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atlas[data-open='true'] {
+    animation: journal-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+}
+@keyframes journal-pop {
+  from {
+    scale: 0.9;
+  }
+  60% {
+    scale: 1.02;
+  }
+}
+.tabs .pixels {
+  width: 14px;
+  height: 14px;
 }
 /* What a tab holds scrolls; the tabs themselves stay where they are. The bar it scrolls by is a thin, faint one with
    nothing behind it, and has its place kept whether it is needed or not, so that no tab is wider than another. */
@@ -270,7 +424,8 @@ body {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ink) 26%, transparent) transparent;
   scrollbar-gutter: stable;
-  padding: 2px 20px 20px;
+  padding: 4px 26px 26px;
+  border-radius: 0 0 24px 24px;
 }
 .atlas h2 {
   margin: 0 0 12px;
@@ -291,13 +446,20 @@ body {
   list-style: none;
 }
 .atlas .shut {
+  position: absolute;
+  top: 24px; /* the tabs' padding: level with them */
+  right: 16px;
+  display: grid;
+  place-items: center;
   width: 1.9rem;
   height: 1.9rem;
-  margin-left: auto;
+  margin: 0;
   padding: 0;
   border-radius: 50%;
-  font-size: 1.1rem;
-  line-height: 1;
+}
+.atlas .shut svg {
+  width: 0.7rem;
+  height: 0.7rem;
 }
 .atlas .note {
   margin: 0 0 6px;
@@ -323,25 +485,32 @@ body {
   image-rendering: pixelated;
 }
 .tabs {
+  position: relative;
   display: flex;
   flex: none;
   gap: 6px;
   align-items: center;
-  padding: 14px 18px 12px;
+  justify-content: center;
+  padding: 24px 56px 12px; /* room at both ends for the little cross, so that the tabs are in the middle */
 }
 .tabs button {
-  padding: 5px 13px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 14px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: inherit;
   font: inherit;
   font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
 }
+/* The tab you are on is a soft pink with a small lip, as the buttons of the sheep's card; not a dark block. */
 .tabs button[aria-selected='true'] {
-  background: var(--ink);
-  color: var(--bg);
+  background: #ffd9e6;
+  color: #3f3b4e;
+  box-shadow: 0 2px 0 rgb(214 120 150 / 0.4);
 }
 /* The chart: the world from above, a pixel a tile, with sea all round it, a frame, a graticule and a compass, like a map. */
 .chart {
@@ -765,45 +934,6 @@ button.key {
   }
 }
 
-/* The postcard: the picture, as large as fits, and under it a way to keep it. */
-.postcard {
-  position: fixed;
-  z-index: 4;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  gap: 14px;
-  justify-items: center;
-  width: min(46rem, calc(100vw - 24px));
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.25s,
-    visibility 0s 0.25s;
-}
-.postcard[data-open='true'] {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.25s;
-}
-.postcard img {
-  display: block;
-  width: 100%;
-  border-radius: 10px;
-  box-shadow: 0 14px 40px rgb(40 30 60 / 0.28);
-  rotate: -1.2deg;
-}
-.postcard .buttons {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.postcard .sound {
-  position: static;
-  margin: 0;
-}
-
 /* The card at the end. It comes up once the ending has been said: all but solid, so that it is read without the island
    showing through, with everybody who is up along its top. Never taller than the window: it scrolls in itself if it must. */
 .end {
@@ -962,4 +1092,96 @@ button.key {
     opacity: 0;
     transform: translate(calc(-50% + var(--drift)), -300%) scale(1) rotate(var(--tilt));
   }
+}
+
+/* The friends come in one after another, each with a little hop, and the hearts that are full pop as they arrive;
+   the one under the cursor hops again. */
+@media (prefers-reduced-motion: no-preference) {
+  .cards li {
+    animation: card-in 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  }
+  .cards .hearts {
+    color: #f0719a;
+    animation: heart-pop 0.5s 0.35s cubic-bezier(0.3, 1.8, 0.5, 1) both;
+  }
+  .cards li[data-met='true']:hover canvas {
+    animation: card-hop 0.4s;
+  }
+  .cards li:nth-child(2) {
+    animation-delay: 0.04s;
+  }
+  .cards li:nth-child(3) {
+    animation-delay: 0.08s;
+  }
+  .cards li:nth-child(4) {
+    animation-delay: 0.12s;
+  }
+  .cards li:nth-child(5) {
+    animation-delay: 0.16s;
+  }
+  .cards li:nth-child(6) {
+    animation-delay: 0.20s;
+  }
+  .cards li:nth-child(7) {
+    animation-delay: 0.24s;
+  }
+  .cards li:nth-child(8) {
+    animation-delay: 0.28s;
+  }
+  .cards li:nth-child(9) {
+    animation-delay: 0.32s;
+  }
+  .cards li:nth-child(10) {
+    animation-delay: 0.36s;
+  }
+  .cards li:nth-child(11) {
+    animation-delay: 0.40s;
+  }
+  .cards li:nth-child(12) {
+    animation-delay: 0.44s;
+  }
+  .cards li:nth-child(13) {
+    animation-delay: 0.48s;
+  }
+  .cards li:nth-child(14) {
+    animation-delay: 0.52s;
+  }
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.94;
+  }
+}
+@keyframes heart-pop {
+  from {
+    scale: 0.3;
+    opacity: 0;
+  }
+  60% {
+    scale: 1.4;
+  }
+}
+@keyframes card-hop {
+  40% {
+    translate: 0 -7px;
+  }
+}
+/* A page that has little on it says so, with a small sleeping island. */
+.quiet {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 28px 0 8px;
+  text-align: center;
+}
+.quiet .pixels {
+  width: 84px;
+  height: 49px;
+}
+.quiet p {
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.65;
 }

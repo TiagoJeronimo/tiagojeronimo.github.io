@@ -128,12 +128,37 @@
   font: inherit;
   opacity: 0.6;
 }
+/* A line that has been done gets a green tick and a tint, stays a moment, and then goes. */
+.hints li::before {
+  content: '✓';
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  vertical-align: bottom;
+  color: #3fa05a;
+  font-weight: 800;
+  transition:
+    width 0.25s,
+    margin 0.25s;
+}
 .hints li[data-done='true'] {
   max-height: 0;
   margin-bottom: 0;
   padding-block: 0;
   opacity: 0;
   translate: -8px 0;
+  background: color-mix(in srgb, #bfe8c4 80%, transparent);
+  transition:
+    background 0.25s,
+    opacity 0.5s 1s,
+    translate 0.5s 1s,
+    max-height 0.4s 1.5s,
+    padding 0.4s 1.5s,
+    margin 0.4s 1.5s;
+}
+.hints li[data-done='true']::before {
+  width: 1em;
+  margin-right: 0.3em;
 }
 @keyframes hints {
   from {
@@ -146,4 +171,208 @@
     top: 46px;
     left: 14px;
   }
+}
+
+/* The gear's sheet (`Gear` in `hints.tsx`): the island's own, in the island's own words and colours. */
+.gear {
+  position: relative;
+  z-index: 2; /* over its own scrim, or the buttons on the sheet could not be pressed */
+  display: flex;
+  margin-left: 8px;
+}
+.gear .sheet {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(28rem, calc(100vw - 40px));
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(12px);
+  font-size: 0.82rem;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s,
+    visibility 0s 0.2s;
+}
+.gear .sheet[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s;
+}
+.gear table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.gear th,
+.gear td {
+  padding: 4px 16px 4px 0;
+  vertical-align: top;
+}
+.gear th:last-child,
+.gear td:last-child {
+  padding-right: 0;
+}
+.gear tbody th {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.gear tbody td {
+  opacity: 0.8;
+}
+.gear thead th {
+  padding-top: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.6;
+}
+.gear h3,
+.gear p {
+  margin: 0;
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+.gear h3 {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gear h3:not(:first-child) {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.gear .about {
+  font-size: inherit;
+  opacity: 1;
+}
+.gear a {
+  color: inherit;
+  font-weight: 700;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.gear-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* The postcard: the picture, as large as fits, and under it a way to keep it. */
+.postcard {
+  position: fixed;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(46rem, calc(100vw - 24px));
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.25s,
+    visibility 0s 0.25s;
+}
+.postcard[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s;
+}
+.postcard img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgb(40 30 60 / 0.28);
+  rotate: -1.2deg;
+}
+.postcard .buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.postcard .sound {
+  position: static;
+  margin: 0;
+}
+
+/* The way to buying a sheep: a small pink card, as at the foot of the front page. */
+.sheep-link {
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  margin: 14px 0 6px;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: #f5d6d0;
+  box-shadow: 0 3px 0 #ebb4bd;
+  color: #3f3b4e;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+}
+.sheep-link .sheep-field {
+  display: flex;
+  gap: 18px;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheep-link .sheep-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.sheep-link .grass {
+  flex: none;
+  width: 30px;
+  height: 17.5px;
+}
+.sheep-link i {
+  display: block;
+  line-height: 0;
+}
+.sheep-link i svg {
+  width: 48px;
+  height: 36px;
+  shape-rendering: crispEdges;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sheep-link i {
+    animation: sheep-hop 3.4s ease-in-out infinite;
+  }
+}
+@keyframes sheep-hop {
+  0%,
+  22%,
+  100% {
+    translate: 0 0;
+  }
+  8% {
+    translate: 0 -6px;
+  }
+  15% {
+    translate: 0 0;
+  }
+}
+/* The "Game" buttons on the sheet, two side by side and the same size: dark, with light words. */
+.gear .pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.top .gear .pair .sound {
+  margin: 0;
+  padding: 7px 10px;
+  background: var(--ink);
+  color: var(--bg);
+  backdrop-filter: none;
 }

@@ -325,7 +325,7 @@ for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own t
 }
 
 // The door in the mountain is no sheep: its cubes are the ground's and say so. It is locked: a knock rattles it and
-// that is all, however often. On it is L (fifty), of two gold boxes that stand proud of the planks; no box of the door
+// that is all, however often. On it is L (fifty), of two gold boxes that stand proud of the planks, as the knob and the lock do; no box of the door
 // is in another, and all of it stands on its step.
 {
   const field = new Sheep(CROWD)
@@ -334,14 +334,16 @@ for (const what in did) assert.ok(did[what] > 0 || what === 'gaze' /* (its own t
     const [x, y, z, wide, h, d] = field.ground.at(c)
     return [x - wide / 2, x + wide / 2, y - h / 2, y + h / 2, z - d / 2, z + d / 2]
   }
-  assert.ok(door.cubes.length === 7 && door.cubes.every((c) => field.portal(c)) && !field.portal(0) && field.pick(door.cubes[0]) !== DOOR, 'the door\'s cubes are the door\'s, and nobody else\'s')
+  assert.ok(door.cubes.length === 11 && door.cubes.every((c) => field.portal(c)) && !field.portal(0) && field.pick(door.cubes[0]) !== DOOR, 'the door\'s cubes are the door\'s, and nobody else\'s')
   for (let knocks = 0; knocks < 3; knocks++) {
     field.glad(DOOR)
     for (let i = 0; i < 60; i++) field.update(0.05)
     assert.ok(door.cubes.every((c) => field.ground.on(c)) && field.latch() === 'a locked door', 'a knock rattles the door, and it stays shut')
   }
-  const numerals = door.cubes.slice(5)
-  const planks = box(door.cubes[0])
+  const numerals = door.cubes.slice(9)
+  // (The door is three planks side by side, and a stepped top of three more: the first three give its width and its face.)
+  const [first, , last] = [0, 1, 2].map((k) => box(door.cubes[k]))
+  const planks = [first[0], last[1], first[2], first[3], first[4], first[5]]
   assert.ok(numerals.length === 2 && numerals.every((c) => box(c)[4] >= planks[5] - 1e-4 && box(c)[0] > planks[0] && box(c)[1] < planks[1]), 'the L stands on the planks, proud of them')
   door.cubes.forEach((a, i) => door.cubes.slice(i + 1).forEach((b) => assert.ok(clear(box(a).map((v, k) => v + (k & 1 ? -1e-4 : 1e-4)), box(b)), 'two boxes of the door in each other'))) // (to a hair: they touch)
   for (const c of door.cubes) assert.ok(box(c)[2] >= 2 - 0.001 && field.height(field.ground.at(c)[0], field.ground.at(c)[2]) === 2, 'the door stands on its step')
