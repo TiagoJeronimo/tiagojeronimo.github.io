@@ -34,6 +34,12 @@ function riverBeside(w: Island, tile: number) {
   for (const [di, dj] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (rows[j + dj]?.[i + di] === 'r') return tile + di + dj * W
 }
 
+/** What the map has at a place so many tiles from this one (east and south positive), once the loose things are dealt. */
+function charBeside(w: Island, tile: number, di: number, dj: number) {
+  const n = tile - (island.at[0] + island.at[1] * W)
+  return deal(island, w.seed)[Math.floor(n / W) + dj]?.[(n % W) + di]
+}
+
 function freeBird(w: Island, bird: Critter) {
   const { critters } = w
   const [x, z] = w.middle('meadow') // out at sea, where the meadow is waiting
@@ -343,32 +349,61 @@ export const island: Isle = {
           w.source(tile, DEEP, 0.6)
         },
       })
-      // Round the trunk: small purple knots, with a pink berry on every fourth.
-      const thorns = Array.from({ length: 12 }, (_, k) => w.put(t, Math.cos(k * 1.9) * 0.5, 0.25 + k * 0.2, Math.sin(k * 1.9) * 0.5, k % 4 === 3 ? 0.16 : 0.28, k % 4 === 3 ? 0.16 : 0.2, k % 4 === 3 ? 0.16 : 0.28, k % 4 === 3 ? 0xf07fae : k % 2 ? 0x7a5c7a : 0x6a4f6d))
-      // The tree stands beside the river, and its thorns have crept out from the foot of it and across the water: thin
-      // canes of bramble, lying from one bank to the other at different heights and places, some not quite reaching,
-      // with a few spikes and berries. Nothing gets past until they are cut, from the top down.
+      const DARK = 0x6a4f6d
+      const MID = 0x7a5c7a
+      const BERRY = 0xf07fae
+      // Round the trunk: a dozen purple knots and a pink berry or two, scattered: each has its face of the trunk, how far
+      // along that face it sits, its height and its size, none of them in step with the next. Its inner face lies on
+      // the wood (the trunk is a square, 0.6 wide), so none is sunk in and none hangs in the air; and it stays short of
+      // the corners, and clear of the two bare branches. From the ground up, for the knocks strip them from the top.
+      const KNOTS = [[0, -0.1, 0.26, 0.26], [2, 0.12, 0.38, 0.22], [1, -0.15, 0.62, 0.28], [3, 0.05, 0.8, 0.16], [0, 0.14, 1.02, 0.24], [2, -0.14, 1.1, 0.28], [3, -0.17, 1.38, 0.22], [1, 0.1, 1.5, 0.26], [2, 0.05, 1.72, 0.2], [0, -0.15, 2.05, 0.24], [3, 0.12, 2, 0.28], [1, -0.18, 2.3, 0.16]]
+      const thorns = KNOTS.map(([face, along, y, size], k) => {
+        const [c, s] = [[1, 0, -1, 0][face], [0, 1, 0, -1][face]]
+        const berry = size < 0.2
+        return w.put(t, c * (0.3 + size / 2) - s * along, y, s * (0.3 + size / 2) + c * along, size, berry ? size : size * 0.75, size, berry ? BERRY : k % 2 ? MID : DARK)
+      })
+      // The tree stands beside the river, and three vines have gone on from the foot of it and across the bed, bank to
+      // bank, at three heights: nothing gets past until they are cut, from the top down.
       const river = riverBeside(w, tile)
-      const upper: number[] = []
-      const lower: number[] = []
+      const layers: number[][] = [[], [], []] // what goes at the first knock, at the second, and at the last
       if (river !== undefined) {
         const [dx, dz] = [tx(river) - x, tz(river) - z]
-        // Each cane: where across the bed and how high. All run the whole width, from bank to bank, so every one rests on
-        // the ground at both ends, and none rises above the banks.
-        const canes = [[-0.3, -0.5], [0.25, -0.34], [-0.2, -0.18], [0.15, -0.04]]
-        canes.forEach(([side, y], n) => {
-          const px = dx * 1 + side * dz * dz
-          const pz = dz * 1 + side * dx * dx
-          const [sx, sz] = [Math.abs(dx) + 0.11 * (1 - Math.abs(dx)), Math.abs(dz) + 0.11 * (1 - Math.abs(dz))]
-          const cane = w.put(t, px, y, pz, sx, 0.11, sz, n % 2 ? 0x7a5c7a : 0x6a4f6d)
-          const spike = n % 2 === 0 ? w.put(t, px, y + 0.08, pz, 0.05, 0.05, 0.05, 0xd9c4e0) : -1
-          const berry = n > 1 ? w.put(t, px + dx * 0.15, y + 0.105, pz + dz * 0.15, 0.1, 0.1, 0.1, 0xf07fae) : -1
-          const layer = y >= -0.1 ? upper : y >= -0.35 ? lower : undefined
-          layer?.push(...[cane, spike, berry].filter((cube) => cube >= 0))
-        })
+        const [ax, az] = [Math.abs(dx), Math.abs(dz)]
+        // A box by how far out from the tree it is, how high, and how far to one side: so it is the same vine whichever
+        // way the river lies.
+        const box = (out: number, y: number, side: number, long: number, high: number, wide: number, colour: number) =>
+          w.put(t, dx * out + az * side, y, dz * out + ax * side, ax * long + az * wide, high, az * long + ax * wide, colour)
+        const T = 0.14
+        // A vine is a walk: from a place, two or three moves, each along one axis (0 out, 1 up, 2 sideways). Every move
+        // is one chunky box that ends by filling the corner the next one turns at, so the boxes meet and none is
+        // inside another. It may have a berry, on the middle of its first box.
+        const vine = (layer: number[], from: number[], moves: number[][], berry = false) => {
+          const at = [...from]
+          moves.forEach(([axis, d], n) => {
+            const sign = Math.sign(d)
+            const a = at[axis] + (n ? sign : -sign) * (T / 2)
+            const b = (at[axis] += d) + sign * (T / 2)
+            const mid = [...at]
+            mid[axis] = (a + b) / 2
+            const size = [T, T, T]
+            size[axis] = Math.abs(b - a)
+            layer.push(box(mid[0], mid[1], mid[2], size[0], size[1], size[2], n % 2 ? MID : DARK))
+            if (berry && !n) layer.push(box(mid[0], mid[1] + T / 2 + 0.05, mid[2], 0.1, 0.1, 0.1, BERRY))
+          })
+        }
+        // Along the floor of the bed. Both ends of each go on into the banks.
+        vine(layers[2], [0.4, -0.53, -0.3], [[0, 0.5], [2, 0.3], [0, 0.7]], true)
+        // Half way up.
+        vine(layers[1], [0.4, -0.32, 0.32], [[0, 0.75], [2, -0.3], [0, 0.45]], true)
+        // From the foot of the trunk, over the edge, and across just under the top of the banks.
+        vine(layers[0], [0.37, 0.07, -0.1], [[0, 0.28], [1, -0.19], [0, 0.95]])
+        // A stub of one comes up out of the near bank and leans over the edge; and where the far bank is bare ground,
+        // another comes up through that.
+        vine(layers[0], [0.4, -0.07, 0.4], [[1, 0.2], [0, 0.2]])
+        if (charBeside(w, tile, 2 * dx, 2 * dz) === '.') vine(layers[0], [1.75, -0.07, 0.25], [[1, 0.22], [0, 0.2]])
         w.blocked[river] = 1
       }
-      Object.assign(w.things[t], { sound: 'snip', marks: [[...thorns.slice(8), ...upper], [...thorns.slice(4, 8), ...lower]] }) // stripped from the top down
+      Object.assign(w.things[t], { sound: 'snip', marks: [[...thorns.slice(8), ...layers[0]], [...thorns.slice(4, 8), ...layers[1]]] }) // stripped from the top down
       w.things[old].guard = t
     } else if (c === 'W') {
       // With water in it, it is a wishing well.

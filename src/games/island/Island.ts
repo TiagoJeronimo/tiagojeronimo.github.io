@@ -2444,10 +2444,12 @@ export class Island {
   /** A thing falls to pieces. */
   burst(t: number) {
     const thing = this.things[t]
-    for (const cube of thing.cubes) {
-      this.rubble(cube, thing.tile, 3)
+    // A thing of many cubes (thorns, a dam) throws up a few pieces, not a cloud: about ten bits of rubble in all.
+    const every = Math.ceil(thing.cubes.length / 6)
+    thing.cubes.forEach((cube, k) => {
+      if (k % every === 0) this.rubble(cube, thing.tile, 2)
       this.solid.hide(cube)
-    }
+    })
     thing.cubes = []
     thing.spent = true
   }
@@ -2544,13 +2546,13 @@ export class Island {
     const n = (thing.dented = (thing.dented ?? 0) + 1) - 1
     const { solid } = this
     if (thing.marks) {
-      for (const cube of thing.marks[n] ?? []) {
+      ;(thing.marks[n] ?? []).forEach((cube, k) => {
         if (!solid.on(cube)) solid.show(cube)
         else {
-          this.rubble(cube, thing.tile, 4)
+          if (k < 3) this.rubble(cube, thing.tile, 3) // (only the first few throw anything: a long mark is not a cloud)
           solid.hide(cube)
         }
-      }
+      })
       return
     }
     const dents = (thing.dents ??= [])
