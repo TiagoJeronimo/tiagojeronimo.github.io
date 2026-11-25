@@ -182,8 +182,15 @@ body {
   width: min(30rem, calc(100vw - 40px)); /* wide enough for the whole of the sheep's line on one */
   padding: 16px 18px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(12px);
+  /* Paper, as the journal and the card at the end are, and not frosted glass: the picture behind it is busy, and words on
+     it were hard to read. */
+  background:
+    radial-gradient(circle at 20% 8%, rgb(255 255 255 / 0.7), transparent 55%),
+    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
+    #fbf5e6;
+  box-shadow:
+    3px 4px 0 -1px #f1e8d2,
+    0 14px 40px rgb(40 30 60 / 0.22);
   font-size: 0.82rem;
   opacity: 0;
   visibility: hidden;
@@ -243,8 +250,8 @@ body {
 .menu h3,
 .menu p {
   margin: 0;
-  font-size: 0.7rem;
-  opacity: 0.6;
+  font-size: 0.72rem;
+  opacity: 0.75;
 }
 .menu h3 {
   font-weight: 700;
@@ -283,6 +290,10 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1;
+}
+/* The one behind the card at the end covers the bar as well: the card is over it, in the same layer and later. */
+.scrim.end-scrim {
+  z-index: 3;
 }
 
 /* What the cursor is resting on. */
@@ -1016,6 +1027,19 @@ button.key {
 .end .stats div:nth-child(4) {
   background: #e0f4d6;
 }
+/* The three under them: the middle one, the time, is as wide as two. */
+.end .stats.tally {
+  grid-template-columns: 1fr 2fr 1fr;
+}
+.end .stats.tally div:nth-child(1) {
+  background: #ece3ff;
+}
+.end .stats.tally div:nth-child(2) {
+  background: #ffe6d6;
+}
+.end .stats.tally div:nth-child(3) {
+  background: #d9f3ec;
+}
 .end .stats dt {
   font-size: 0.66rem;
   font-weight: 700;
@@ -1082,16 +1106,6 @@ button.key {
   flex-wrap: wrap;
   gap: 10px 8px;
   justify-content: center;
-}
-/* The two big buttons on a line of their own, the two small ones under them: a break in the row between the two kinds. */
-.end .buttons::after {
-  content: '';
-  flex-basis: 100%;
-  order: 1;
-  margin-top: -10px;
-}
-.end .buttons .sound {
-  order: 2;
 }
 @media (max-width: 420px) {
   .end-body {

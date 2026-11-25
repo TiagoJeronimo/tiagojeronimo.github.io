@@ -168,8 +168,10 @@ export interface GameState {
   finds: Find[]
   /** The same for the combos, without pictures. */
   pairs: { name?: string; hint?: string }[]
-  /** A few true things about how this island was played, for the card at the end. */
+  /** A few more true things about how this island was played, for the card at the end. */
   notes: string[]
+  /** Knocks on nothing, minutes it took, and tips asked for: the three tiles under the four at the end. */
+  tally: [number, number, number]
   /** What is being said out loud at the end, a line at a time; empty when nothing is. */
   /** The ending, while it rolls up over the picture like the credits of a film: what it says, a paragraph each. */
   credits: string[]
@@ -804,20 +806,21 @@ export class Island {
   private called(id: string) {
     return `the ${(this.friends.find((f) => f.id === id)?.name ?? id).replace(/^The /, '').toLowerCase()}`
   }
-  /** A few true things about how this island was played, for the card at the end: no more than four of them. */
+  /** What was counted of how this island was played, for three tiles at the end: knocks on nothing, minutes, tips asked for. */
+  private get tally(): [number, number, number] {
+    const { idle, nudged, took, played } = this.notes
+    return [idle, Math.max(1, Math.round((took || played) / 60)), nudged]
+  }
+  /** A few more true things, for the card at the end, when there is something to say: no more than two of them. */
   private get noticed() {
-    const { idle, pats, quiet, turned, nudged, stones, played, took } = this.notes
+    const { pats, quiet, turned, stones } = this.notes
     const [pet, most] = Object.entries(pats).reduce((a, b) => (b[1] > a[1] ? b : a), ['', 0])
-    const minutes = Math.round((took || played) / 60)
     return [
-      idle > 2 && `${idle} of your knocks were on things with nothing to give. They enjoyed the company.`,
       most > 2 && `Most patted: ${this.called(pet)}, ${most} times. The others know.`,
-      `It took you ${minutes < 2 ? 'a minute' : `${minutes} minutes`}. The island had been waiting a good deal longer.`,
       !turned && 'You never turned the world round. It has a back. It is not offended.',
       quiet > 90 && `The longest you left it alone: ${quiet > 3600 ? 'over an hour' : `${Math.round(quiet / 60)} minutes`}. It got on with things.`,
-      nudged ? `Tips asked for: ${nudged}. Asking is a skill.` : 'Tips asked for: none. Suit yourself.',
       stones > 4 && `Stones skipped: ${stones}. None of them came back.`,
-    ].filter((line): line is string => !!line).slice(0, 4)
+    ].filter((line): line is string => !!line).slice(0, 2)
   }
   /** Something for later. Whoever or whatever it is about by then is who it was about when it was set off: see `say`. */
   after(seconds: number, run: () => void) {
@@ -3027,6 +3030,7 @@ export class Island {
       finds: this.finds.map(({ icon, name, riddle, told }) => ({ icon, name, hint: !name && told ? riddle : undefined })),
       pairs: this.pairs.map(({ name, riddle, told }) => ({ name, hint: !name && told ? riddle : undefined })),
       notes: won ? this.noticed : [],
+      tally: won ? this.tally : [0, 0, 0],
       credits: this.reel?.lines ?? [],
       rolling: this.reel?.seconds ?? 0,
       rolled: this.reels,

@@ -169,7 +169,7 @@ const Cog = () => (
   </svg>
 )
 
-const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 8], secrets: [0, 16], snails: [0, 7], friends: [], isles: [], finds: [], pairs: [], notes: [], credits: [], rolling: 0, rolled: 0, said: [], ended: false, cut: false }
+const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 8], secrets: [0, 16], snails: [0, 7], friends: [], isles: [], finds: [], pairs: [], notes: [], tally: [0, 0, 0], credits: [], rolling: 0, rolled: 0, said: [], ended: false, cut: false }
 
 /**
  * The island in the picture: made here, moved on every frame, and unmade when the picture goes.
@@ -293,7 +293,6 @@ export default function GamePage() {
   const [news, setNews] = useState<string[]>([]) // the lines that were new in the log when it was last opened: they carry a dot
   const [menu, setMenu] = useState(false) // the cog's sheet is open: a new game, and how to get about
   const [waved, setWaved] = useState(-1) // the card at the end has been sent away: after which roll of the ending (it comes back after the next)
-  const [copied, setCopied] = useState(false)
   const [card, setCard] = useState('') // a postcard of the island, as a picture to show and to save
   const shot = useRef<(() => HTMLCanvasElement) | null>(null)
   const onShot = useCallback((take: (() => HTMLCanvasElement) | null) => {
@@ -351,7 +350,6 @@ export default function GamePage() {
     setMap(false)
     setMenu(false)
     setWaved(-1)
-    setCopied(false)
   }
   // A new game: another island, and the one that is left is not kept.
   const again = () => {
@@ -743,6 +741,8 @@ export default function GamePage() {
         <Line text={state.tip} />
       </div>
 
+      {/* While the card at the end is up, a click anywhere else only puts it away: nothing under it (the journal, the cog) can be reached. */}
+      {state.done && state.ended && waved !== state.rolled && !rolling && <div className="scrim end-scrim" onClick={() => setWaved(state.rolled)} />}
       <div className="end" data-open={state.done && state.ended && waved !== state.rolled && !rolling} data-cut={state.cut} role="dialog" aria-label="The end">
         <div className="end-body">
           {/* Everybody who is up, along the top: it is their island now. */}
@@ -776,7 +776,25 @@ export default function GamePage() {
               </div>
             ))}
           </dl>
-          <ul className="noticed">
+          {/* How it was played, as three more tiles: the time in the middle, as wide as two. */}
+        <dl className="stats tally">
+          <div title="Knocks on things with nothing to give. They enjoyed the company.">
+            <dt>empty knocks</dt>
+            <dd>{state.tally[0]}</dd>
+          </div>
+          <div title="The island had been waiting a good deal longer.">
+            <dt>time it took</dt>
+            <dd>
+              {state.tally[1]}
+              <small> {state.tally[1] === 1 ? 'minute' : 'minutes'}</small>
+            </dd>
+          </div>
+          <div title="Asking is a skill.">
+            <dt>tips asked for</dt>
+            <dd>{state.tally[2]}</dd>
+          </div>
+        </dl>
+        <ul className="noticed">
             {state.notes.map((note) => (
               <li key={note}>{note}</li>
             ))}
@@ -787,12 +805,6 @@ export default function GamePage() {
             </button>
             <button className="btn" onClick={again}>
               New game
-            </button>
-            <button className="sound" onClick={postcard}>
-              A postcard of it
-            </button>
-            <button className="sound" onClick={() => void navigator.clipboard?.writeText(location.href).then(() => setCopied(true))}>
-              {copied ? 'Link copied. It is somebody else’s island now, too' : 'Copy the link to this island'}
             </button>
           </div>
           {/* And who made it, with the way to the rest of the site: the same line as under the cog. */}

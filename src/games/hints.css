@@ -85,8 +85,7 @@
 /* And the way back to everything else, alone on the left: a button to look at, on the cream of the pages it leads
    back to, and not on a patch of sky like the rest. */
 .top .sound.back {
-  margin: 0 auto 0 0;
-  background: color-mix(in srgb, #fff4e0 78%, transparent);
+  margin: 0 auto 0 0; /* (the same look as the buttons on the right: the page's colour, a little see-through) */
 }
 
 /* The three ways of getting about: small, under the way back. They come up a moment after a game has, and each goes
@@ -190,8 +189,15 @@
   width: min(30rem, calc(100vw - 40px)); /* wide enough for the whole of the sheep's line on one */
   padding: 16px 18px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(12px);
+  /* Paper, as the journal and the card at the end are, and not frosted glass: the picture behind it is busy, and words on
+     it were hard to read. */
+  background:
+    radial-gradient(circle at 20% 8%, rgb(255 255 255 / 0.7), transparent 55%),
+    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
+    #fbf5e6;
+  box-shadow:
+    3px 4px 0 -1px #f1e8d2,
+    0 14px 40px rgb(40 30 60 / 0.22);
   font-size: 0.82rem;
   opacity: 0;
   visibility: hidden;
@@ -234,8 +240,8 @@
 .gear h3,
 .gear p {
   margin: 0;
-  font-size: 0.7rem;
-  opacity: 0.6;
+  font-size: 0.72rem;
+  opacity: 0.75;
 }
 .gear h3 {
   font-weight: 700;

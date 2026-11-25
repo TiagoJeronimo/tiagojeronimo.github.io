@@ -27,6 +27,7 @@ interface Game {
   hint: string
   ended: boolean
   noticed: string[]
+  tally: number[]
   time: number
   lifeCount: number
   total: number
@@ -214,7 +215,8 @@ function play(seed: number) {
   film.critters.list.find((c) => c.kind === 'balloon')!.onPat!()
   ;(game as unknown as { click(): void }).click()
   assert.ok(!film.reel && game.ended, say('a click on the picture did not cut the ending short'))
-  assert.ok(game.noticed.length > 1 && game.noticed.length < 5 && game.noticed.some((line) => line.startsWith('It took you')), say(`odd notes for the card at the end: ${game.noticed}`))
+  assert.ok(game.noticed.length < 3, say(`odd notes for the card at the end: ${game.noticed}`))
+  assert.ok(game.tally.length === 3 && game.tally[1] >= 1 && game.tally.every((n) => Number.isInteger(n) && n >= 0), say(`odd tiles for the card at the end: ${game.tally}`))
   // Last, since it takes a while of the game's time: rain on running lava sets it like glass for a while, and for that while nothing of it falls or flies. (The frog's
   // cloud goes to a fire first, if one is burning: so the frog is asked more than once.)
   const rainmaker = named(/^The frog\./)
