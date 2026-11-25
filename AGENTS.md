@@ -24,6 +24,8 @@ there (its `CLAUDE.md` is one line, `@AGENTS.md`). Procedures are skills in `.cl
 - Vite 8 (rolldown), React 19, TypeScript 7 (strict), oxlint. Node 24 in CI: tests are `.ts` run by Node directly.
 - three 0.187 through @react-three/fiber 9; finish by @react-three/postprocessing 3. No physics, no UI kit, no audio
   library: sound is Web Audio in `src/sound.ts`. posthog-js for optional analytics.
+- ai-debug-pins (dev only, from GitHub, the owner's own): the ✎ button on dev pages. His notes land in `.notes/notes.md`
+  with pictures; "read my notes" handles them. Newer version: `npx --yes npm@11.19.1 update ai-debug-pins`.
 - Four pages, each an `index.html` with its own `main.tsx`, listed in `vite.config.ts`. No router.
 - A game's **world** is a plain class (no React: `group`, `update(dt)`, `dispose()`, `shadows(tier)`; steppable in node);
   its **page** wraps it in React (`useStage`). State flows one way: clicks → world methods; the page reads world fields
