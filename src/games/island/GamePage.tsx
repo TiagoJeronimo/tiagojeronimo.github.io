@@ -744,63 +744,65 @@ export default function GamePage() {
       </div>
 
       <div className="end" data-open={state.done && state.ended && waved !== state.rolled && !rolling} data-cut={state.cut} role="dialog" aria-label="The end">
-        {/* Everybody who is up, along the top: it is their island now. */}
-        <div className="crowd" aria-hidden="true">
-          {friends
-            .filter((friend) => friend.met && FACES[friend.id])
-            .map((friend) => (
-              <Pic key={friend.id} what={FACES[friend.id]} size={30} />
+        <div className="end-body">
+          {/* Everybody who is up, along the top: it is their island now. */}
+          <div className="crowd" aria-hidden="true">
+            {friends
+              .filter((friend) => friend.met && FACES[friend.id])
+              .map((friend) => (
+                <Pic key={friend.id} what={FACES[friend.id]} size={30} />
+              ))}
+          </div>
+          <h2>The whole world is awake</h2>
+          <p>
+            You woke it in <strong>{state.knocks} knocks</strong>. It was a game about clicking on things until they got better. It worked. That almost never works. Thank you.
+          </p>
+          {/* What else there was to find, and how much of it was found: four small tiles. */}
+          <dl className="stats">
+            {(
+              [
+                ['combos', combos],
+                ['secrets', secrets],
+                ['snails', snails],
+                ['wishes', wishes],
+              ] as [string, number[]][]
+            ).map(([name, [have, all]]) => (
+              <div key={name}>
+                <dt>{name}</dt>
+                <dd>
+                  {have}
+                  <small> of {all}</small>
+                </dd>
+              </div>
             ))}
+          </dl>
+          <ul className="noticed">
+            {state.notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+          <div className="buttons">
+            <button className="btn" onClick={() => setWaved(state.rolled)}>
+              Keep looking around
+            </button>
+            <button className="btn" onClick={again}>
+              New game
+            </button>
+            <button className="sound" onClick={postcard}>
+              A postcard of it
+            </button>
+            <button className="sound" onClick={() => void navigator.clipboard?.writeText(location.href).then(() => setCopied(true))}>
+              {copied ? 'Link copied. It is somebody else’s island now, too' : 'Copy the link to this island'}
+            </button>
+          </div>
+          {/* And who made it, with the way to the rest of the site: the same line as under the cog. */}
+          <p className="about">
+            I’m Tiago Jerónimo Silva, a senior full-stack engineer in Zürich. <a href="/">More things I’ve made</a> · <a href="/cv/">My CV</a>
+          </p>
+          <p className="about">
+            <SheepLink />
+          </p>
         </div>
-        <h2>The whole world is awake</h2>
-        <p>
-          You woke it in <strong>{state.knocks} knocks</strong>. It was a game about clicking on things until they got better. It worked. That almost never works. Thank you.
-        </p>
-        {/* What else there was to find, and how much of it was found: four small tiles. */}
-        <dl className="stats">
-          {(
-            [
-              ['combos', combos],
-              ['secrets', secrets],
-              ['snails', snails],
-              ['wishes', wishes],
-            ] as [string, number[]][]
-          ).map(([name, [have, all]]) => (
-            <div key={name}>
-              <dt>{name}</dt>
-              <dd>
-                {have}
-                <small> of {all}</small>
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <ul className="noticed">
-          {state.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-        <div className="buttons">
-          <button className="btn" onClick={() => setWaved(state.rolled)}>
-            Keep looking around
-          </button>
-          <button className="btn" onClick={again}>
-            New game
-          </button>
-          <button className="sound" onClick={postcard}>
-            A postcard of it
-          </button>
-          <button className="sound" onClick={() => void navigator.clipboard?.writeText(location.href).then(() => setCopied(true))}>
-            {copied ? 'Link copied. It is somebody else’s island now, too' : 'Copy the link to this island'}
-          </button>
-        </div>
-        {/* And who made it, with the way to the rest of the site: the same line as under the cog. */}
-        <p className="about">
-          I’m Tiago Jerónimo Silva, a senior full-stack engineer in Zürich. <a href="/">More things I’ve made</a> · <a href="/cv/">My CV</a>
-        </p>
-        <p className="about">
-          <SheepLink />
-        </p>
       </div>
 
       {/* The postcard, once one has been made: the picture, and a way to keep it. */}

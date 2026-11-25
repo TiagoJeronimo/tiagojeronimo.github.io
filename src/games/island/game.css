@@ -269,6 +269,7 @@ body {
 }
 /* The same line under the card at the end, where everybody who finishes will see it. */
 .end .about {
+  max-width: none;
   margin: 1.2em 0 0;
   font-size: 0.8rem;
   opacity: 0.8;
@@ -940,13 +941,49 @@ button.key {
   top: 50%;
   left: 50%;
   width: min(31rem, calc(100vw - 24px)); /* wide enough for the whole of the sheep's line on one */
+  transform: translate(-50%, -50%);
+  /* A sheet of paper, as the journal is: warm, with a faint grain, the edge of a second sheet under it, and tape over the
+     top corners. Nothing is clipped here, so that the tape can go out over the edge; what scrolls is `.end-body`. */
+  border-radius: 22px 26px 24px 20px;
+  background:
+    radial-gradient(circle at 20% 12%, rgb(255 255 255 / 0.7), transparent 55%),
+    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
+    #fbf5e6;
+  box-shadow:
+    3px 4px 0 -1px #f1e8d2,
+    5px 7px 0 -2px #e8ddc3,
+    0 18px 50px rgb(40 30 60 / 0.22);
+  backdrop-filter: none;
+  rotate: -0.4deg;
+  text-align: center;
+}
+.end::before,
+.end::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -6px;
+  width: 78px;
+  height: 22px;
+  background: repeating-linear-gradient(45deg, #ffd9e6 0 8px, #fff1c9 8px 16px);
+  opacity: 0.88;
+  box-shadow: 0 1px 3px rgb(40 30 60 / 0.12);
+  pointer-events: none;
+}
+.end::before {
+  left: -30px;
+  rotate: -38deg;
+}
+.end::after {
+  right: -30px;
+  rotate: 38deg;
+  background: repeating-linear-gradient(45deg, #d6ecff 0 8px, #fff1c9 8px 16px);
+}
+.end-body {
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
-  padding: 22px 24px 20px;
-  transform: translate(-50%, -50%);
-  background: color-mix(in srgb, var(--bg) 95%, transparent);
-  box-shadow: 0 18px 50px rgb(40 30 60 / 0.22);
-  text-align: center;
+  padding: 26px 26px 22px;
+  border-radius: inherit;
 }
 .end .crowd {
   display: flex;
@@ -965,9 +1002,19 @@ button.key {
 .end .stats div {
   display: flex;
   flex-direction: column-reverse;
-  padding: 8px 2px 7px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  padding: 9px 2px 8px;
+  border-radius: 14px;
+  background: #ffe3ec;
+  box-shadow: 0 2px 0 rgb(40 30 60 / 0.08);
+}
+.end .stats div:nth-child(2) {
+  background: #fff1c9;
+}
+.end .stats div:nth-child(3) {
+  background: #dcefff;
+}
+.end .stats div:nth-child(4) {
+  background: #e0f4d6;
 }
 .end .stats dt {
   font-size: 0.66rem;
@@ -1007,7 +1054,7 @@ button.key {
   padding: 7px 4px;
 }
 .end .noticed li + li {
-  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
 }
 .end h2 {
   margin: 0 0 0.4em;
@@ -1018,8 +1065,9 @@ button.key {
   letter-spacing: -0.02em;
 }
 .end p {
-  margin: 0 0 1em;
-  line-height: 1.45;
+  margin: 0 auto 1.1em;
+  max-width: 27rem;
+  line-height: 1.5;
 }
 .end ul {
   margin: 0 0 1.2em;
@@ -1046,7 +1094,7 @@ button.key {
   order: 2;
 }
 @media (max-width: 420px) {
-  .end {
+  .end-body {
     padding-inline: 16px;
   }
   .end .btn {
