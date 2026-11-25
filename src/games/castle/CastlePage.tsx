@@ -1,8 +1,8 @@
 import { type ThreeEvent } from '@react-three/fiber'
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
 import { Back, Gear, Hints, Sound } from '../hints.tsx'
-import { keep, kept } from '../kept.ts'
+import { useKnown } from '../useKnown.ts'
 import { Picture } from '../Picture.tsx'
 import { usePostcard, type Shot } from '../postcard.ts'
 import { Postcard } from '../Postcard.tsx'
@@ -119,9 +119,8 @@ export default function CastlePage() {
   // it has: the rest of what the world knows is drawn straight from it, every frame, in `each`.
   const [news, setNews] = useState<{ asks: [id: number, side: number, what: Want, plain: boolean, love: boolean][]; over: string; loads: Item[]; kept: number[] }>({ asks: [], over: '', loads: [], kept: [] })
   // Which of the three ways of getting about have been used: added to, so that a new day does not say them again; and
-  // kept, so that the next visit does not either.
-  const [known, learn] = useReducer((had: string, more: string) => had + more, '', () => kept('castle/known'))
-  useEffect(() => keep('castle/known', known), [known])
+  // kept for the sitting (`seen`), so that another game does not either.
+  const [known, learn] = useKnown()
   const [round, setRound] = useState(0) // a new world for each: what is left of the last is thrown away
   const world = useRef<Castle>(null)
   const snap = usePostcard('castle.png', 'A postcard of the castle')

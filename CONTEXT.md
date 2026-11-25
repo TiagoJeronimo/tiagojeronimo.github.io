@@ -6,7 +6,7 @@ One line a word. The code, its comments and the notes for agents all use them th
 
 - **card**: one project on the front page. **sheet**: the card opened, a `<dialog>` with the rest of its words.
 - **poster**: the wide card that leads the grid. **chip**: a filter button for one **kind** (games, web, work, ...).
-- **old stuff**: cards marked `old`, under a dashed line of their own.
+- **other stuff** (the `old` flag in the code): cards marked `old`, under a dashed line of their own.
 - **blurb** / **body**: a card's one line, and the paragraphs in its sheet.
 
 ## Every game

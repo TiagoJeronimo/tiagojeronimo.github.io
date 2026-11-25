@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
 import { Back, FINGERS, Hints, Sound, SheepLink } from '../hints.tsx'
+import { useSeen } from '../useKnown.ts'
 import { drawPostcard } from '../postcard.ts'
 import { Postcard } from '../Postcard.tsx'
 import { Picture } from '../Picture.tsx'
@@ -283,6 +284,7 @@ function Stage({
 
 export default function GamePage() {
   const [state, setState] = useState(START)
+  const shown = useSeen(state.known, state !== START) // (START says all three while the world loads, to keep them hidden: that is not learnt)
   // Which island. 0 is the one as drawn; any other number deals the things on it out afresh, the same way every time.
   // The number sits in the link, so an island can be passed on.
   const [seed, setSeed] = useState(() => Number(new URLSearchParams(location.search).get('seed')) || 0)
@@ -402,8 +404,8 @@ export default function GamePage() {
       {/* While the cog's sheet is open, a click anywhere else only shuts it: it does not reach the world. */}
       {(menu || card || map) && <div className={map && !menu && !card ? 'scrim veil' : 'scrim'} onClick={() => (card ? away() : menu ? setMenu(false) : setMap(false))} />}
       {/* The three ways of getting about, in the corner nobody else is using, until each has been used once on this
-          island. */}
-      <Hints known={state.ended ? 'mzt' : state.known} />
+          island, or already in this sitting. */}
+      <Hints known={state.ended ? 'mzt' : shown} />
       <header className="top">
         {/* The way back to everything else, in the corner: the castle has the same. */}
         <Back />

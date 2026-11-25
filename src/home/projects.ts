@@ -48,7 +48,7 @@ export interface Project {
   whole?: boolean
   /** The picture is shown smaller, on a white card of its own: for a picture that gains nothing by being big. */
   framed?: boolean
-  /** Old stuff: it goes under a line of its own at the foot of the page, apart from the rest. */
+  /** Other stuff: it goes under a line of its own at the foot of the page, apart from the rest. */
   old?: boolean
   /** The drawing: a name from `art.ts`. */
   art: string
@@ -87,8 +87,8 @@ const made: Project[] = [
     when: '2021–2025',
     blurb: 'Keep both sides of a tiny war supplied. Nobody’s winning, but business is good.',
     body: [
-      'Nobody knows yet what this unfinished game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. There is probably something to learn from this, but somebody needs bread. It is probably a metaphor for something, but I do not know what.',
-      'It started in 2021: bored, during Covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill with some little people running around. It stayed that way for years. Recently, AI helped me get it to something you can play.',
+      'Nobody knows yet what this unfinished game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. It is probably a metaphor for something, but I do not know what.',
+      'It started in 2021: bored, during Covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill with some little people running around. It stayed that way for years. Recently, AI helped me get it to something you can play. Maybe one day I will finish it.',
     ],
     tags: ['TypeScript', 'three.js', 'react-three-fiber', 'Vite'],
     links: [{ label: 'Play', href: '/games/castle/' }],
@@ -115,6 +115,24 @@ const made: Project[] = [
     ],
     picture: '/thumbs/curvatron.png',
     art: 'snake',
+  },
+  {
+    slug: 'pursuit-rush',
+    title: 'Pursuit Rush',
+    kind: 'games',
+    when: '2016–2017',
+    blurb: 'Cops chase you, you run, and they explode. Unfinished, but it has a trailer.',
+    body: [
+      'A game where a lot of cops chase you, you run away, and they explode, among other things.',
+      'I made it in Unity with two friends, while I was learning Blender. It was never finished. The trailer was.',
+    ],
+    tags: ['Unity', 'Blender'],
+    links: [{ label: 'Watch the trailer', href: 'https://www.youtube.com/watch?v=JGAZhe3n3zE' }],
+    picture: '/thumbs/pursuit-rush.jpg',
+    framed: true,
+    old: true,
+    art: 'film',
+    video: 'JGAZhe3n3zE',
   },
   {
     slug: 'brave-bunny',
@@ -290,4 +308,5 @@ export const helloOld: Project = {
   bg: '#eadfc7',
   accent: '#a9824f',
   old: true,
+  blurb: "If I wake up in a house that′s full of smoke, I'll panic, so call me up and tell me a joke."
 }

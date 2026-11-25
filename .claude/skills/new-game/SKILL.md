@@ -14,7 +14,7 @@ description: How to add a new game to the site (the page, the world, the test, t
 3. The page is `Stage` and a `Page`. `useStage(world, tier, { name, land, span, onKnown, lift?, yaw?, onView? }, step?)`
    (`src/games/useStage.ts`) does the camera, the frame loop, the shadows and the end; `step` is for what the game
    does each frame. A click is `onClick` on the world's group: a `delta` over 6 is the end of a drag, not a click. The
-   game's own buttons go round it; the page keeps what has been learnt in `kept('<name>/known')`.
+   game's own buttons go round it; what has been learnt comes from `useKnown()` (`../useKnown.ts`: the three ways of getting about last for the tab, a game's own lines only for the visit).
    The castle (`castle/CastlePage.tsx`) is the short example to copy from; the island has a camera of its own.
 4. `test/<name>.test.ts`: make the world in node, step it with `update(0.05)`, and check what came of it. The rules of
    the game are proved here, not in a browser.

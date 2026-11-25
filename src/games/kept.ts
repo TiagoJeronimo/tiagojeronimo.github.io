@@ -15,3 +15,21 @@ export const keep = (key: string, value: string) => {
     // then it is not kept
   }
 }
+
+// The three ways of getting about (`m` `z` `t`, see `Hints`) are remembered for as long as the tab is open, and no
+// longer: a visitor who has used them is not told again in the same sitting, whichever game is opened or begun, and is
+// told again on the next visit. (A game's own lines are not kept at all: they come with every new game.)
+export const seen = () => {
+  try {
+    return sessionStorage.getItem('controls') ?? ''
+  } catch {
+    return ''
+  }
+}
+export const see = (known: string) => {
+  try {
+    sessionStorage.setItem('controls', [...known].filter((way, k) => 'mzt'.includes(way) && known.indexOf(way) === k).join(''))
+  } catch {
+    // then it is not kept
+  }
+}

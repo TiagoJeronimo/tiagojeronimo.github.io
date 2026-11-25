@@ -136,10 +136,10 @@ export class ${Name} {
 write(
   `${dir}/${Name}Page.tsx`,
   `import { type ThreeEvent } from '@react-three/fiber'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useMemo } from 'react'
 import { Back, Hints } from '../hints.tsx'
-import { keep, kept } from '../kept.ts'
 import { Picture } from '../Picture.tsx'
+import { useKnown } from '../useKnown.ts'
 import { useStage } from '../useStage.ts'
 import { ${Name}, REACH } from './${Name}.ts'
 
@@ -156,8 +156,7 @@ function Stage({ tier, onKnown }: { tier: number; onKnown: (known: string) => vo
 }
 
 export default function ${Name}Page() {
-  const [known, learn] = useReducer((had: string, more: string) => had + more, '', () => kept('${name}/known'))
-  useEffect(() => keep('${name}/known', known), [known])
+  const [known, learn] = useKnown()
   return (
     <main className="${name}">
       <Picture>{(tier) => <Stage tier={tier} onKnown={learn} />}</Picture>

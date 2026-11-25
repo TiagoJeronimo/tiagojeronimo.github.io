@@ -1,10 +1,11 @@
 import { type ThreeEvent } from '@react-three/fiber'
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
 import { Back, FINGERS, Gear, Hints, SheepFace, Sound } from '../hints.tsx'
 import { usePostcard, type Shot } from '../postcard.ts'
 import { Postcard } from '../Postcard.tsx'
 import { keep, kept } from '../kept.ts'
+import { useKnown } from '../useKnown.ts'
 import { Picture } from '../Picture.tsx'
 import { View } from '../View.ts'
 import { useStage } from '../useStage.ts'
@@ -261,8 +262,7 @@ export default function SheepPage() {
 
 /** @param given everybody's sheep, from the server; null when there is none, and this browser keeps its own */
 function Field({ given }: { given: Entry[] | null }) {
-  const [known, learn] = useReducer((had: string, more: string) => had + more, '', () => kept('sheep/known'))
-  useEffect(() => keep('sheep/known', known), [known])
+  const [known, learn] = useKnown() // (the sheep's own two lines come back at every visit)
   // Who is in the field: Claude the sheep, always; and with it everybody's from the server, or without one this
   // browser's own. (In development, `?crowd` puts twenty made-up sheep there in its place, to be watched: the
   // condition is false in what is published, and the crowd is left out of it.) One just paid for is in the address as `?sheep=<id>`, where Stripe sends
@@ -598,8 +598,8 @@ function Field({ given }: { given: Entry[] | null }) {
     choose(sheep)
     setMode('idle')
   }
-  const planted = useCallback(() => learn('g'), [])
-  useEffect(() => void (chosen !== -1 && learn('s')), [chosen]) // (a sheep has been clicked: that hint is done)
+  const planted = useCallback(() => learn('g'), [learn])
+  useEffect(() => void (chosen !== -1 && learn('s')), [chosen, learn]) // (a sheep has been clicked: that hint is done)
   const sheep = chosen === HERMIT ? RECLUSE : world.ewes[chosen]?.entry
   return (
     <main className="sheep">

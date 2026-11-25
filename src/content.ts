@@ -169,7 +169,6 @@ export const chapters: Chapter[] = [
     role: 'BSc + MSc in Information Systems and Computer Engineering',
     body: [
       'Five years of computer engineering, majoring in Interaction & Visualization and in Games, with an Erasmus semester in Kraków.',
-      'Every summer from 2010 to 2016 I worked as a metalworker.',
     ],
     tags: ['Interaction & Visualization', 'Games', 'Erasmus · Kraków'],
     bg: '#d6ecff',
@@ -182,7 +181,8 @@ export const chapters: Chapter[] = [
     title: 'Mountains, waves and a camera.',
     body: [
       'Hiking, climbing, snowboarding, surfing and camping. Photography, cinematography and animation. Music. And Lego, obviously.',
-      'On the side I made Snap Marker, a minimalist Chrome extension to draw, highlight text and point at things on any web page.',
+      'I like voxel games, enough to have made a few. They are on the front page.',
+      'Every summer from 2009 to 2016 I worked as a metalworker, to pay for school and university.',
     ],
     tags: ['Portuguese · native', 'English · fluent', 'Spanish · basic', 'German · elementary'],
     bg: '#ffdfe8',

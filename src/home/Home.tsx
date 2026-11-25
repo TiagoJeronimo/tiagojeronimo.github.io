@@ -498,11 +498,11 @@ export default function Home() {
       {shown.some((project) => project.old) && (
         <section className="old" aria-labelledby="old-title" data-open={oldOpen || !shown.some((project) => !project.old)}>
           <Snail id="b" found={found} find={find} />
-          <h2 id="old-title">Old stuff</h2>
+          <h2 id="old-title">Other stuff</h2>
           <p>Made years ago, for no reason. Still here for the same one.</p>
           {/* On a phone the old stuff is folded away behind this (the page is long enough without it). */}
           <button className="sound unfold" aria-expanded={oldOpen} onClick={() => setOldOpen((yes) => !yes)}>
-            {oldOpen ? 'Hide the old stuff' : `Show the old stuff (${shown.filter((project) => project.old).length})`}
+            {oldOpen ? 'Hide the other stuff' : `Show the other stuff (${shown.filter((project) => project.old).length})`}
           </button>
           <ul className="grid">{shown.filter((project) => project.old).map(card)}</ul>
         </section>
