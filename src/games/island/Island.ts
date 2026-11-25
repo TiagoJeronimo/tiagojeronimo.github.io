@@ -441,6 +441,15 @@ export class Island {
   private blooms: number[] = [] // the head of every flower: they shut at night
   private shaking = 0
   private orbit = 0 // until when the camera drifts round the finished world
+  /** Development only (`?ending` in the address): the ending is played at once, as if everything were done. It counts for nothing. */
+  preview = false
+  /** Development only: play the ending again from the start, whatever the saved game has already seen of it. */
+  replayEnding() {
+    this.preview = true
+    this.over = this.ended = false
+    this.reel = this.hush = undefined
+    this.reels++
+  }
   private lifting = -1 // how much of the picture the line across the bottom takes, eased (see `update`): not yet worked out, to begin with
   private hover = -1
   private label = ['', 9, 9, 0] as [string, number, number, number] // what the cursor last rested on, where it was then, and where the camera was
@@ -1024,7 +1033,7 @@ export class Island {
 
   /** The camera goes to look at a place for a moment, then comes straight back. */
   glance(x: number, z: number, radius: number, seconds = 2.8) {
-    if (this.fast || this.press || this.time < 3) return
+    if (this.fast || this.press || this.time < 3 || this.show?.free) return // (not while the ending has the camera: a volcano going off must not pull it in)
     this.going = this.following = undefined
     this.show = { x, z, zoom: Math.max(1, this.reach / (radius * 1.5)), until: this.time + seconds }
   }
@@ -2099,13 +2108,13 @@ export class Island {
     }
     const land = this.tiles.flat().filter((u) => this.exists[u])
     const lines = [
-      'The whole world is awake. You did that, with one finger. Do not let it go to your head. Let it go to your head a little.',
       'Hello. Up here, in the balloon. I have been watching. That is most of what a balloon is for.',
-      `You woke a whole island by knocking on it. ${this.knocks} knocks. I counted. Somebody should.`,
-      'I should say it was a game. The island was never dry. Somebody drew it dry, so that you could fix it.',
-      'That is most of what a game is: a problem made by hand, in a shape you can solve.',
-      'The other kind does not come in that shape. You know that. You came here anyway.',
-      'And for a few minutes, everything you touched got better. Notice how that felt. It is why we build these.',
+      'The whole world is awake. You did that, with one finger. Do not let it go to your head. Let it go to your head a little.',
+      `You did it by knocking on it. ${this.knocks} knocks. I counted. Somebody should.`,
+      'It was a game, of course. The island was never dry. Somebody drew it dry, so that you could fix it.',
+      'That is what a game is: a problem made by hand, in a shape you can solve.',
+      'Out there, the problems come in no useful shape. You know that. We solve them anyway, slowly and sideways.',
+      'Here, for a few minutes, everything you touched got better. Notice how that felt. It is why people build these.',
       'I will be honest, since it is only us. Somebody made this small world hoping you would think well of them.',
       'That is all anybody is doing, most days. It is just rarely this many cubes.',
       'None of it was real. All of it happened. I have never been able to explain that.',
@@ -2697,7 +2706,7 @@ export class Island {
       this.done = true
       for (let t = 0; t < W * D; t++) if (this.exists[t] && this.wakeAt[t] === Infinity) this.wakeAt[t] = time + 2 + rnd(t) * 2
     }
-    const won = this.done && this.lifeCount === this.total
+    const won = this.preview || (this.done && this.lifeCount === this.total)
     if (won && !this.over) {
       // Once: the camera pulls back to take it all in and drifts round it, and everybody jumps for joy.
       this.over = true
@@ -2706,12 +2715,13 @@ export class Island {
       for (const critter of this.critters.list) critter.pet = 1
       for (let k = 0; k < 5; k++) this.after(k * 0.16, () => note(0.3 + k * 0.17, 0.14))
       // The balloon comes at once, and the ending begins with it, as the island starts to turn: whatever was still being
-      // waited for goes into the log unsaid (see `epilogue`), and the first thing the ending says is the news that
-      // the whole world is awake. A game that is only being put back as it was has had its ending.
+      // waited for goes into the log unsaid (see `epilogue`), and the ending says hello from it first, and then the news
+      // that the whole world is awake. A game that is only being put back as it was has had its ending.
       this.after(0.4, () => this.balloon())
       this.notes.took ||= this.notes.played
       if (this.fast) this.ended = true
     }
+    if (this.show?.free) this.going = this.following = undefined // the ending keeps the camera back: nothing sets it going in
     if (time < this.orbit) this.yaw += dt * 0.09
     if (won) {
       if (Math.random() < dt * 20) bits.spawn(this.centre.x + any() * 2 * this.span, 10, this.centre.z + any() * 2 * this.span, any(), -1, any(), 0.15, BLOSSOM[Math.floor(Math.random() * 3)], 6, GROUND, 0, 1.5)

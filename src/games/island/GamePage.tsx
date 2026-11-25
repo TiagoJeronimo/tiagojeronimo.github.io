@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
 import { Back, FINGERS, Hints, Sound, SheepLink } from '../hints.tsx'
-import { useSeen } from '../useKnown.ts'
+import { forget as newGame, useSeen } from '../useKnown.ts'
 import { drawPostcard } from '../postcard.ts'
 import { Postcard } from '../Postcard.tsx'
 import { Picture } from '../Picture.tsx'
@@ -304,6 +304,7 @@ export default function GamePage() {
   const onGame = useCallback((island: Island | null, session?: GameVisit) => {
     game.current = island
     visit.current = session ?? null
+    if (island && import.meta.env.DEV && new URLSearchParams(location.search).has('ending')) island.replayEnding() // to see the ending without playing the game
   }, [])
   const words = useRef<HTMLDivElement>(null)
   // A small label that follows the cursor and says what it is resting on.
@@ -354,6 +355,7 @@ export default function GamePage() {
   }
   // A new game: another island, and the one that is left is not kept.
   const again = () => {
+    newGame() // a new game: the ways of getting about are said again
     visit.current?.capture('island_game_restarted', { progress_percent: Math.floor(100 * state.found / things) })
     const next = 1 + ((seed + Math.floor(Math.random() * 9998)) % 9999) // never the same one
     forget(seed)

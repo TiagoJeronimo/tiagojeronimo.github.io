@@ -36,8 +36,10 @@ gate, they marry.
   hat as themselves (`me.pets`) and go home by themselves (`home`).
 - At dawn the day stands still (`begun` is false): no charge, no clock, nobody's patience running down. The castle
   asks for wood, and the yellow arrow (`ARROW` in `../basics.ts`, as on the island) bobs over the tree nearest the
-  helper; a click on it is a click on the tree. Sending him to any tree calls `start`: the arrow goes and the camp
-  sets out at once. (Tests that do not care about dawn call `start()` themselves.)
+  helper; a click on it is a click on the tree. Once he has wood on his hat it stands over the winch instead (a click on it
+  is a click on the basket). The first wood handed over at the basket calls `start` (in `give`): the arrow
+  goes and the camp sets out at once; until then nobody charges, and a visit to a tree changes nothing. The page's first line
+  ("a farmer, the castle would like some wood") is done at the same moment. (Tests that do not care about dawn call `start()` themselves.)
 - `direct` is the day: the camp charges for `CHARGE` seconds and rests for `LULL`, by turns (`phase`, `round`). With
   each charge both sides ask at once (`burst`): the first two charges are `ROUNDS`, the same every day (the castle's
   wood in the first is the one asked for at dawn), and after those `pick` goes by chance. An ask is waited for `CHARGE + WAIT` seconds. `want`, `give`, `tire` and `cheer` are

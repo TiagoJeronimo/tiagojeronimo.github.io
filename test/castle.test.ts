@@ -149,11 +149,11 @@ const day = (seed: number, lag?: number, sides?: number[], each?: (world: Castle
   const [first, was] = [world.trees.indexOf(tree), tree.t]
   world.order(TREE + first)
   run(world, 0.1)
-  assert.ok(world.begun && world.phase.charge, 'sent to a tree, the day should start, and the camp set out')
-  assert.equal(wants(world), 'castle:wood camp:bread', 'with the first charge the camp should want bread too')
+  assert.ok(!world.begun && !world.phase.charge, 'sent to a tree, the day should still wait: it starts with the wood at the castle')
   world.order(BASKET)
   let high = 0
   run(world, 26, () => (high = Math.max(high, world['lift'].y)))
+  assert.ok(world.begun, 'the wood is at the castle: the day should have started')
   assert.ok(!wants(world).includes('castle:wood'), `the castle still wants its wood: ${wants(world)}`)
   assert.deepEqual(world.me.loads, [], 'the helper still has something on his hat')
   assert.ok(high > 7 && world['lift'].y === 5, `the basket should have gone up the tower and come down again: it got to ${high}, and is at ${world['lift'].y}`)

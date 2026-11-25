@@ -187,7 +187,7 @@
   display: grid;
   gap: 8px;
   box-sizing: border-box;
-  width: min(28rem, calc(100vw - 40px));
+  width: min(30rem, calc(100vw - 40px)); /* wide enough for the whole of the sheep's line on one */
   padding: 16px 18px;
   border-radius: 18px;
   background: color-mix(in srgb, var(--bg) 78%, transparent);
@@ -303,13 +303,16 @@
 }
 
 /* The way to buying a sheep: a small pink card, as at the foot of the front page. */
-.sheep-link {
+.sheep-link.sheep-link {
+  /* (Doubled, to outweigh the rules for the links of a sheet or a card that is not this one: `.gear a`, `.about a`.) */
   display: flex;
   box-sizing: border-box;
   flex-direction: column;
   gap: 8px;
   align-items: center;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 14px 0 6px;
   padding: 14px 16px 16px;
   border-radius: 18px;

@@ -179,7 +179,7 @@ body {
   display: grid;
   gap: 8px;
   box-sizing: border-box;
-  width: min(28rem, calc(100vw - 40px));
+  width: min(30rem, calc(100vw - 40px)); /* wide enough for the whole of the sheep's line on one */
   padding: 16px 18px;
   border-radius: 18px;
   background: color-mix(in srgb, var(--bg) 78%, transparent);
@@ -939,7 +939,7 @@ button.key {
 .end {
   top: 50%;
   left: 50%;
-  width: min(25rem, calc(100vw - 24px));
+  width: min(31rem, calc(100vw - 24px)); /* wide enough for the whole of the sheep's line on one */
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
   padding: 22px 24px 20px;

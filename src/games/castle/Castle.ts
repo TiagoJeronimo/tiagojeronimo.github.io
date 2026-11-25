@@ -531,7 +531,7 @@ export class Castle {
    * the camp waits, until the helper is sent to a tree (or `start` is called).
    */
   begun = false
-  /** The arrow, and the tree it stands over: from dawn until the day starts. */
+  /** The arrow, over the tree and then over the winch: from dawn until the first wood is at the castle. */
   private arrow: number[] = []
   private first = 0
   /** The notes that rise from the musician as he plays: three of them, a cube each for head, stem and flag. */
@@ -1051,9 +1051,8 @@ export class Castle {
     }
     me.queue.push({ id, t: this.tile(id) })
     note(0.3 + me.queue.length * 0.1, 0.05)
-    if (kind === TREE) this.start()
   }
-  /** The day starts: the arrow goes, the camp sets out at once, and the castle's wood is waited for from now on. */
+  /** The day starts, with the first wood brought to the castle: the arrow goes and the camp sets out at once. */
   start() {
     if (this.begun) return
     this.begun = true
@@ -1329,6 +1328,7 @@ export class Castle {
       this.swoon()
       if (this.love === GIFTS.length) this.want(2, 'music', true)
     } else this.cheer(ask.side)
+    if (!this.begun && ask.side === 0 && ask.what === 'wood') this.start() // the camp waits for it: nobody charges before the castle has its wood
     if (ask.still) this.doused = false
     this.mend()
   }
@@ -2196,9 +2196,16 @@ export class Castle {
   update(dt: number) {
     this.clock += dt
     if (!this.begun) {
+      // The arrow shows the way: over the tree, and once he has the wood on his hat over the winch, where it goes up. A click
+      // on it is a click on whatever it stands over.
+      const carrying = this.me.loads.includes('wood')
       const tree = this.trees[this.first]
-      const [x, z, y] = [across(tree.t), along(tree.t), tree.ground + 2.8 + Math.abs(Math.sin(this.clock * 4)) * 0.4]
-      ARROW.forEach(([dx, dy, dz], k) => this.solid.place(this.arrow[k], x + dx * 1.6, y + dy * 1.6, z + dz * 1.6))
+      const bob = Math.abs(Math.sin(this.clock * 4)) * 0.4
+      const [x, z, y] = carrying ? [HOOK, WINCH, STEP + TOWER + 3.9 + bob] : [across(tree.t), along(tree.t), tree.ground + 2.8 + bob]
+      this.arrow.forEach((c, k) => {
+        this.solid.owner[c] = carrying ? BASKET : TREE + this.first
+        this.solid.place(c, x + ARROW[k][0] * 1.6, y + ARROW[k][1] * 1.6, z + ARROW[k][2] * 1.6)
+      })
     }
     if (!this.over) this.direct(dt)
     this.help(dt)

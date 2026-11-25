@@ -1,15 +1,19 @@
 import { useEffect, useReducer } from 'react'
 import { see, seen } from './kept.ts'
 
+/** A new game: whatever has been learnt is to be told again, the three ways of getting about and a game's own lines alike. */
+export const forget = () => see('')
+
 /**
  * What a visitor has learnt of the three ways of getting about, for `<Hints known={…} />`. The ways stay learnt for as
- * long as the tab is open, in whichever game; a game's own lines (a letter of its own, see `Hints`) are only for this
- * visit and come back with every new game. The page says what it learns (`learn`, from `useStage`'s `onKnown`).
+ * long as the tab is open, in whichever game or visit of the page, until a new game is begun (`forget`: they are told
+ * again then, with a game's own lines, which are a letter of its own, see `Hints`). The page says what it learns
+ * (`learn`, from `useStage`'s `onKnown`).
  */
-export function useKnown(): [known: string, learn: (more: string) => void] {
-  const [known, learn] = useReducer((had: string, more: string) => had + more, '', seen)
+export function useKnown(): [known: string, learn: (more: string) => void, forget: () => void] {
+  const [known, learn] = useReducer((had: string, more: string) => (more ? had + more : ''), '', seen)
   useEffect(() => see(known), [known])
-  return [known, learn]
+  return [known, learn, () => learn('')]
 }
 
 /**

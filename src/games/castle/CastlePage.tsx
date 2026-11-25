@@ -120,7 +120,7 @@ export default function CastlePage() {
   const [news, setNews] = useState<{ asks: [id: number, side: number, what: Want, plain: boolean, love: boolean][]; over: string; loads: Item[]; kept: number[] }>({ asks: [], over: '', loads: [], kept: [] })
   // Which of the three ways of getting about have been used: added to, so that a new day does not say them again; and
   // kept for the sitting (`seen`), so that another game does not either.
-  const [known, learn] = useKnown()
+  const [known, learn, forget] = useKnown()
   const [round, setRound] = useState(0) // a new world for each: what is left of the last is thrown away
   const world = useRef<Castle>(null)
   const snap = usePostcard('castle.png', 'A postcard of the castle')
@@ -131,12 +131,15 @@ export default function CastlePage() {
   const sun = useRef<HTMLElement>(null)
   const tag = useRef<HTMLSpanElement>(null)
   const told = useRef('')
+  const [began, setBegan] = useState(false) // the day has started: the castle has its first wood (the line that says to bring it is done)
+  const begun = useRef(false)
   const each = useCallback<Each>((now, camera, width, height) => {
     world.current = now
     const put = now.kept.map(([what]) => (what === 'bread' ? now.oven.ready : now.piles[what as 'wood' | 'stone']))
     const said = `${now.asks.map((ask) => ask.id)} ${now.over} ${now.me.loads} ${put}`
     if (said !== told.current) setNews({ asks: now.asks.map((ask) => [ask.id, ask.side, ask.what, !ask.love && !ask.still, !!ask.love]), over: now.over, loads: [...now.me.loads], kept: put })
     told.current = said
+    if (now.begun !== begun.current) setBegan((begun.current = now.begun))
     /** Where a point of the world is in the window. (One behind the camera comes out far off the other way: that is put right.) */
     const seen = (x: number, y: number, z: number) => {
       _v.set(x, y, z).project(camera)
@@ -179,6 +182,7 @@ export default function CastlePage() {
   const spare = (what: string) => news.loads.includes(what as Item) && !news.asks.some(([, , wanted]) => wanted === what)
   const restart = (source: 'end' | 'manual') => {
     visit.current?.capture('castle_day_restarted', { source, ending: world.current?.over ?? '', gifts_delivered: Math.min(4, world.current?.love ?? 0) })
+    forget() // a new game: the ways of getting about are said again
     setRound(round + 1)
   }
   return (
@@ -186,7 +190,7 @@ export default function CastlePage() {
       {/* The same picture as the island's: its finish, and its lighter steps for a machine that cannot keep up. */}
       <Picture>{(tier) => <Stage key={round} tier={tier} onKnown={learn} each={each} onVisit={onVisit} onShot={snap.onShot} />}</Picture>
       {/* The three ways of getting about, as on the island: each goes the first time it is used. */}
-      <Hints known={known} />
+      <Hints known={known + (began ? 'w' : '')} extra={[['w', 'You are a farmer. The castle would like some wood.']]} />
       {/* The day: the sun goes along it to the evening, and waits there until the day is decided. */}
       <div className="day" aria-hidden="true">
         <i ref={sun} />
