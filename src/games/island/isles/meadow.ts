@@ -94,12 +94,12 @@ export const meadow: Isle = {
       const tortoise = w.critters.spawn('tortoise', x, top + 0.12, z)
       tortoise.thing = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sleeper: true,
         sound: 'hm?',
         tip: 'A tortoise, asleep in the stream bed. It was here first',
         clue: 'A [tortoise] has gone to sleep right where the water wants to go. It is not blocking anything. It is resting, in a location. Knock.',
-        onHit: () => w.say('The tortoise opens one eye. It is very comfortable where it is, and would like that taken into account.'),
+        onHit: (left) => left === 2 && w.say('The tortoise opens one eye. It is very comfortable where it is, and would like that taken into account.'),
         onBreak: () => wakeTortoise(w, tile, tortoise),
       })
       tortoise.grow = 1.25
@@ -111,12 +111,12 @@ export const meadow: Isle = {
       // A hole in the ground with fresh dirt thrown up round it. Somebody is at home: knock, and out they come.
       const t: number = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         keep: true,
         sound: 'thump',
         tip: 'A hole in the ground, fresh dirt round it. Somebody is in',
         clue: 'There is a [hole] in the meadow, with fresh dirt thrown up round it. Somebody lives down there and is hoping you are not a fox. Knock nicely.',
-        onHit: () => w.say('Two ears come up out of the hole. They are thinking it over. You are being assessed by ears.'),
+        onHit: (left) => left === 2 && w.say('Two ears come up out of the hole. They are thinking it over. You are being assessed by ears.'),
         onBreak: () => {
           w.say('Bunnies! Wherever they hop, the ground remembers being green. They have no idea they do it. Most good gets done like that.', 'bunny')
           w.things[t].tip = 'A rabbit hole. Do not go down it. You have things to do'
@@ -140,13 +140,14 @@ export const meadow: Isle = {
       w.things[t].marks = [ears]
     } else if (c === 'N') {
       // A nest at the top of a tall bare trunk, with one pale blue egg in it.
-      const hatched = w.extra('secret', { icon: 'nest', hint: 'In the meadow stands a tree with no leaves and one blue thing in it. Knock twice. Once is a mistake. Twice is a visit.', at: () => w.above(tile, 2.7) })
+      const hatched = w.extra('secret', { icon: 'nest', hint: 'In the meadow stands a tree with no leaves and one blue thing in it. Knock three times. Once is a mistake, twice is chance. Three times is a visit.', at: () => w.above(tile, 2.7) })
       let taps = 0
       const t: number = w.thing(tile, {
         auto: false,
         tip: 'A nest, with one blue egg in it. Somebody is expecting',
+        wanting: () => !hatched.has(),
         tap: () => {
-          if (++taps < 2) return w.say('Tap. Something taps back from inside the egg. You are in a conversation now. Finish it.')
+          if (++taps < 3) return void (taps === 1 && w.say('Tap. Something taps back from inside the egg. You are in a conversation now. Finish it.')) // three taps, as for every other thing that takes more than one
           const nest = w.things[t]
           nest.tap = undefined
           nest.tip = 'An empty nest. It is being very grown-up about it'
@@ -192,7 +193,7 @@ export const meadow: Isle = {
           light(2)
           w.say('The old stones are wide awake. Far to the north, something cold answers. They are not sure what they have started. Nobody ever is.')
           w.things[t].tip = 'Three stones, wide awake. No plans, and all day for them'
-          w.after(1.3, () => w.raise('snow'))
+          w.soon('snow', 0.5)
         },
       })
       for (let k = 0; k < 3; k++) {
@@ -255,7 +256,7 @@ export const meadow: Isle = {
               return [x + (sx - x) * t, z + (sz - z) * t]
             }, 3.5)
           })
-          w.after(5, () => w.raise('swamp'))
+          w.soon('swamp', 5)
         },
       })
       const ivy = Array.from({ length: 10 }, (_, k) => w.put(t, Math.cos(k * 2.4) * 0.52, 1.1 + k * 0.17, 0.56 + Math.sin(k * 2.4) * 0.1, 0.3, 0.2, 0.14, k % 2 ? 0x5f9a5a : 0x6fae62))

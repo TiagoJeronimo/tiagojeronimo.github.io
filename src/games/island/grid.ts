@@ -103,6 +103,8 @@ export interface Thing {
   onBreak?: () => void
   /** A click when there is nothing left to break. */
   tap?: () => void
+  /** Whether a tap on it still has something to give (a secret, a friend): it stirs now and then while it has. */
+  wanting?: () => boolean
   /** A click on something that is only there to be played with (a swing, a mushroom that bounces): it counts for nothing and is not kept. */
   play?: () => void
   /** How far it bends in the wind, once it is alive: for trees. */

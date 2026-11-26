@@ -3,6 +3,21 @@
 :root {
   --bg: #e5d6bb;
   --key: 40%; /* how light the words that name a thing are written: darker by day, lighter by night (the game sets it) */
+  /* The paper of the journal, the sheet under the cog and the card at the end: cream by day. */
+  --paper: #fbf5e6;
+  --paper-glow: rgb(255 255 255 / 0.7);
+  --paper-grain: rgb(160 130 90 / 0.035);
+  --paper-edge: #f1e8d2;
+  --paper-edge-2: #e8ddc3;
+}
+/* By night the words are light (the game sets `data-night` when it turns them), so the paper they are on goes dark: a
+   blue like the evening sky, with the same grain and edges, a little lit at one corner the way the cream one is. */
+:root[data-night] {
+  --paper: #30355f;
+  --paper-glow: rgb(170 180 255 / 0.14);
+  --paper-grain: rgb(200 210 255 / 0.04);
+  --paper-edge: #262a50;
+  --paper-edge-2: #1f2245;
 }
 html {
   scroll-snap-type: none;
@@ -185,11 +200,11 @@ body {
   /* Paper, as the journal and the card at the end are, and not frosted glass: the picture behind it is busy, and words on
      it were hard to read. */
   background:
-    radial-gradient(circle at 20% 8%, rgb(255 255 255 / 0.7), transparent 55%),
-    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
-    #fbf5e6;
+    radial-gradient(circle at 20% 8%, var(--paper-glow), transparent 55%),
+    repeating-linear-gradient(0deg, var(--paper-grain) 0 1px, transparent 1px 3px),
+    var(--paper);
   box-shadow:
-    3px 4px 0 -1px #f1e8d2,
+    3px 4px 0 -1px var(--paper-edge),
     0 14px 40px rgb(40 30 60 / 0.22);
   font-size: 0.82rem;
   opacity: 0;
@@ -357,13 +372,13 @@ body {
      tape can go on out over the edge; what scrolls inside is clipped by its own box (`.page`). */
   border-radius: 22px 26px 24px 20px;
   background:
-    radial-gradient(circle at 20% 15%, rgb(255 255 255 / 0.7), transparent 55%),
-    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
-    #fbf5e6;
+    radial-gradient(circle at 20% 15%, var(--paper-glow), transparent 55%),
+    repeating-linear-gradient(0deg, var(--paper-grain) 0 1px, transparent 1px 3px),
+    var(--paper);
   backdrop-filter: none;
   box-shadow:
-    3px 4px 0 -1px #f1e8d2,
-    5px 7px 0 -2px #e8ddc3,
+    3px 4px 0 -1px var(--paper-edge),
+    5px 7px 0 -2px var(--paper-edge-2),
     0 18px 50px rgb(40 30 60 / 0.22);
   rotate: -0.4deg; /* a little askew, like the postcard */
 }
@@ -957,12 +972,12 @@ button.key {
      top corners. Nothing is clipped here, so that the tape can go out over the edge; what scrolls is `.end-body`. */
   border-radius: 22px 26px 24px 20px;
   background:
-    radial-gradient(circle at 20% 12%, rgb(255 255 255 / 0.7), transparent 55%),
-    repeating-linear-gradient(0deg, rgb(160 130 90 / 0.035) 0 1px, transparent 1px 3px),
-    #fbf5e6;
+    radial-gradient(circle at 20% 12%, var(--paper-glow), transparent 55%),
+    repeating-linear-gradient(0deg, var(--paper-grain) 0 1px, transparent 1px 3px),
+    var(--paper);
   box-shadow:
-    3px 4px 0 -1px #f1e8d2,
-    5px 7px 0 -2px #e8ddc3,
+    3px 4px 0 -1px var(--paper-edge),
+    5px 7px 0 -2px var(--paper-edge-2),
     0 18px 50px rgb(40 30 60 / 0.22);
   backdrop-filter: none;
   rotate: -0.4deg;
@@ -1015,30 +1030,35 @@ button.key {
   flex-direction: column-reverse;
   padding: 9px 2px 8px;
   border-radius: 14px;
-  background: #ffe3ec;
+  --tint: #ffe3ec;
+  background: var(--tint);
   box-shadow: 0 2px 0 rgb(40 30 60 / 0.08);
 }
+/* By night each keeps a breath of its colour on the dark paper, enough to tell them apart. */
+:root[data-night] .end .stats div {
+  background: color-mix(in srgb, var(--tint) 22%, var(--paper));
+}
 .end .stats div:nth-child(2) {
-  background: #fff1c9;
+  --tint: #fff1c9;
 }
 .end .stats div:nth-child(3) {
-  background: #dcefff;
+  --tint: #dcefff;
 }
 .end .stats div:nth-child(4) {
-  background: #e0f4d6;
+  --tint: #e0f4d6;
 }
 /* The three under them: the middle one, the time, is as wide as two. */
 .end .stats.tally {
   grid-template-columns: 1fr 2fr 1fr;
 }
 .end .stats.tally div:nth-child(1) {
-  background: #ece3ff;
+  --tint: #ece3ff;
 }
 .end .stats.tally div:nth-child(2) {
-  background: #ffe6d6;
+  --tint: #ffe6d6;
 }
 .end .stats.tally div:nth-child(3) {
-  background: #d9f3ec;
+  --tint: #d9f3ec;
 }
 .end .stats dt {
   font-size: 0.66rem;
@@ -1161,52 +1181,14 @@ button.key {
 @media (prefers-reduced-motion: no-preference) {
   .cards li {
     animation: card-in 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+    animation-delay: calc(var(--i, 0) * 0.04s); /* each in its turn, however many there are: see the page */
   }
   .cards .hearts {
     color: #f0719a;
-    animation: heart-pop 0.5s 0.35s cubic-bezier(0.3, 1.8, 0.5, 1) both;
+    animation: heart-pop 0.5s calc(0.35s + var(--i, 0) * 0.04s) cubic-bezier(0.3, 1.8, 0.5, 1) both; /* once its card is in */
   }
   .cards li[data-met='true']:hover canvas {
     animation: card-hop 0.4s;
-  }
-  .cards li:nth-child(2) {
-    animation-delay: 0.04s;
-  }
-  .cards li:nth-child(3) {
-    animation-delay: 0.08s;
-  }
-  .cards li:nth-child(4) {
-    animation-delay: 0.12s;
-  }
-  .cards li:nth-child(5) {
-    animation-delay: 0.16s;
-  }
-  .cards li:nth-child(6) {
-    animation-delay: 0.20s;
-  }
-  .cards li:nth-child(7) {
-    animation-delay: 0.24s;
-  }
-  .cards li:nth-child(8) {
-    animation-delay: 0.28s;
-  }
-  .cards li:nth-child(9) {
-    animation-delay: 0.32s;
-  }
-  .cards li:nth-child(10) {
-    animation-delay: 0.36s;
-  }
-  .cards li:nth-child(11) {
-    animation-delay: 0.40s;
-  }
-  .cards li:nth-child(12) {
-    animation-delay: 0.44s;
-  }
-  .cards li:nth-child(13) {
-    animation-delay: 0.48s;
-  }
-  .cards li:nth-child(14) {
-    animation-delay: 0.52s;
   }
 }
 @keyframes card-in {
@@ -1246,4 +1228,8 @@ button.key {
   margin: 0;
   font-size: 0.78rem;
   opacity: 0.65;
+}
+/* A line of the controls that has been done is a soft green, as in the castle; by night, a dark one, under light words. */
+:root[data-night] .hints li[data-done='true'] {
+  background: color-mix(in srgb, #bfe8c4 28%, var(--bg));
 }

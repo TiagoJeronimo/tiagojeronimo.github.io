@@ -85,7 +85,7 @@ function tap(w: Island, k: number) {
     ring.next = 0
     for (const cap of ring.caps) w.solid.paint(cap, DIM)
     note(0.02, 0.12)
-    return w.say('The ring goes dark again. No hard feelings. Perhaps the smallest one first? Most things go better that way.', 'fairy ring')
+    return w.say('The ring goes dark again. No hard feelings. Start with the smallest, then the next one up. Most things go better that way.', 'fairy ring')
   }
   w.solid.paint(ring.caps[k], LIT[k], 2.2)
   w.solid.poke(ring.caps[k], 6)
@@ -170,7 +170,7 @@ export const swamp: Isle = {
       const frog = w.critters.spawn('frog', x, top + 0.06, z, 0x7fca6c)
       const t: number = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         keep: true,
         sleeper: true,
         sound: 'ribbit',
@@ -198,7 +198,7 @@ export const swamp: Isle = {
       })
     } else if ('12345'.includes(c)) {
       const k = Number(c) - 1
-      const t = w.thing(tile, { auto: false, sound: 'ting', tip: 'A little mushroom, one of five in a ring. It knows where it comes in the order', tap: () => tap(w, k) })
+      const t = w.thing(tile, { auto: false, sound: 'ting', tip: 'A little mushroom, one of five. They come in sizes, and would like to be taken that way', tap: () => tap(w, k) })
       w.put(t, 0, 0.14 + k * 0.06, 0, 0.14, 0.28 + k * 0.12, 0.14, 0xf3ead8)
       const cap = w.put(t, 0, 0.34 + k * 0.12, 0, 0.36 + k * 0.07, 0.16, 0.36 + k * 0.07, DIM)
       const ring = ringOf(w)
@@ -206,7 +206,7 @@ export const swamp: Isle = {
       ring.tiles[k] = tile
     } else if (c === 'j') {
       // (It is the five mushrooms round it that get tapped: they are what stirs, to say so.)
-      const t = w.thing(tile, { auto: false, todo: true, touched: () => ringOf(w).tiles.flatMap((u) => w.standing[u].flatMap((i) => w.things[i].cubes)), tip: 'A ring of five mushrooms. They would like to be taken in order', clue: '[Five little mushrooms] stand in a ring in the swamp, each a bit taller than the last. They would like to be noticed in the right order. Who would not.' })
+      const t = w.thing(tile, { auto: false, todo: true, touched: () => ringOf(w).tiles.flatMap((u) => w.standing[u].flatMap((i) => w.things[i].cubes)), tip: 'A fairy ring: five little mushrooms, five sizes. They mind the order', clue: '[Five little mushrooms] stand in a circle in the swamp, each a bit taller than the last. Knock them from the smallest to the tallest. They would like to be noticed in the right order. Who would not.' })
       w.put(t, 0, 0.04, 0, 0.7, 0.08, 0.7, 0x8f9a8a)
       w.put(t, 0, 0.1, 0, 0.3, 0.06, 0.3, 0xa9b29c)
       ringOf(w).centre = t
@@ -221,7 +221,7 @@ export const swamp: Isle = {
         tip: 'An unlit lantern. Not broken. Waiting',
         clue: 'An [unlit lantern] hangs on a crooked post in the swamp. It can do exactly one thing, and nobody has asked. Ask.',
         onBreak: () => {
-          w.say('The lantern is lit, and night comes down with its fireflies. The big mushrooms glow, and the ground wakes in their light. You put the sun out to see better. Tap the lantern again for morning.', 'lantern')
+          w.say('The lantern is lit, and night comes down with its fireflies. Tap it again for morning. The big mushrooms glow, and the ground wakes in their light. You put the sun out to see better.', 'lantern') // what to do comes before the aside, while it can still be read
           w.grow(t)
           w.things[t].tip = 'The lantern. A tap turns night into day, and back. No pressure'
           w.setNight(true)

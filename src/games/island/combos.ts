@@ -1,8 +1,8 @@
-import { BARK, D, GROUND, NEVER, W, any, tx, tz } from './grid.ts'
+import { BARK, D, NEVER, W, any, tx, tz } from './grid.ts'
 import type { Island } from './Island.ts'
 
 /**
- * Things that only happen when two other things are both true: wind and seeds, bees and blossom, rain and fire.
+ * Things that only happen when two other things are both true: wind and seeds, bees and blossom, night and the tide.
  * Nobody has to find them. Each counts once, in whatever order its two halves came about.
  * The isles leave notes in `w.memo` when their half happens; this keeps an eye on the notes.
  */
@@ -11,15 +11,16 @@ export function combos(w: Island) {
   const beach = w.index('beach')
   let fruit = -1 // the tile of the tree, or the cactus, that fruit last came out on: where a combo of the bees shows
   const orchard = () => (fruit < 0 ? undefined : w.above(fruit, 2.2))
+  // Where each of the others shows, for its line in the log to lead to (see `extra`): a note in `w.memo`, once it is there.
+  const where = (note: string, high: number) => () => (w.memo[note] === undefined ? undefined : w.above(w.memo[note], high))
+  const lagoon = () => w.above(w.tiles[beach].find((u) => w.mark[u] === 'l') ?? -1, 0.5)
   const found = {
-    seeds: w.extra('combo', { hint: 'Seeds want wind. Something on the first island is full of seeds, and something in the meadow makes wind. They should talk.' }),
+    seeds: w.extra('combo', { hint: 'Seeds want wind. Something on the first island is full of seeds, and something in the meadow makes wind. They should talk.', at: where('mill', 2) }),
     apples: w.extra('combo', { hint: 'Bees and fruit trees have business with each other. It is not your business. Arrange it anyway.', at: orchard }),
     pears: w.extra('combo', { hint: 'A cactus that has flowered would like to meet some bees. It is prickly about asking.', at: orchard }),
-    steam: w.extra('combo', { hint: 'Ask the frog for rain where a fire is burning. Not because you should. Because you can.' }),
-    glass: w.extra('combo', { hint: 'Ask the frog for rain where the lava runs. Somebody has to find out what happens.' }),
-    glow: w.extra('combo', { hint: 'A lagoon with the tide in is worth seeing in the dark. Most things are, to be fair.' }),
-    swirl: w.extra('combo', { hint: 'A windmill that turns is worth seeing in the dark. It is not doing it for you, but it does not mind.' }),
-    owls: w.extra('combo', { hint: 'Ring the bell on the mountain when it is night. Somebody is always up.' }),
+    glow: w.extra('combo', { hint: 'A lagoon with the tide in is worth seeing in the dark. Most things are, to be fair.', at: lagoon }),
+    swirl: w.extra('combo', { hint: 'A windmill that turns is worth seeing in the dark. It is not doing it for you, but it does not mind.', at: where('mill', 2) }),
+    owls: w.extra('combo', { hint: 'The oldest tree on the mountain has a hollow, and somebody in it who keeps late hours. Knock after dark.', at: where('hollowTile', 1.5) }),
   }
   let clock = 0
   let sown = false
@@ -75,13 +76,17 @@ export function combos(w: Island) {
     }
     if (lagoon) found.glow('Night and tide! The lagoon lights up from underneath. Nothing is doing it on purpose. That is what makes it nice.')
     if (swirling) found.swirl("Night wind! The windmill's sails throw fireflies round and round. The fireflies have decided it is a ride.")
-    if (w.memo.steam) found.steam('Rain and fire! The fire pit goes out in a great cloud of steam. You did that on purpose. A knock will light it again, and we need not speak of it.')
-    if (w.memo.glass) found.glass('Rain and lava! The whole mountain hisses, and for a moment the lava sets like black glass. Nobody has ever told a volcano to calm down and had it work. Until now.')
-    if (w.memo.nightBell && !called) {
+    if (w.memo.owls && !called) {
       called = true
-      found.owls('A bell in the dark! Owls come out to see who is ringing. It was you. They are not angry, just awake.')
-      const at = w.memo.bellTile
-      for (let k = 0; k < 3; k++) w.critters.spawn('owl', tx(at) + 9, GROUND + 9, tz(at) - 5 + k * 4, [0xb9a58a, 0xa08c74, 0xcdbfa6][k]).next = w.flit
+      found.owls('A knock in the dark! Out of the hollow come the owls, one, two, three, to see who it was. It was you. They are not angry, just awake.')
+      // Out of the hollow, one after another, and off to somewhere to sit.
+      const at = w.memo.hollowTile
+      for (let k = 0; k < 3; k++)
+        w.after(k * 0.4, () => {
+          const owl = w.critters.spawn('owl', tx(at), w.h[at] + 1, tz(at) + 0.3, [0xb9a58a, 0xa08c74, 0xcdbfa6][k])
+          owl.next = w.flit
+          w.flit(owl)
+        })
     }
   })
 }

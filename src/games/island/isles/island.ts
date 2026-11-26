@@ -52,9 +52,10 @@ function freeBird(w: Island, bird: Critter) {
   w.watch(bird, flight + 0.6)
   critters.go(bird, x, GROUND + 3, z, flight, 1.2, () => {
     w.bits.spawn(x, GROUND + 2.9, z, 0, 0, 0, 0.2, BARK, 2, 0.2, 0)
-    w.after(0.5, () => w.raise('meadow'))
+    w.soon('meadow', 0.5)
+    // And straight on, somewhere to land: it used to wait up there while the meadow came up, and hung in the air.
     bird.next = w.flit
-    bird.rest = 2
+    w.flit(bird)
   })
 }
 
@@ -292,9 +293,9 @@ export const island: Isle = {
       for (let k = 0; k < 3; k++) w.put(t, (k - 1) * 0.34, 0.62, any() * 0.5, 0.12, 0.12, 0.7, BARK)
       w.blocked[tile] = 1
     } else if (c === 'V') {
-      // Fast asleep on its side, in plain sight. It takes two knocks: the first only gets a mutter out of it.
+      // Fast asleep on its side, in plain sight. It takes three knocks: the first only gets a mutter out of it.
       const beaver = w.critters.spawn('beaver', x, top + 0.16, z, 0x8a5a3c)
-      beaver.thing = w.thing(tile, { auto: false, hits: 2, sleeper: true, sound: 'mmf', onHit: () => w.say('The beaver stirs, mutters something about a deadline, and sleeps on. Knock again.'), tip: 'A beaver, fast asleep. On the job, technically', clue: 'A [beaver] is fast asleep right next to its dam, like somebody who finished one project and never started the next.', onBreak: () => wakeBeaver(w, beaver) })
+      beaver.thing = w.thing(tile, { auto: false, hits: 3, sleeper: true, sound: 'mmf', onHit: (left) => left === 2 && w.say('The beaver stirs, mutters something about a deadline, and sleeps on. Knock again.'), tip: 'A beaver, fast asleep. On the job, technically', clue: 'A [beaver] is fast asleep right next to its dam, like somebody who finished one project and never started the next.', onBreak: () => wakeBeaver(w, beaver) })
       beaver.grow = 1.25
       beaver.roll = 1.3
       beaver.face = 0.5
@@ -326,6 +327,7 @@ export const island: Isle = {
       const old = w.tree(tile, 'old')
       // Once it is in blossom, a knock on the trunk brings out who lives there.
       const lodger = w.extra('secret', { icon: 'marmot/c7653a', hint: 'The old tree, once it is in blossom, has a lodger. Knock. It is polite, and it works.', at: () => w.above(tile, 3.2) })
+      w.things[old].wanting = () => !!w.things[old].up && !lodger.has()
       w.things[old].tap = () => {
         if (!w.things[old].up || w.memo.squirrel) return
         w.memo.squirrel = 1
@@ -409,6 +411,7 @@ export const island: Isle = {
       // With water in it, it is a wishing well.
       const wished = w.extra('secret', { icon: 'well', hint: 'A well with water in it will take a wish. It does not grant them. It takes them. Read the wording.', at: () => w.above(tile, 1) })
       const well = w.thing(tile, {
+        wanting: () => !!w.memo.wellFull && !wished.has(),
         tap: () => {
           if (!w.memo.wellFull) return
           // A coin goes in, from the side the player is on, and then the splash: every time, not only the first.
@@ -423,7 +426,7 @@ export const island: Isle = {
       // The stone lid.
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sound: 'clonk',
         tip: 'A well, with a stone lid on it. Somebody was done with wishes',
         clue: 'Somebody put a [stone lid] on the well. Nobody puts a lid on a thing they never hoped into. Knock it off.',
@@ -440,7 +443,7 @@ export const island: Isle = {
       // An old crate. Something is humming inside.
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sound: 'bzzz',
         tip: 'A crate. It hums, and not from joy',
         clue: 'Something is humming inside that [crate]. Several thousand somethings, with one opinion.',
@@ -449,7 +452,7 @@ export const island: Isle = {
           w.say('Bees! They leave flowers where the ground is alive. Some fly off to a kitchen garden they remember, and it comes back with them. For a bee it is just Tuesday.', 'bees')
           w.grow(t)
           w.releaseBees(x, top + 1, z)
-          w.after(3, () => w.raise('garden'))
+          w.soon('garden', 3)
         },
       })
       w.put(t, 0, 0.4, 0, 0.8, 0.8, 0.8, 0xc9a06b)
@@ -465,7 +468,7 @@ export const island: Isle = {
     } else if (c === 'G') {
       // A bird in a cage. It knows where the next piece of land is.
       const bird = w.critters.spawn('bird', x, top + 0.1, z, 0x7cc4f5)
-      const t = w.thing(tile, { auto: false, hits: 2, sound: 'clang', tip: 'A cage. Somebody thought this was a good idea', clue: 'Something flutters behind [bars]. It has stopped asking. That is not the same as not minding.', onBreak: () => freeBird(w, bird) })
+      const t = w.thing(tile, { auto: false, hits: 3, sound: 'clang', tip: 'A cage. Somebody thought this was a good idea', clue: 'Something flutters behind [bars]. It has stopped asking. That is not the same as not minding.', onBreak: () => freeBird(w, bird) })
       w.put(t, 0, 0.05, 0, 0.8, 0.1, 0.8, BARK)
       const bars = RING.map(([dx, dz]) => w.put(t, dx * 0.36, 0.45, dz * 0.36, 0.06, 0.7, 0.06, 0x6b5a5a))
       w.things[t].marks = [[bars[2], bars[4]]] // two bars at the front go first
@@ -481,7 +484,7 @@ export const island: Isle = {
       // A fat seed pod, ready to go.
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sound: 'pop',
         tip: 'A seed pod, fit to burst. It needs one bad day',
         clue: 'That [fat brown pod] looks ready to burst. It is waiting for permission. You are permission.',
@@ -507,7 +510,7 @@ export const island: Isle = {
     } else if (c === '4') {
       // It comes up with the grass, and looks like one more tuft unless you look.
       const lucky = w.extra('secret', { icon: 'clover', hint: 'Three leaves are common. Somewhere on the first island there are four. Luck is mostly looking at the ground for longer than is normal.', at: () => w.above(tile, 0.5) })
-      const t: number = w.thing(tile, { tap: () => w.things[t].up && lucky('A secret: a four-leaf clover. Lucky you. It was there the whole time, which is the least comforting thing about luck.') })
+      const t: number = w.thing(tile, { wanting: () => !!w.things[t].up && !lucky.has(), tap: () => w.things[t].up && lucky('A secret: a four-leaf clover. Lucky you. It was there the whole time, which is the least comforting thing about luck.') })
       w.put(t, 0, 0.12, 0, 0.05, 0.24, 0.05, 0x4f9a5a, true)
       for (const [dx, dz] of NEAR) w.put(t, dx * 0.1, 0.26, dz * 0.1, 0.14, 0.05, 0.14, 0x3f8f52, true)
     }
@@ -519,7 +522,6 @@ export const island: Isle = {
       if (w.mark[tile] !== 'p' || w.isle[tile] !== s || w.memo.ducks) return
       w.memo.ducks = 1
       w.after(2.5, () => {
-        w.say('Ducks! The pond is a pond again. They came the second there was water, and act as if they were always here.', 'duck')
         w.tiles[s]
           .filter((u) => w.mark[u] === 'p')
           .slice(-2) // the far end of the pond from where the beaver will build

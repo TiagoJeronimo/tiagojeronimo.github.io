@@ -194,7 +194,7 @@ export const volcano: Isle = {
         })
       })
     } else if (c === 'E') {
-      const egg = w.thing(tile, { auto: false, sound: 'tik', tip: 'An egg, stone cold. It has not given up', tap: () => w.say('The egg is cold. It would like some warmth. You cannot hold it. You are a cursor. Find another way.') })
+      const egg = w.thing(tile, { auto: false, sound: 'tik', tip: 'An egg, stone cold. It has not given up', wanting: () => true, tap: () => w.say(`The egg is cold. It would like some warmth. You cannot hold it. You are ${w.touch ? 'a fingertip' : 'a cursor'}. Find another way.`) })
       w.put(egg, 0, 0.26, 0, 0.36, 0.44, 0.36, 0x3a3340)
       w.put(egg, 0, 0.3, 0, 0.38, 0.1, 0.38, 0xff9a5c)
       w.put(egg, 0.1, 0.44, 0.1, 0.1, 0.06, 0.1, 0xffc24a)

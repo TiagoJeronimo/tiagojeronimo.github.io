@@ -130,6 +130,7 @@ export function wishes(w: Island) {
     const owner = wish.owner!
     wish.granted = true
     friend(wish.who)!.granted = true
+    if (w.friends.every((f) => !f.more || f.granted)) w.aside('wishes', 'Everybody has what they wished for. It took an afternoon. Try not to compare that with anything.')
     wish.bubble!.hidden = true
     owner.tip = undefined
     owner.pet = 1
@@ -221,6 +222,7 @@ export function wishes(w: Island) {
       return thing && [tx(thing.tile), w.h[thing.tile] + 0.4, tz(thing.tile)]
     },
   }
+  w.wanted.push((thing) => open(bunny) && !bunny.sent && carrots().includes(thing))
   w.onKnock.push((thing) => {
     if (!open(bunny) || bunny.sent || !carrots().includes(thing)) return false
     // One carrot comes out of the ground and flies over: the patch stays, with the other one in it.
@@ -310,6 +312,7 @@ export function wishes(w: Island) {
       }
     },
   }
+  w.wanted.push((thing) => open(beaver) && !beaver.sent && leafy(thing))
   w.onKnock.push((thing) => {
     if (!open(beaver) || beaver.sent || !leafy(thing)) return false
     for (let k = 0; k < 6; k++) bits.spawn(tx(thing.tile) + any(), thing.perch[1], tz(thing.tile) + any(), any() * 2, 1, any() * 2, 0.14, 0x8fd16b, 1.4, w.h[thing.tile], 0, 5)
@@ -352,6 +355,7 @@ export function wishes(w: Island) {
         w.solid.paint(w.put(t, 0, 0.2, 0, 0.18, 0.18, 0.18, 0xffffff), 0xffffff, 1.8)
       }),
   }
+  w.wanted.push((thing) => open(crab) && !crab.sent && palm(thing))
   w.onKnock.push((thing) => {
     if (!open(crab) || crab.sent || !palm(thing)) return false
     send(crab, thing.perch[0], thing.perch[1] - 0.3, thing.perch[2], BARK)
@@ -405,7 +409,7 @@ export function wishes(w: Island) {
       const known = friend(c.friend ?? c.kind)
       if (known && free(c) && c.size > 0.5) known.met = true
     }
-    if (w.friends.every((f) => f.patted)) secret.everybody("A secret: everybody's friend. There is nobody left who has not had a pat. You were thorough about being kind. Somebody should be.")
+    if (w.friends.every((f) => f.patted)) secret.everybody("A secret: everybody's friend. There is nobody left who has not had a pat. You were thorough about being kind.")
     // Fish move into the island's river once it runs.
     if (w.memo.river && !school.length) {
       const river = isle('island').filter((u) => w.mark[u] === 'r' && w.filled[u])

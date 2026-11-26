@@ -1,6 +1,6 @@
 import { note, thump } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
-import { BARK, GROUND, NEAR, NEVER, STONE, W, any, step, tx, tz, type Isle } from '../grid.ts'
+import { BARK, GROUND, NEAR, NEVER, STONE, W, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
 
 // The marmots of each game, asleep in their holes until the bell goes; and the holes, which say so until then.
@@ -11,14 +11,16 @@ const burrows = new WeakMap<Island, number[]>()
 function ring(w: Island, tile: number, loud: boolean) {
   note(0.12, 0.25)
   w.rumble(0.25)
-  w.memo.bellTile = tile
   w.notice([tx(tile), w.h[tile] + 0.9, tz(tile)], 1.5)
-  if (w.night) w.memo.nightBell = 1 // owls like a bell in the dark
   for (let k = 0; k < 18; k++) w.bits.spawn(tx(tile), w.h[tile] + 0.9, tz(tile), Math.cos(k * 0.35) * 7, 0, Math.sin(k * 0.35) * 7, 0.12, 0xffd86b, 0.8, NEVER, 0, 0, 2)
   if (!loud) return
   for (const hole of burrows.get(w) ?? []) w.things[hole].tip = 'A burrow in the rock. Empty. The bell saw to that'
+  // Each marmot is called out once. (They used to be told again at every ring until they were up, and a bell rung fast
+  // stacked one climb out of the burrow on another: they rose into the air.)
+  const called = marmots.get(w) ?? []
+  marmots.delete(w)
   let n = 0
-  for (const marmot of marmots.get(w) ?? [])
+  for (const marmot of called)
     if (!marmot.next)
       w.after(0.4 + n++ * 0.5, () => {
         note(0.9, 0.06)
@@ -95,7 +97,7 @@ function wakeMole(w: Island, tile: number) {
  *   a  the lake     Q  the ice that dams it     c  the bed of the cascade     U  a snowball on the summit
  *   Z  the bell     n  a marmot hole     m  molehill     u  where the mole will dig     k  the dry tarn
  *   g  a goat     E  an eagle     v  a cave in the cliff behind, for whoever turns the world round
- *   H  bridge to the meadow
+ *   H  bridge to the meadow     O  a fir much older and bigger than the others, with a hollow, and owls in it
  */
 export const mountain: Isle = {
   name: 'mountain',
@@ -106,7 +108,7 @@ export const mountain: Isle = {
     ' .T.....Eo..',
     'T.........o.',
     '...aa....T..',
-    '.o..Q..g...T',
+    '.o..Q.Og...T',
     '..Z.c.n..n..',
     ' ...c..n... ',
     '   .c.....T ',
@@ -136,7 +138,7 @@ export const mountain: Isle = {
         '   T.UE.....',
         ' T........o.',
         'T..........T',
-        '.o.......aa.',
+        '.o...O...aa.',
         '...g.....Q..',
         '.Z..n.n..c.o',
         ' ....n...cT ',
@@ -163,7 +165,7 @@ export const mountain: Isle = {
         '   .....UET.',
         ' .T.........',
         '..o.......o.',
-        'T....aa.....',
+        'T....aa.O...',
         '.o....Q..g.T',
         '...n..c.n.Z.',
         ' ..n..c.... ',
@@ -200,6 +202,35 @@ export const mountain: Isle = {
     // The top two steps lie under snow, and stay that way.
     if (top >= GROUND + 4) w.land(tile, top + 0.07, 1, 0.14, 1, 0xfafcff) // deep enough to bury the pebbles
     if (c === 'a') w.filled[tile] = 1
+    else if (c === 'O') {
+      // A fir much older and bigger than the others, with a hollow in its trunk on the side the camera starts from: a dark
+      // knot by day, with two eyes in it after dark. Knocked on then, the owls come out (`combos`). Not before: whoever
+      // lives in there keeps other hours. Snow on its tiers while the mountain is dry, green once it wakes, as the pines.
+      const wide = 0.5
+      const t = w.thing(tile, {
+        sound: 'hoo',
+        tip: 'A fir, much older than the others. A hollow in it, dark, and not empty',
+        wanting: () => w.night && !w.memo.owls,
+        tap: () => {
+          if (!w.night) return w.say('Nobody answers. Whoever lives in the hollow keeps other hours. Try again when it is dark.', 'hollow')
+          w.memo.owls = 1 // and they come out: see `combos`
+        },
+      })
+      w.memo.hollowTile = tile
+      w.put(t, 0, 0.8, 0, wide, 1.6, wide, WOOD)
+      const tiers = [[1.7, 1.7], [1.34, 2.16], [0.98, 2.6], [0.6, 3.02]].map(([size, dy]) => w.put(t, 0, dy, 0, size, 0.46, size, 0xf4f8fd))
+      w.things[t].wake = () => tiers.forEach((cube, k) => w.solid.paint(cube, k % 2 ? 0x6fbc86 : 0x5fae7a))
+      w.put(t, 0, 0.78, wide / 2 + 0.02, 0.18, 0.26, 0.04, 0x3a2a22)
+      const eyes = [-0.045, 0.045].map((dx) => w.put(t, dx, 0.82, wide / 2 + 0.05, 0.045, 0.045, 0.02, 0xffd45c))
+      w.ticks.push(() => {
+        const open = w.night && !w.memo.owls && w.open[s]
+        for (const eye of eyes) {
+          if (w.solid.on(eye) === open) continue
+          if (open) w.solid.show(eye)
+          else w.solid.hide(eye)
+        }
+      })
+    }
     else if (c === 'v') {
       // A cave in the cliff on the far side, for whoever turns the world round: a mound of rock built out from the cliff with a
       // tall arch in it, a smaller arch further in, a pool that glows, crystals, and bats asleep under the inner roof.
@@ -210,6 +241,7 @@ export const mountain: Isle = {
       const t = w.thing(tile, {
         sound: 'flap',
         tip: 'A cave. Something rustles inside. It heard you too',
+        wanting: () => !crystals.has(),
         tap: () => {
           until = Math.max(until, w.time + 12)
           if (woken) w.say('And off the bats go again. You woke them twice. They are not keeping count. You are.', 'bats')
@@ -301,7 +333,7 @@ export const mountain: Isle = {
       w.blocked[tile] = 1
     } else if (c === 'U') {
       const ball = w.critters.spawn('snowball', x, top + 0.58, z) // resting on the snow that lies on the summit
-      const t = w.thing(tile, { auto: false, hits: 2, sound: 'fwump', tip: 'A big snowball. Held back by two pebbles and a sense of duty', clue: 'A [big snowball] sits on the summit, held back by two small stones. All that wanting to happen, stopped by so little. Help it.', onBreak: () => roll(w, ball, tile) })
+      const t = w.thing(tile, { auto: false, hits: 3, sound: 'fwump', tip: 'A big snowball. Held back by two pebbles and a sense of duty', clue: 'A [big snowball] sits on the summit, held back by two small stones. All that wanting to happen, stopped by so little. Help it.', onBreak: () => roll(w, ball, tile) })
       // Two small stones hold it, wedged into the corners its blocks leave at the front.
       w.things[t].marks = [[w.put(t, -0.36, 0.24, 0.36, 0.18, 0.24, 0.18, STONE[1])]] // one of the two goes first
       w.put(t, 0.35, 0.21, 0.35, 0.16, 0.18, 0.16, STONE[0])
@@ -346,7 +378,7 @@ export const mountain: Isle = {
       marmots.set(w, [...(marmots.get(w) ?? []), marmot])
       burrows.set(w, [...(burrows.get(w) ?? []), hole])
     } else if (c === 'm') {
-      const t = w.thing(tile, { auto: false, hits: 2, sleeper: true, sound: 'snf', tip: 'A fresh molehill. Somebody is home, and busy', clue: 'A [fresh molehill] sits between the dry stream bed and the dry tarn. Somebody down there digs. Somebody up here has a use for that.', onBreak: () => wakeMole(w, tile) })
+      const t = w.thing(tile, { auto: false, hits: 3, sleeper: true, sound: 'snf', tip: 'A fresh molehill. Somebody is home, and busy', clue: 'A [fresh molehill] sits between the dry stream bed and the dry tarn. Somebody down there digs. Somebody up here has a use for that.', onBreak: () => wakeMole(w, tile) })
       w.put(t, 0, 0.15, 0, 0.7, 0.3, 0.7, 0x8a6f5a)
       w.put(t, 0.04, 0.38, -0.02, 0.4, 0.18, 0.4, 0x9a7d66)
     } else if (c === 'H') {

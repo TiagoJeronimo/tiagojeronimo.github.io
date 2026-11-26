@@ -279,17 +279,17 @@ export const beach: Isle = {
       // which also gives the shell what a blow does from then on.
       const t: number = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         keep: true,
         sound: 'toot',
         marks: [], // the first note sets it humming: see onHit
         fuss: 'The sea heard you the first time. It is in. It cannot be more in.',
         tip: 'A big spiral shell. It wants blowing. It has a lot to say',
         clue: 'A [big spiral shell] lies on the beach. It looks like it wants blowing. They say you can hear the sea in one. This one talks back.',
-        onHit: () => {
+        onHit: (left) => {
           note(0.1, 0.2)
           for (const cube of w.things[t].cubes) w.solid.paint(cube, 0xffd9c9, 1.35)
-          w.say('A low note comes out of the shell. Far off, the sea shifts, like somebody hearing their name across a room.', 'shell')
+          if (left === 2) w.say('A low note comes out of the shell. Far off, the sea shifts, like somebody hearing their name across a room.', 'shell')
         },
         onBreak: () => {
           note(0, 0.25)
@@ -299,7 +299,7 @@ export const beach: Isle = {
           const lagoon = w.tiles[s].filter((u) => w.mark[u] === 'l').sort((a, b) => tz(b) - tz(a))
           w.fill(lagoon[0]) // from the seaward end
           w.after(3, () => w.grow(w.memo.plug)) // and up bobs the plug
-          w.after(5, () => w.raise('volcano'))
+          w.soon('volcano', 5)
         },
       })
       w.put(t, 0.05, 0.18, 0.05, 0.5, 0.36, 0.42, 0xffe2d2)
@@ -312,7 +312,7 @@ export const beach: Isle = {
       const crab = w.critters.spawn('crab', x, top - 0.04, z, 0xff7a5c)
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sleeper: true,
         sound: 'tsk',
         tip: 'Two eyes, in a heap of sand. They have seen you',
@@ -402,7 +402,7 @@ export const beach: Isle = {
       w.signpost(tile, 0, -1, [
         'THE BEACH. No running, no diving, no working out how many grains there are.',
         'The sea comes and goes. The sign stays. Neither is sure who got the better deal.',
-        'Swim at your own risk. You are a mouse pointer. The risk is low.',
+        `Swim at your own risk. You are ${w.touch ? 'one finger' : 'a mouse pointer'}. The risk is low.`,
       ])
     } else if (c === 'S') {
       // A sandcastle somebody left behind. Three pats and it has its flag back.
@@ -412,6 +412,7 @@ export const beach: Isle = {
         auto: false,
         sound: 'pat',
         tip: 'A sandcastle. Not finished, like everything good',
+        wanting: () => !flagged.has(),
         tap: () => {
           if (++pats !== 3) return
           w.grow(t)
@@ -488,7 +489,8 @@ export const islet: Isle = {
         sound: 'clink',
         fuss: 'It is a lighthouse. It does one thing. You have now been told six times.',
         tip: 'A lighthouse. It works nights',
-        tap: () => {
+        // A toy: it says its piece every time, and there is nothing in it to find, so it does not stir to be found.
+        play: () => {
           lamp.pet = 1 // the lamp is not one of the tower's cubes: it gets its jolt by hand
           w.say(w.night ? 'The lamp goes round and round. Somewhere a ship that is not there is grateful. The lighthouse does it for the one that might be.' : 'A lighthouse. It keeps office hours: nights only. By day it is a tall building with a secret.')
         },
@@ -521,6 +523,7 @@ export const islet: Isle = {
       auto: false,
       sound: 'creak',
       tip: 'A chest, half buried. Somebody meant to come back',
+      wanting: () => !dug.has(),
       tap: () => {
         const chest = w.things[t]
         chest.tap = undefined

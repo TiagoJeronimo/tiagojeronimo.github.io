@@ -119,7 +119,7 @@ export const snow: Isle = {
       w.signpost(tile, 0, 1, [
         'THE SNOW. Mind the ice: it is only water that gave up on moving.',
         'It is quiet up here. The sign used to think that was peace. Now it suspects it is just the cold.',
-        'If you can read this, you are a cursor. No judgement. The penguin cannot read at all.',
+        `If you can read this, you are ${w.touch ? 'a finger' : 'a cursor'}. No judgement. The penguin cannot read at all.`,
       ])
     } else if (c === 'P') {
       // Frozen in up to the neck.
@@ -160,7 +160,6 @@ export const snow: Isle = {
           const flies = c.kind === 'bird'
           w.critters.go(c, gx, gy, gz, flies ? 0.6 + far / 6 : 0.4 + far * 0.45, flies ? 0.5 + far * 0.1 : 0, () => (c.face = a + Math.PI))
         })
-        if (guests.length) w.say('Night, and a fire burning up north. The birds come in from everywhere to sleep beside it. Nobody invited them. A fire is the invitation.', 'fire')
       }
       w.onNight.push(gather)
       const pit = w.thing(tile, {
@@ -191,10 +190,10 @@ export const snow: Isle = {
       ]
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sound: 'pff',
-        tip: 'A heap of snow, on a ring of stones. Somebody was warm here once',
-        clue: 'One [heap of snow] up north has a ring of stones under it. Stones do not arrange themselves. Somebody was warm here once.',
+        tip: 'A heap of snow, on a ring of stones. Stones do not arrange themselves',
+        clue: 'One [heap of snow] up north has a ring of stones under it. Somebody was warm here once. There may be some left.',
         onBreak: () => {
           w.say('A fire pit, still warm under the snow. The snow backs away from it. It stayed warm under there the whole time, for nobody. Some things do.', 'fire')
           flames.forEach((flame, k) => solid.paint(flame, FLAME[k], 2.4))
@@ -225,12 +224,13 @@ export const snow: Isle = {
       }
     } else if (c === 'M') {
       // A heap of snow that could be somebody. Three pats make a snowman of it; and while the snow is out, the penguin gets a slide.
-      const built = w.extra('secret', { icon: 'snowman', hint: 'One heap of snow up north could be somebody. Three pats. That is all anybody is: a heap, and some attention.', at: () => w.above(tile, 0.9) })
+      const built = w.extra('secret', { icon: 'snowman', hint: 'One heap of snow up north could be somebody. Three pats. A heap and some attention: it is how anybody starts.', at: () => w.above(tile, 0.9) })
       let pats = 0
       const t: number = w.thing(tile, {
         auto: false,
         sound: 'pat',
         tip: 'A heap of snow. It could be somebody, with some help',
+        wanting: () => !built.has(),
         tap: () => {
           if (pats > 2) return w.say('The snowman has nothing to add. It is finished. Leave it. Not everything wants improving.', 'snowman')
           parts[pats].forEach((cube, k) => solid.show(cube, k * 0.07))
@@ -265,7 +265,7 @@ export const snow: Isle = {
         auto: false,
         hits: 3,
         sound: 'hsss',
-        tip: 'A rattling stone. Steam leaks out round it. It is fine. It is not fine',
+        tip: 'A rattling stone. Steam leaks out round it. It would rather not talk about it',
         clue: 'One [stone] up north keeps rattling, and steam leaks out around it. Whatever is under there has stopped being polite about it.',
         onBreak: () => {
           w.say('A geyser! It was under the snow the whole time, boiling quietly, like a few people you know. It lets go, and out east, a mountain happens.', 'geyser')
@@ -274,7 +274,7 @@ export const snow: Isle = {
           w.fill(tile)
           w.source(tile, 3.2, 0.8)
           since = w.time
-          w.after(3.5, () => w.raise('mountain'))
+          w.soon('mountain', 3.5)
         },
       })
       w.stones(t, 1.3, tile)
@@ -316,7 +316,6 @@ export const snow: Isle = {
         const far = Math.hypot(bx - bird.x, bz - bird.z)
         w.critters.go(bird, bx, by, bz, 0.6 + far / 6, 0.5 + far * 0.1, () => (bird.face = a + Math.PI))
       })
-      if (birds.length) w.say('Night, and hot water steaming up north. The birds sleep along the bank of it. It is the nearest thing here to a spa. Nobody is talking.', 'geyser')
     })
     // It snows for as long as any of it is still frozen.
     w.ticks.push((dt) => {

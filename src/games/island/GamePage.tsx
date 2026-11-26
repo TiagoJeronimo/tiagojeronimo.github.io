@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { WebGLRenderTarget, type PerspectiveCamera } from 'three'
 import { Back, FINGERS, Hints, Sound, SheepLink } from '../hints.tsx'
@@ -169,7 +169,7 @@ const Cog = () => (
   </svg>
 )
 
-const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 8], secrets: [0, 16], snails: [0, 7], friends: [], isles: [], finds: [], pairs: [], notes: [], tally: [0, 0, 0], credits: [], rolling: 0, rolled: 0, said: [], ended: false, cut: false }
+const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 6], secrets: [0, 16], snails: [0, 10], friends: [], isles: [], finds: [], pairs: [], notes: [], tally: [0, 0, 0], credits: [], rolling: 0, rolled: 0, said: [], ended: false, cut: false }
 
 /**
  * The island in the picture: made here, moved on every frame, and unmade when the picture goes.
@@ -344,6 +344,14 @@ export default function GamePage() {
   const stamps = places.filter(whole).length
   // Every friend wishes for a pat, and six of them for something more.
   const wishes = [friends.filter((friend) => friend.patted).length + friends.filter((friend) => friend.granted).length, friends.length + friends.filter((friend) => friend.more).length]
+  // Everything: the world awake, and every combo, secret, snail and wish found. The card at the end comes up again for it,
+  // in a form of its own, even if it was put away long ago: finding the last of them is an ending too.
+  const complete = state.done && [combos, secrets, snails, wishes].every(([have, all]) => have >= all)
+  const wasComplete = useRef(complete)
+  useEffect(() => {
+    if (complete && !wasComplete.current) setWaved(-1)
+    wasComplete.current = complete
+  }, [complete])
 
   const fresh = () => {
     setState(START)
@@ -585,8 +593,8 @@ export default function GamePage() {
           {tab === 'Friends' && (
             <section>
               <ul className="cards">
-                {friends.map((friend) => (
-                  <li key={friend.id} data-met={friend.met}>
+                {friends.map((friend, i) => (
+                  <li key={friend.id} data-met={friend.met} style={{ '--i': i } as CSSProperties}>
                     <Pic what={FACES[friend.id]} shade={!friend.met} size={54} />
                     <div>
                       {friend.met ? (
@@ -753,10 +761,22 @@ export default function GamePage() {
                 <Pic key={friend.id} what={FACES[friend.id]} size={30} />
               ))}
           </div>
-          <h2>The whole world is awake</h2>
-          <p>
-            You woke it in <strong>{state.knocks} knocks</strong>. It was a game about clicking on things until they got better. It worked. That almost never works. Thank you.
-          </p>
+          {complete ? (
+            <>
+              <h2>There is nothing left</h2>
+              <p>
+                Every secret, every combo, every snail. One hundred per cent. You can stop looking now. I say that knowing you will knock on one more rock.
+              </p>
+              <p>Nobody was checking. You did it properly anyway. That is either the best thing about you or the thing to keep an eye on. Possibly both.</p>
+            </>
+          ) : (
+            <>
+              <h2>The whole world is awake</h2>
+              <p>
+                You woke it in <strong>{state.knocks} knocks</strong>. It was a game about clicking on things until they got better. It worked. That almost never works. Thank you.
+              </p>
+            </>
+          )}
           {/* What else there was to find, and how much of it was found: four small tiles. */}
           <dl className="stats">
             {(

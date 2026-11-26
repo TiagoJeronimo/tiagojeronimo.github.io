@@ -2,7 +2,7 @@
 
 A click-to-explore game. The island starts dry. Water wakes the ground near it; about 27 things hold the water back or
 the life in, and finding them is the game. Finding some makes more isles rise. Not needed to finish, each with a count
-of its own: 8 combos, 16 secrets, 7 snails, and a wish or two for every animal.
+of its own: 6 combos, 16 secrets, 10 snails, and a wish or two for every animal.
 
 ## Files
 

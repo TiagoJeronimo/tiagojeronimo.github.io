@@ -11,7 +11,7 @@ Object.assign(globalThis, {
   matchMedia: () => ({ matches: false }),
   addEventListener() {},
   removeEventListener() {},
-  document: { documentElement: { style: { setProperty() {}, removeProperty() {} } }, body: { style: {} }, querySelector: () => null },
+  document: { documentElement: { style: { setProperty() {}, removeProperty() {} }, toggleAttribute() {}, removeAttribute() {} }, body: { style: {} }, querySelector: () => null },
 })
 const { ISLES, Island, framed, held, LINGER } = await import('../src/games/island/Island.ts')
 const { headOf, shapeOf } = await import('../src/games/island/critters.ts')
@@ -193,19 +193,19 @@ function play(seed: number) {
   const knocks = game.knocks
   for (const toy of toys) assert.equal(game.strike(game.things.indexOf(toy)), false, say(`a knock on a toy was kept: ${toy.tip}`))
   assert.equal(game.knocks, knocks, say('knocks on toys were counted'))
-  wait(30) // an apple or two came down just now: somebody eats them, and nothing is left in a muddle
   // The ending rolls: what whoever is in the balloon has to say goes up over the island in one go, like the credits
   // of a film, for about a minute. The space bar cuts it short. Then it is over, and the card can come up with a few
   // true things on it about how the island was played.
   const film = game as unknown as { reel?: { lines: string[]; seconds: number }; critters: { list: { kind: string; onPat?: () => void }[] } }
   for (let k = 0; k < 60 && !film.reel && !game.ended; k++) wait(1)
   if (film.reel) {
-    assert.ok(film.reel.lines.length === 11 && film.reel.seconds > 40 && film.reel.seconds < 100, say(`an odd ending: ${film.reel.lines.length} lines in ${film.reel.seconds} seconds`))
+    assert.ok(film.reel.lines.length === 8 && film.reel.seconds > 30 && film.reel.seconds < 100, say(`an odd ending: ${film.reel.lines.length} lines in ${film.reel.seconds} seconds`))
     game.next()
     assert.ok(game.ended && !film.reel, say('the space bar did not cut the ending short'))
     endings++
   }
   assert.ok(game.ended, say('the ending never ended'))
+  wait(30) // an apple or two came down with the knocks on the toys: somebody eats them, and nothing is left in a muddle (after the ending is caught, which is shorter than this)
   // And a click on the balloon rolls it again, from the top and to its end, without taking the ending back.
   film.critters.list.find((c) => c.kind === 'balloon')!.onPat!()
   assert.ok(film.reel && game.ended, say('a click on the balloon did not roll the ending again'))
@@ -281,7 +281,7 @@ for (const kind of ['bird', 'bunny', 'tortoise', 'duck', 'penguin', 'beaver', 'm
   }
   fidget(30)
   assert.equal(acts.size, 0, 'somebody shut in or asleep is fidgeting: on a new island there is only a bird in a cage and a beaver asleep')
-  for (const tip of ['A cage', 'A cage', 'A beaver, fast asleep', 'A beaver, fast asleep']) game.strike(game.things.findIndex((thing) => thing.tip?.startsWith(tip)))
+  for (const tip of ['A cage', 'A cage', 'A cage', 'A beaver, fast asleep', 'A beaver, fast asleep', 'A beaver, fast asleep']) game.strike(game.things.findIndex((thing) => thing.tip?.startsWith(tip)))
   fidget(90)
   assert.ok(acts.size > 1, `the bird and the beaver are out, and have found nothing to do with themselves (${[...acts]})`)
   game.setNight(true)
@@ -348,14 +348,15 @@ console.log('animals: ok')
   wait(30)
   const [one, two] = [said('One short line.')!, said('And another')!]
   assert.ok(one && two && two[1] - one[1] > held('One short line.') + 0.9, `the second line did not wait for the first to be read, and a breath more (${one}, ${two})`)
-  // What a click brings about is said at once, whatever is up. Here the click lands on a sign.
+  // What a click brings about is said a moment later (in case another click on the same thing follows), whatever is up. Here the click lands on a sign.
   const sign = game.things.findIndex((thing) => thing.tip?.startsWith('A sign.'))
   // The line it replaces does not come back afterwards. It is in the log, and, cut off this early, with a dot.
   game.say('A long line that is in the middle of being read when the click comes, and is gone for good when it does.')
   wait(1)
   game.pick = () => sign
   game.click()
-  assert.ok(game.hint.startsWith('THE ISLAND: THAT WAY.'), `a click was not answered at once: ${game.hint}`)
+  wait(1)
+  assert.ok(game.hint.startsWith('THE ISLAND: THAT WAY.'), `a click was not answered: ${game.hint}`)
   const unread = game as unknown as { fresh: string[]; read(): void; heard: [string, ...unknown[]][] }
   assert.ok(unread.fresh.some((line) => line.startsWith('A long line')) && unread.heard.some(([line]) => line.startsWith('A long line')), 'a line cut off by a click is not in the log as one that went by unread')
   unread.read()
@@ -375,7 +376,7 @@ console.log('animals: ok')
   wait(12)
   assert.ok(said('Ten knocks on the same thing.'), 'ten knocks on nothing went unremarked')
   // A favourite: one that gets all the pats.
-  for (const tip of ['A cage', 'A cage']) game.strike(game.things.findIndex((thing) => thing.tip?.startsWith(tip)))
+  for (const tip of ['A cage', 'A cage', 'A cage']) game.strike(game.things.findIndex((thing) => thing.tip?.startsWith(tip)))
   wait(8)
   const bird = game.critters.list.find((c) => c.kind === 'bird' && c.thing === undefined)
   for (let k = 0; k < 6; k++) game.pat(bird)
@@ -611,7 +612,7 @@ assert.ok(Math.abs(kept.soon[2] - taken[2]) < 0.02 * taken[2] && Math.hypot(kept
   const whole = seen()
   const cage = game.things.findIndex((thing) => thing.tip?.startsWith('A cage'))
   const bird = game.critters.list.find((c) => c.kind === 'bird')!
-  for (let k = 0; k < 2; k++) game.strike(cage)
+  for (let k = 0; k < 3; k++) game.strike(cage)
   run(2)
   const along = seen()
   assert.ok(along[2] < whole[2] * 0.85, `the camera did not come nearer to go along with the bird (${whole[2].toFixed(1)} off, then ${along[2].toFixed(1)})`)
@@ -698,7 +699,7 @@ assert.ok(Math.abs(kept.soon[2] - taken[2]) < 0.02 * taken[2] && Math.hypot(kept
     return game.things[id].tile
   }
   run(5)
-  const well = knock('A well, with a stone lid', 2)
+  const well = knock('A well, with a stone lid', 3)
   run(6)
   assert.ok(!game.going && Math.abs(game.zoom - game.far / 22) < 0.05 * game.zoom, `the view did not go in for a look at the open well (${game.zoom.toFixed(2)} times, for ${(game.far / 22).toFixed(2)})`)
   assert.ok(Math.hypot(game.centre.x + game.pan.x - tx(well), game.centre.z + game.pan.z - tz(well)) < 0.3, 'nor is it looking at the well')
@@ -709,7 +710,7 @@ assert.ok(Math.abs(kept.soon[2] - taken[2]) < 0.02 * taken[2] && Math.hypot(kept
   run(6)
   assert.ok(Math.abs(game.zoom - 1) < 0.02 && game.pan.length() < 0.2, `the view came in part of the way when the boulder gave, and stopped (${game.zoom.toFixed(2)} times, ${game.pan.length().toFixed(1)} off the middle)`)
 }
-// The things still to be found stir now and then, one at a time: that is all that says, on a touch screen, what can
+// The things that can be touched stir now and then, one at a time: that is all that says, on a touch screen, what can
 // be touched. Only those, and only gently.
 {
   const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { solid: { poke(i: number, amount?: number): void }; things: (Thing & { clue?: string; touched?: () => number[] })[] }
@@ -722,8 +723,9 @@ assert.ok(Math.abs(kept.soon[2] - taken[2]) < 0.02 * taken[2] && Math.hypot(kept
   }
   for (let i = 0; i < 60 * 20; i++) game.update(0.05, camera, 1280, 800)
   assert.ok(stirred.size >= 3, `in a minute only ${stirred.size} of the things to be found stirred`)
-  // (All of them things that count towards finishing and that take a knock: no scenery, no toys, no secrets.)
-  assert.ok([...stirred].every((thing) => thing.hits && thing.clue), 'something stirred that is not there to be found, or that a touch does nothing for')
+  // (All of them things that take a knock: what counts towards finishing, or a secret not yet knocked on. No scenery, no toys.)
+  assert.ok([...stirred].every((thing) => (thing.hits && thing.clue) || (thing.tap && !thing.play)), 'something stirred that a touch does nothing for')
+  assert.ok([...stirred].some((thing) => thing.hits), 'nothing that is there to be found stirred')
   // The fairy ring is seen to by tapping its five mushrooms: it is they that stir for it, not the ground between them.
   const ring = game.things.find((thing) => thing.touched)!
   const caps = new Set(ring.touched!().map((i) => game.things.find((thing) => thing.cubes.includes(i))))
@@ -796,3 +798,53 @@ assert.ok(Math.abs(kept.soon[2] - taken[2]) < 0.02 * taken[2] && Math.hypot(kept
   assert.ok(game.pan.length() < 0.01, 'a key was still held after the window lost the keyboard')
 }
 console.log('camera: ok')
+// A saved game keeps only the knocks that broke or gave something: one is enough to bring a cage back broken, however
+// many knocks it takes.
+{
+  const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { replay(saved: (string | number)[][]): void }
+  const cage = game.things.findIndex((thing) => thing.tip?.startsWith('A cage'))
+  game.replay([[2, 'k', game.things[cage].key!]])
+  assert.ok(!game.things[cage].hits, 'one kept knock did not bring the cage back broken')
+}
+// Knocked three times fast, the stones say only what the last knock did; knocked slowly, each knock has its word.
+{
+  const game = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as Game & { raise(name: string): void; advance(dt: number): void; heard: string[][] }
+  game.raise('meadow')
+  for (let i = 0; i < 200; i++) game.advance(0.05)
+  const stones = game.things.findIndex((thing) => thing.tip?.startsWith('Three stones'))
+  const said = (start: string) => game.heard.some(([line]) => line.startsWith(start))
+  for (let k = 0; k < 3; k++) {
+    game.strike(stones)
+    game.advance(0.1)
+  }
+  for (let i = 0; i < 100; i++) game.advance(0.05)
+  assert.ok(!said('One stone opens its eyes') && !said('Two awake'), 'three fast knocks on the stones each had their line')
+  assert.ok(said('The old stones are wide awake'), 'the stones woke without a word')
+  const slow = new Island(new Scene(), {} as Element, () => {}, 0) as unknown as typeof game
+  slow.raise('meadow')
+  for (let i = 0; i < 200; i++) slow.advance(0.05)
+  slow.strike(stones)
+  for (let i = 0; i < 100; i++) slow.advance(0.05)
+  assert.ok(slow.heard.some(([line]) => line.startsWith('One stone opens its eyes')), 'a knock on the stones, left alone, had nothing to say')
+}
+// The owls live in the hollow of the old fir on the mountain: a knock by day finds nobody in; a knock after dark brings three out.
+for (const seed of [0, 9059, 9015, 9003]) {
+  const game = new Island(new Scene(), {} as Element, () => {}, seed) as unknown as Game & { setNight(on: boolean): void; critters: { list: { kind: string }[] }; raise(name: string): void }
+  game.raise('mountain')
+  const hollow = game.things.findIndex((thing) => thing.tip?.startsWith('A fir, much older'))
+  assert.ok(hollow >= 0, `island ${seed}: no old fir on the mountain`)
+  const owls = () => game.critters.list.filter((c) => c.kind === 'owl').length
+  game.strike(hollow)
+  for (let i = 0; i < 40; i++) game.advance(0.05)
+  assert.equal(owls(), 0, `island ${seed}: owls came out by day`)
+  game.setNight(true)
+  game.strike(hollow)
+  for (let i = 0; i < 60; i++) game.advance(0.05)
+  assert.equal(owls(), 3, `island ${seed}: a knock on the hollow after dark did not bring the owls out`)
+}
+// A snail on every isle: ten of them, one each.
+for (const seed of [0, 9059, 9015, 9003]) {
+  const game = new Island(new Scene(), {} as Element, () => {}, seed) as unknown as Game & { critters: { list: { kind: string; x: number; z: number }[] } }
+  const isles = game.critters.list.filter((c) => c.kind === 'snail').map((c) => game.isle[tileAt(c.x, c.z)])
+  assert.equal(new Set(isles).size, 10, `island ${seed}: ${isles.length} snails on ${new Set(isles).size} isles, and there should be one on each of ten`)
+}

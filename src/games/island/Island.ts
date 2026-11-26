@@ -100,6 +100,9 @@ const NOTICED = {
   nudge: 'Third tip. No judgement. The button is right there. Somebody put it there.',
   stones: 'Ten stones. There is nothing down there to hit. That was never the point of stones.',
   night: 'It has been night for a while now. Some of them would like to get up. No rush. It is your night.',
+  hundred: 'A hundred knocks. Somewhere a number went up, and you felt slightly better. That is the whole trick. It works on me too.',
+  snails: "All ten snails. Nobody asked. There was a number with 'of ten' next to it, and that was enough. That is how they get us.",
+  again: 'Again. It is the same island, more or less. You know that. Here we both are.',
   unturned: 'You have not turned the world round once. It has a back. Things are kept there.',
 }
 const FLOAT: Record<string, number> = { duck: 0.4, penguin: 0.18, beaver: 0.2, frog: 0.42, fish: 0.36, axolotl: 0.26 } // how high each swimmer rides
@@ -159,7 +162,7 @@ export interface GameState {
   combos: number[]
   /** Found and all there are: things nobody has to find. */
   secrets: number[]
-  /** Found and all there are: snails, one hiding on each of the seven isles. */
+  /** Found and all there are: snails, one hiding on each of the ten isles. */
   snails: number[]
   friends: Friend[]
   /** The isles as they stand on the map: what has been found on each, out of what there is. */
@@ -321,6 +324,9 @@ export class Island {
   private lines: string[] = [] // what is waiting to be said, in the order it will be
   private heard: Said[] = [] // everything that has been said on this island, the latest last: each line once, with who or what it is about
   private whose = new Map<string, About>() // who or what a line is about, from when it is said until it comes up
+  private wentOff: [object | undefined, number] = [undefined, 0] // the camera's last move of its own, and when it set off (see `update`)
+  private pending?: { thing: Thing; stands: () => boolean } // while a knock that may be followed by more is being heard: on what, and whether what it says will still stand (see `say`)
+  private spoke = new Map<Thing, number>() // how many lines have waited to be said about each thing (see `say`)
   private still = 0 // until when nothing new is said: something worth watching has just happened (`breath`)
   private early = new Map<string, Thing>() // the lines said about a thing while it was still to be found, and which thing
   private topic: Topic = NOBODY // who or what is being knocked on or patted right now: what that brings about is said about them
@@ -350,7 +356,7 @@ export class Island {
   private hid = ISLES.map(() => [0, 0]) // secrets found on each isle, and how many it has
   private laying = -1 // the isle being laid out, while the world is built
   private snailOn: (boolean | undefined)[] = ISLES.map(() => undefined)
-  private snails = [0, 7]
+  private snails = [0, 10]
   /** Which island this is: 0 as drawn, any other number dealt out afresh. */
   readonly seed: number
   /**
@@ -363,13 +369,13 @@ export class Island {
   private outside = false // the cursor is on a button or a card: nothing in the world is under it
   private soft = new Set<number>() // cubes that lean away from the cursor: grass, flowers, straw and reeds
   private leaning = new Map<number, number[]>() // those that are leaning now: how far in x and z, how far they should, and the ground they stand on
-  private touch = matchMedia('(pointer: coarse)').matches
+  readonly touch = matchMedia('(pointer: coarse)').matches // a finger, not a mouse: some lines say so
   private lamps: Light[] = [] // the lights that only burn at night: the lighthouse, the fireflies
   // The few fireflies that carry a real light about: how each drifts, and when it goes out. Real lights are dear to draw.
   private fireflies = Array.from({ length: this.touch ? 3 : 6 }, () => ({ lamp: this.candle(), drift: new Vector3(), until: 0 }))
   // Where the view is being taken, to stay there: to a tip or a friend; (auto) in for a look at a thing just finished;
   // or (at) along with something on the move, until it is gone or its time is up.
-  private going?: { x: number; z: number; zoom: number; at?: () => number[] | undefined; until?: number; past?: number }
+  private going?: { x: number; z: number; zoom: number; at?: () => number[] | undefined; until?: number; since?: number; past?: number }
   private following?: Critter
   private arrow?: Critter
   private pointing?: () => void
@@ -378,6 +384,8 @@ export class Island {
   readonly friends: Friend[] = []
   /** Asked when something with nothing to break and no use of its own is knocked on. The first to say yes has dealt with it. */
   readonly onKnock: ((thing: Thing) => boolean)[] = []
+  /** What a friend's wish, once told, asks to be knocked on: what one of these says yes to stirs, until it is granted. */
+  readonly wanted: ((thing: Thing) => boolean)[] = []
   /** Called when night falls, and when it lifts. */
   readonly onNight: ((night: boolean) => void)[] = []
   /** Shows a word floating up from a place on the screen. The page sets it. */
@@ -402,7 +410,7 @@ export class Island {
   private press?: { x: number; y: number; last: number; moved: boolean; turn: boolean; grab: Vector3 | null }
   private fingers = new Map<number, number[]>() // where each pointer is, to tell a pinch from a drag
   private keys = new Set<string>()
-  private show?: { x: number; z: number; zoom: number; until: number; free?: boolean } // somewhere the camera has gone to look
+  private show?: { x: number; z: number; zoom: number; until: number; free?: boolean; from?: number; takes?: number } // somewhere the camera has gone to look, and since when and for how long, if it is to get there in a set time
   // Following the action. Where something set off by a knock is on the move right now (water or lava creeping along its bed,
   // the snowball, the freed bird, the frog's cloud and its rain), each place until a little after it was last seen there;
   // the animals that are part of it, and until when; the wider view that keeps it all in the picture; how far the camera has
@@ -526,6 +534,11 @@ export class Island {
     try {
       const saved = JSON.parse(localStorage.getItem(this.store) ?? '[]') as (string | number)[][]
       if (saved.length) this.replay(saved)
+      // A new island, after one that was seen to the end: that gets a word, once.
+      else if (localStorage.getItem(`${STORE}finished`)) {
+        localStorage.removeItem(`${STORE}finished`)
+        this.after(8, () => this.aside('again', NOTICED.again))
+      }
     } catch {
       // no storage, or nothing in it that makes sense: a fresh start
     }
@@ -596,8 +609,12 @@ export class Island {
       this.log.push([Math.round(this.time * 10) / 10, kind, key])
       if (kind === 'a') this.acts[key]?.()
       else if (kind === 'k') {
+        // Only knocks that broke something or gave something are kept (see `click`): this one is knocked on until it has
+        // done that again, however many knocks that takes now. (So what a thing takes can change, and old games still come
+        // back whole; and older games, which kept every knock, come back too.)
         const t = this.named(String(key))
-        if (t !== undefined) this.strike(t)
+        const target = t === undefined ? undefined : this.target(t)
+        for (let n = 0; target && n < 6; n++) if (!this.strike(t!) || !(target.hits || (target.tap && target.wanting?.()))) break
       } else {
         const all = this.critters.list.filter((c) => (c.key ?? c.friend ?? c.kind) === key)
         const c = all.find((one) => !one.hidden) ?? all[0]
@@ -636,6 +653,7 @@ export class Island {
     document.body.style.cursor = ''
     document.documentElement.style.removeProperty('--ink')
     document.documentElement.style.removeProperty('--key') // or a game left at night would hand its light words on to the next
+    document.documentElement.removeAttribute('data-night')
     hush()
   }
 
@@ -652,6 +670,20 @@ export class Island {
    * @param color and its colour, as hex: left out, that of what is being knocked on
    */
   say(text: string, about = this.topic[0], tile = this.topic[1], color = this.topic[2]) {
+    const { pending } = this
+    if (pending && !this.fast) {
+      // A line about a knock that may well be followed by another (on the way to breaking something, a sign, a lamp)
+      // waits a moment, and is said only if no later knock on the same thing had something to say: whoever clicks three
+      // times fast hears the last of it, not three lines in a row. A knock that says nothing takes nothing away.
+      this.pending = undefined
+      const turn = (this.spoke.get(pending.thing) ?? 0) + 1
+      this.spoke.set(pending.thing, turn)
+      return void this.after(0.8, () => {
+        if (this.spoke.get(pending.thing) !== turn || !pending.stands()) return
+        this.jump = 0 // still the answer to a click: it goes up at once, as one would have (see `click`)
+        this.say(text, about, tile, color)
+      })
+    }
     this.tag(text, about, tile, color)
     // Said about a thing that is still to be found: a tip, or "one more push will tip it". Should such a line have to
     // wait, it is let go once the thing has been found (`moot`): by then it is the wrong way round.
@@ -672,7 +704,7 @@ export class Island {
       const [was, where] = this.whose.get(this.hint) ?? NOBODY
       const same = (tile >= 0 && where === tile) || (about !== '' && was === about)
       if (!same && this.time < this.until - held(this.hint) / 2 && !this.moot(this.hint) && !this.fresh.includes(this.hint)) this.fresh.push(this.hint)
-      if (this.time < this.still) {
+      if (this.watching) {
         // What it is about is still happening (`breath`): the line that is up goes, and this one comes when the show is over.
         this.lines.unshift(text)
         this.until = Math.min(this.until, this.time - LINGER)
@@ -689,6 +721,17 @@ export class Island {
    */
   breath() {
     if (!this.fast) this.still = this.time + BREATH
+  }
+  /**
+   * Whether the picture is the thing to look at just now: for a breath after a find, for as long as the camera goes
+   * along with something (a bird let out, the snowball, a wish on its way), and while it is off to look at something
+   * (new land, a combo). Words wait until it is over. (A follow the player cuts short by moving the view ends this too.)
+   * It asks the follow itself, as `update` does, since only that lets it go.
+   */
+  private get watching() {
+    const { going } = this
+    // (Words wait for a follow for eight seconds at most: the frog's cloud can drift for half a minute.)
+    return this.time < this.still || this.away || (!!going?.at && this.time < Math.min(going.until!, going.since! + 8) && !!going.at())
   }
   /** A line is about somebody or something: the log will say who. What the thing looks like is kept for a picture of it. */
   private tag(text: string, about: string, tile: number, color: string) {
@@ -779,7 +822,7 @@ export class Island {
    * Something the game has noticed about how it is being played. It says so once, ever, and after whatever else is
    * waiting to be said: a remark never pushes in front of a line that matters.
    */
-  private aside(id: string, text: string) {
+  aside(id: string, text: string) {
     if (this.fast || this.notes.said.includes(id)) return
     this.notes.said.push(id)
     this.whose.set(text, ['about you', -1, ''])
@@ -894,9 +937,10 @@ export class Island {
     if (kind === 'secret' && s >= 0) this.hid[s][1]++
     this.acts[`${kind}${list.push(entry) - 1}`] = () => (entry.told = true) // a bottle has told it: see `riddle`
     let found = false
-    return (text: string) => {
+    const give = (text: string) => {
       if (found) return
       found = true
+      this.pending = undefined // a secret is said whatever else is clicked: it is not one of a run of lines (see `say`)
       tally[0]++
       if (kind === 'secret' && s >= 0) this.hid[s][0]++
       // The first few words of what is said about it are its name on the map.
@@ -906,6 +950,9 @@ export class Island {
       // said at once (no `breath` first): nothing much moves for a secret or a combo, and a wait would only look slow.
       const tile = this.topic[1]
       const at = entry.at?.() ?? (tile >= 0 ? [tx(tile), this.h[tile] + 0.9, tz(tile)] : undefined)
+      // But a combo happens wherever its two halves meet, often out of the picture, and a line about it came out of
+      // nowhere: it just happens, and goes into the log, which shows a dot. Nothing is said, and the camera stays put.
+      if (kind === 'combo') return this.whisper(text, kind, at ? tileAt(at[0], at[2]) : tile)
       this.say(text, kind, at ? tileAt(at[0], at[2]) : tile)
       for (let k = 0; k < 3; k++) this.after(k * 0.13, () => note(0.45 + k * 0.2, 0.12))
       // And it shows, there: a ring of gold going up, and the word for it.
@@ -913,6 +960,7 @@ export class Island {
       for (let k = 0; k < 18; k++) this.bits.spawn(at[0] + Math.cos(k * 0.35) * 0.35, at[1] - 0.3, at[2] + Math.sin(k * 0.35) * 0.35, Math.cos(k * 0.35) * 1.4, 2.4 + (k % 3) * 0.7, Math.sin(k * 0.35) * 1.4, k % 3 ? 0.09 : 0.13, k % 3 ? 0xffd45c : 0xffffff, 1.3, NEVER, 0, 1.6, 2.4)
       this.word(kind === 'secret' ? 'a secret!' : 'a combo!', at[0], at[1] + 0.5, at[2])
     }
+    return Object.assign(give, { has: () => found }) // and whether it has been found: what holds it stirs until then (`wanting`)
   }
   /** What a bottle can still tell: a riddle for every secret and combo not found and not told, and the clue of every thing still to be found. */
   private get untold() {
@@ -1034,11 +1082,19 @@ export class Island {
     }
   }
 
-  /** The camera goes to look at a place for a moment, then comes straight back. */
-  glance(x: number, z: number, radius: number, seconds = 2.8) {
-    if (this.fast || this.press || this.time < 3 || this.show?.free) return // (not while the ending has the camera: a volcano going off must not pull it in)
+  /**
+   * The camera goes to look at a place, and the view stays there once it has arrived.
+   * @returns about how many seconds until it is nearly there: nothing, if it does not go
+   */
+  glance(x: number, z: number, radius: number) {
+    if (this.fast || this.press || this.time < 3 || this.show?.free) return 0 // (not while the ending has the camera: a volcano going off must not pull it in)
     this.going = this.following = undefined
-    this.show = { x, z, zoom: Math.max(1, this.reach / (radius * 1.5)), until: this.time + seconds }
+    if (this.widen > 0.01) this.hands() // from where the view really is: one widened to take in the action would otherwise go on settling back under it
+    const zoom = Math.max(1, this.reach / (radius * 1.5))
+    // It sets off at once and takes its time, easing out and in: longer the further it has to zoom (see `update`).
+    const takes = 1.5 * (1 + 0.5 * Math.abs(Math.log(zoom / this.zoom)))
+    this.show = { x, z, zoom, until: this.time + takes + 0.5, from: this.time, takes }
+    return takes * 0.75 // about when it is nearly there, in seconds
   }
   /**
    * From far off, the knock that finishes a thing brings the view in for a look at what comes of it, and leaves it there.
@@ -1068,7 +1124,8 @@ export class Island {
     this.trail(() => (c.hidden ? undefined : [c.x, c.z]), seconds)
   }
   /**
-   * The camera goes along with something on the move, from near enough to see it (and no nearer than it was already),
+   * The camera goes along with something on the move, from near enough to see it and far enough to keep it in the picture
+   * (out, too, from a view the player had brought right up close: a bird let out of its cage flew up out of the top of that),
    * until that is gone or its time is up, and stays wherever that leaves it. A touch of the controls ends it; so does
    * new land coming up, which the camera goes to see instead.
    * @param at where the thing is now, or nothing once it is gone
@@ -1077,7 +1134,7 @@ export class Island {
     const spot = at()
     if (this.fast || this.press || this.show || !spot) return
     this.following = undefined
-    this.going = { x: spot[0], z: spot[1], zoom: Math.max(this.zoom, this.far / ALONG), at, until: this.time + seconds }
+    this.going = { x: spot[0], z: spot[1], zoom: this.far / ALONG, at, until: this.time + seconds, since: this.time }
   }
   /** A nudge, asked for: the view goes to one thing still to be found and stays there, an arrow stands over it, and its clue is said. */
   nudge() {
@@ -1425,7 +1482,8 @@ export class Island {
       if (!this.filled[tile]) continue
       this.wet.show(this.pool[tile], wait)
       this.source(tile, 1.7, wait + 0.6)
-      this.spill(tile)
+      if (wait) this.after(wait, () => this.spill(tile)) // over the edge once the water is there, not while the land comes up
+      else this.spill(tile)
     }
   }
 
@@ -1446,6 +1504,14 @@ export class Island {
     this.falls.push([tx(tile) + di * 0.56, this.h[tile] + 0.44, tz(tile) + dj * 0.56, di, dj, below < 0 ? 0 : this.h[below] + 0.3, beyond, this.hot[tile]])
   }
 
+  /**
+   * New land comes up in a while (once the water has got there, or the bird). Nothing is said until then, and what was
+   * said about it waits too: nobody should read that a mountain happens while the camera is still on its way to it.
+   */
+  soon(name: string, seconds: number) {
+    if (!this.fast) this.still = Math.max(this.still, this.time + seconds + 0.2)
+    this.after(seconds, () => this.raise(name))
+  }
   /** A new isle comes up out of the sea, from (x, z) outwards; from its middle if not given. */
   raise(name: string, x?: number, z?: number) {
     const s = this.index(name)
@@ -1456,16 +1522,21 @@ export class Island {
     this.keep(name, ['land', -1, '']) // a mark in the log: this is where it came up
     for (const tile of this.tiles[s]) this.exists[tile] = 1
     this.total += this.tiles[s].length
-    // Ground first, what stands on it a moment later.
-    for (const [cube, tile] of this.asleep[s]) this.solid.show(cube, Math.hypot(tx(tile) - (x ?? mx), tz(tile) - (z ?? mz)) * 0.11 + (this.solid.owner[cube] >= 0 ? 0.35 : 0))
-    for (const critter of this.sleepers[s]) critter.hidden = false
-    this.surface(s, 1.2)
-    for (let k = 0; k < 5; k++) this.after(k * 0.2, thump)
-    this.rumble(0.7)
-    for (const tile of this.tiles[s]) if (rnd(tile) < 0.5) this.bits.spawn(tx(tile), 0.4, tz(tile), any() * 3, 6 + Math.random() * 5, any() * 3, 0.2, 0xeaf6ff, 1.4, 0, 0)
     this.fit()
-    this.glance(mx, mz, Math.max(...this.tiles[s].map((t) => Math.hypot(tx(t) - mx, tz(t) - mz))) + 1.5)
-    this.notice([mx, GROUND + 1, mz], 3)
+    // The camera goes to look first, and it comes up once the camera is nearly there: from close up somewhere else it used
+    // to come up while the camera was still on its way, and the camera got there in a rush with half of it missed.
+    const lead = this.glance(mx, mz, Math.max(...this.tiles[s].map((t) => Math.hypot(tx(t) - mx, tz(t) - mz))) + 1.5)
+    if (!this.fast) this.still = Math.max(this.still, this.time + lead + 1.2) // and words wait until it is up (see `watching`)
+    // Ground first, what stands on it a moment later.
+    for (const [cube, tile] of this.asleep[s]) this.solid.show(cube, lead + Math.hypot(tx(tile) - (x ?? mx), tz(tile) - (z ?? mz)) * 0.11 + (this.solid.owner[cube] >= 0 ? 0.35 : 0))
+    this.after(lead, () => {
+      this.surface(s, 1.2) // the water on it too, and whatever falls over its edge: not before the ground is there to fall from
+      for (const critter of this.sleepers[s]) critter.hidden = false
+      for (let k = 0; k < 5; k++) this.after(k * 0.2, thump)
+      this.rumble(0.7)
+      for (const tile of this.tiles[s]) if (rnd(tile) < 0.5) this.bits.spawn(tx(tile), 0.4, tz(tile), any() * 3, 6 + Math.random() * 5, any() * 3, 0.2, 0xeaf6ff, 1.4, 0, 0)
+      this.notice([mx, GROUND + 1, mz], 3)
+    })
   }
 
   // --- water and waking ground ---------------------------------------------------------------
@@ -1834,6 +1905,14 @@ export class Island {
       bird.roost = perch
       fly(perch[0] + any() * 0.2, perch[1], perch[2] + any() * 0.2)
     } else if (tile >= 0) fly(tx(tile), this.h[tile], tz(tile))
+    else {
+      // Nowhere to perch and nothing to plant (early on, or over land just come up): down onto any open ground, rather
+      // than hang in the air where it last was until there is.
+      for (let k = 0; k < 60; k++) {
+        const u = Math.floor(Math.random() * W * D)
+        if (this.free(u) && this.open[this.isle[u]]) return fly(tx(u), this.h[u], tz(u))
+      }
+    }
   }
   /** The tortoise, once it is up and about. */
   private get tortoise() {
@@ -1956,10 +2035,10 @@ export class Island {
 
   // --- snails, stars, a balloon -------------------------------------------------------------
 
-  /** Seven snails, one hiding on each of the seven isles: by preference right behind a tree, seen from where the camera starts. Blue until found, red after. */
+  /** Ten snails, one hiding on each of the ten isles: by preference right behind a tree, seen from where the camera starts. Blue until found, red after. */
   private hideSnails() {
-    const all = this.extra('secret', { icon: 'snail/ff7a6b', hint: 'Seven isles, seven shells. They stay blue until somebody says hello. Same as anyone.' })
-    ;['island', 'meadow', 'snow', 'mountain', 'swamp', 'beach', 'volcano'].forEach((name, k) => {
+    const all = this.extra('secret', { icon: 'snail/ff7a6b', hint: 'Ten isles, ten shells. They stay blue until somebody says hello. Same as anyone.' })
+    ;['island', 'meadow', 'snow', 'mountain', 'swamp', 'beach', 'volcano', 'garden', 'islet', 'newland'].forEach((name, k) => {
       const s = this.index(name)
       const free = this.tiles[s].filter((u) => this.mark[u] === '.' && !this.standing[u].length && !this.bed[u])
       const behind = free.filter((u) => {
@@ -1983,8 +2062,9 @@ export class Island {
         this.critters.paint(snail, [1], 0xff7a6b)
         this.critters.paint(snail, [2, 3], 0xe9605a)
         const n = ++this.snails[0]
-        this.say(n < 7 ? `A snail! That is ${n} of seven. There is one on every isle, and each believes it is the only snail.` : 'A snail! That is all seven. They have never met. You are the only thing they have in common.', 'snail')
-        if (n === 7) all('A secret: seven snails, one on every isle. They are off on a very slow race. Nobody will finish, and all of them are winning.')
+        this.say(n < 10 ? `A snail! That is ${n} of ten. There is one on every isle, and each believes it is the only snail.` : 'A snail! That is all ten. They have never met. You are the only thing they have in common.', 'snail')
+        if (n === 10) all('A secret: ten snails, one on every isle. They are off on a very slow race. Nobody will finish, and all of them are winning.')
+        if (n === 10) this.after(8, () => this.aside('snails', NOTICED.snails))
       }
       if (name !== 'meadow') return
       // The meadow's snail, once it has been said hello to, gets a lift: it rides about on the tortoise from then on.
@@ -2017,7 +2097,6 @@ export class Island {
       const home = water[water.length - 1]
       Object.assign(guest, { x: tx(home), y: this.h[home] + (kind === 'capybara' ? 0.14 : 0.26), z: tz(home), hidden: false, face: 0.5 })
       if (kind === 'axolotl') guest.next = this.paddle
-      this.after(2, () => this.say(kind === 'capybara' ? 'Somebody is sitting in the hot spring with an orange on its head. Nobody saw it arrive. It has the calm of somebody with no notifications.' : 'Somebody pink is swimming in the bog, smiling. Nobody saw it arrive. It smiles like that at everything. Do not read into it.', kind))
     }
     this.onFill.push(arrive)
     arrive()
@@ -2065,7 +2144,7 @@ export class Island {
       Object.assign(star, { x: this.centre.x + Math.cos(a) * far, y: GROUND + 10.5, z: this.centre.z + Math.sin(a) * far, hidden: false })
       was.set(star.x, star.y, star.z)
       this.notice(() => (star.hidden ? undefined : [star.x, star.y, star.z]), 5)
-      this.critters.go(star, this.centre.x - Math.cos(a + 0.7) * far, GROUND + 6, this.centre.z - Math.sin(a + 0.7) * far, 5.5, 0, () => (star.hidden = true))
+      this.critters.go(star, this.centre.x - Math.cos(a + 0.7) * far, GROUND + 6, this.centre.z - Math.sin(a + 0.7) * far, 6.5, 0, () => (star.hidden = true)) // 6.5 s across: a touch slower than it was, to be caught
     })
   }
 
@@ -2103,6 +2182,11 @@ export class Island {
       if (this.show?.free) this.show.until = Math.min(this.show.until, this.time)
     }
     if (this.fast) return done()
+    try {
+      localStorage.setItem(`${STORE}finished`, '1') // for the next island to know (see the constructor)
+    } catch {
+      // no storage: the next island will not know, and says nothing
+    }
     // Whatever was still waiting to be said goes into the log unsaid, with a dot on the journal: the picture is the balloon's now.
     for (const line of this.lines.splice(0)) {
       if (this.moot(line)) continue
@@ -2115,11 +2199,8 @@ export class Island {
       'The whole world is awake. You did that, with one finger. Do not let it go to your head. Let it go to your head a little.',
       `You did it by knocking on it. ${this.knocks} knocks. I counted. Somebody should.`,
       'It was a game, of course. The island was never dry. Somebody drew it dry, so that you could fix it.',
-      'That is what a game is: a problem made by hand, in a shape you can solve.',
       'Out there, the problems come in no useful shape. You know that. We solve them anyway, slowly and sideways.',
-      'Here, for a few minutes, everything you touched got better. Notice how that felt. It is why people build these.',
-      'I will be honest, since it is only us. Somebody made this small world hoping you would think well of them.',
-      'That is all anybody is doing, most days. It is just rarely this many cubes.',
+      'Here, for a few minutes, everything you touched got better. Notice how that felt.',
       'None of it was real. All of it happened. I have never been able to explain that.',
       'The island does not need you now. That was the point. Go and knock on something real. Gently.',
     ]
@@ -2280,6 +2361,7 @@ export class Island {
     if (finger && this.fingers.size === 2) {
       // Two fingers: a pinch zooms about the point between them, a twist turns the world.
       const other = [...this.fingers.values()].find((f) => f !== finger)!
+      this.release()
       this.hands()
       const apart = Math.hypot(finger[0] - other[0], finger[1] - other[1])
       const angle = Math.atan2(finger[1] - other[1], finger[0] - other[0])
@@ -2299,6 +2381,7 @@ export class Island {
     if (!press) return
     if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) {
       press.moved = true
+      this.release()
       this.hands()
     }
     if (press.moved && press.turn && !this.away) {
@@ -2312,7 +2395,7 @@ export class Island {
     this.outside = e.target !== this.canvas
     this.here()
     if ((e.button !== 0 && e.button !== 2) || this.outside) return
-    this.release()
+    this.release(true) // a click is a knock, not a move: whatever the camera is going along with, it goes on with
     this.fingers.set(e.pointerId, [e.clientX, e.clientY])
     // The left button or one finger takes hold of the ground and moves it; the right button, or shift, turns the world.
     const turn = e.button === 2 || e.shiftKey
@@ -2324,10 +2407,13 @@ export class Island {
     this.press = undefined
     if (press && !press.moved && e.type === 'pointerup' && e.button === 0) this.click()
   }
-  /** A touch of the controls ends the slow turn round the finished world. */
-  private release() {
+  /**
+   * A touch of the controls ends the slow turn round the finished world, and whatever the camera was going to or along with.
+   * @param click only a press, so far: the camera goes on where it was going (a knock should not cut short the move to see what the last one did)
+   */
+  private release(click = false) {
     this.orbit = 0
-    this.going = this.following = undefined
+    if (!click) this.going = this.following = undefined
     if (!this.show?.free) return
     // And the view is the player's from where it stands now, not from where they had left it.
     this.pan.set(this.view[0], 0, this.view[1])
@@ -2431,7 +2517,12 @@ export class Island {
       this.record('p', c.key ?? c.friend ?? c.kind)
       this.pet(c)
     } else if (id >= 0) {
-      if (this.strike(id)) this.record('k', this.things[id].key!)
+      // Kept for next time only once it has broken, or given what it had (a secret, a friend, a wish): not every knock on
+      // the way there. A thing part of the way to breaking starts over next time, and nobody minds.
+      const target = this.target(id)
+      const had = target.hits
+      if (this.strike(id) && (had ? !target.hits : !(target.tap && target.wanting?.()))) this.record('k', this.things[id].key!)
+      if (this.knocks >= 100) this.aside('hundred', NOTICED.hundred)
     } else if (id <= -2) {
       // Bare ground or water: a little bounce, a little splash.
       const tile = -2 - id
@@ -2479,6 +2570,11 @@ export class Island {
    * One knock on a thing.
    * @returns whether it did anything
    */
+  /** What a knock on a thing lands on: the thing, or whatever guards it while that is still unbroken (thorns round a tree). */
+  private target(id: number) {
+    const { guard } = this.things[id]
+    return guard !== undefined && this.things[guard].hits ? this.things[guard] : this.things[id]
+  }
   strike(id: number): boolean {
     let thing = this.things[id]
     if (thing.guard !== undefined && this.things[thing.guard].hits) thing = this.things[(id = thing.guard)]
@@ -2497,7 +2593,7 @@ export class Island {
     return this.as([about, thing.tile, this.hue(thing), boxes], () => this.knock(thing, id))
   }
   private knock(thing: Thing, id: number): boolean {
-    for (const cube of thing.cubes) this.solid.poke(cube, thing.hits ? 9 : 5)
+    for (const cube of thing.cubes) this.solid.poke(cube, thing.hits || thing.tap ? 9 : 5) // all that counts bounces alike
     // Whoever is near looks round at it, and a bird that was sitting in it is off.
     this.notice([tx(thing.tile), this.h[thing.tile] + 0.6, tz(thing.tile)], 1, 3.6)
     for (const c of this.critters.list) if (c.roost && c.roost === thing.perch && c.t >= 1 && c.next && !this.fast) c.rest = 0
@@ -2516,13 +2612,17 @@ export class Island {
       if (thing.tap) {
         this.knocks++
         shout(thing.sound ?? 'tap')
+        this.pending = { thing, stands: () => true } // see `say`
         thing.tap()
+        this.pending = undefined
         return true
       }
       if (thing.play) {
         // A toy: it does something, and that is all. Nothing to find, nothing to count, nothing to remember.
         shout(thing.sound ?? '')
+        this.pending = { thing, stands: () => true } // see `say`
         thing.play()
+        this.pending = undefined
         return false
       }
       note(0.1 + Math.random() * 0.2, 0.05)
@@ -2540,7 +2640,9 @@ export class Island {
       shout(sound)
       if (thing.cubes.length) this.rubble(thing.cubes[0], thing.tile, 5)
       this.dent(thing, id)
+      this.pending = { thing, stands: () => !!thing.hits } // and once it has broken, what the knocks before said is old news: see `say`
       thing.onHit?.(thing.hits)
+      this.pending = undefined
       return true
     }
     shout(`${sound.toUpperCase()}!`)
@@ -2604,7 +2706,7 @@ export class Island {
     // The next line comes up once the one before it has had its time, and a breath after that. Never sooner. And not
     // while something just found has the picture to itself (`breath`).
     this.jump = -1
-    if (this.lines.length && time >= this.until + 1 && time >= this.still) {
+    if (this.lines.length && time >= this.until + 1 && !this.watching) {
       const line = this.due()
       if (line) this.voice(line)
     }
@@ -2751,7 +2853,16 @@ export class Island {
       if (this.following?.hidden) this.following = undefined
       if (this.following) Object.assign(going, { x: this.following.x, z: this.following.z })
       if (spot) Object.assign(going, { x: spot[0], z: spot[1] })
-      const ease = 1 - Math.exp(-dt * 4)
+      if (going !== this.wentOff[0]) this.wentOff = [going, this.time]
+      // What it goes along with is seldom all that happens: the water it let out spreads, somebody comes to see. The view
+      // stays far enough off to take that in too, as the one that widens by itself does (see `framed`).
+      let aim = going.zoom
+      const frame = spot && this.far && this.action.length ? framed(this.action, spot, this.yaw, this.far / aim, Math.tan((camera.fov / 2) * (Math.PI / 180)), width / height, this.pitch, Math.max(0, this.lifting)) : undefined
+      if (frame) [going.x, going.z, aim] = [frame[0], frame[1], this.far / frame[2]]
+      // It sets off gently, picking up over the first moments, and slows as it gets there: every move the camera makes
+      // by itself starts like this, so that none of them lurches off at full speed.
+      const start = Math.min(1, (this.time - this.wentOff[1]) / 0.8)
+      const ease = (1 - Math.exp(-dt * 4)) * start * start * (3 - 2 * start)
       // A move that brings the view in for a look goes a touch too far and then steps back by as much: the step back
       // is how one can tell that it has arrived. (Not when it goes along with something: that does not arrive.)
       going.past ??= !going.at && !this.following && going.zoom > this.zoom * 1.08 ? STEP : 1
@@ -2759,7 +2870,7 @@ export class Island {
       _p.set(going.x - this.centre.x, 0, going.z - this.centre.z).clampLength(0, this.span)
       this.pan.x += (_p.x - this.pan.x) * ease
       this.pan.z += (_p.z - this.pan.z) * ease
-      this.zoom += (going.zoom * going.past - this.zoom) * ease
+      this.zoom += (aim * going.past - this.zoom) * ease
       const there = !this.following && !going.at && Math.hypot(_p.x - this.pan.x, _p.z - this.pan.z) < 0.02 && Math.abs(this.zoom / (going.zoom * going.past) - 1) < 0.005
       if (there && going.past > 1) going.past = 1
       else if (there) this.going = undefined
@@ -2826,6 +2937,7 @@ export class Island {
     if (ink !== this.ink) {
       style.setProperty('--ink', (this.ink = ink) || '#3f3b4e')
       style.setProperty('--key', ink ? '74%' : '40%') // how light the words that name a thing are written: see the page
+      document.documentElement.toggleAttribute('data-night', !!ink) // the paper of the cards and sheets goes dark with it
     }
     // Fireflies come out with the dark, and give a little light: as many of those in view as there are lamps for.
     for (let n = 0; n < 4; n++) {
@@ -2912,10 +3024,19 @@ export class Island {
     // Now and then it goes to look at something far off: new land, mostly. It does not come back: once it is there, or
     // its time is up, the view stays, and is the player's from then on.
     const { show } = this
-    if (show && time < show.until) this.blend += (1 - this.blend) * (1 - Math.exp(-dt * 3))
-    const zoom = own.zoom + ((show?.zoom ?? own.zoom) - own.zoom) * this.blend
-    const panX = own.x + ((show ? show.x - this.centre.x : own.x) - own.x) * this.blend
-    const panZ = own.z + ((show ? show.z - this.centre.z : own.z) - own.z) * this.blend
+    // From right up close to the far side of the world is a long way: a glance sets off at once, gently, and eases in
+    // again at the end, over a time that is longer the further it has to zoom. It zooms by the same share every moment,
+    // and moves across at a pace kept to the view (slowly while close, quickly once out), so that the ground never rushes
+    // past. (It used to start at full speed and cross the world from close up in a second.)
+    const ratio = (show?.zoom ?? own.zoom) / own.zoom
+    if (show?.takes) {
+      const k = Math.min(1, (time - show.from!) / show.takes)
+      this.blend = k * k * (3 - 2 * k)
+    } else if (show && time < show.until) this.blend += (1 - this.blend) * (1 - Math.exp(-dt * 3))
+    const zoom = own.zoom * ratio ** this.blend
+    const across = Math.abs(ratio - 1) < 0.01 ? this.blend : (ratio ** -this.blend - 1) / (1 / ratio - 1)
+    const panX = own.x + ((show ? show.x - this.centre.x : own.x) - own.x) * across
+    const panZ = own.z + ((show ? show.z - this.centre.z : own.z) - own.z) * across
     this.view = [panX, panZ, zoom]
     if (show && (time >= show.until || (!show.free && this.blend > 0.985))) {
       this.pan.set(panX, 0, panZ)
@@ -2938,14 +3059,17 @@ export class Island {
     camera.position.set(x + Math.sin(this.yaw) * Math.cos(pitch) * dist + any() * shake, 1.5 + Math.sin(pitch) * dist + any() * shake, z + Math.cos(this.yaw) * Math.cos(pitch) * dist + any() * shake)
     camera.lookAt(x, 1.5, z)
     camera.updateMatrixWorld()
-    // The things still to be found stir now and then: one at a time, a small jolt, and only those in the picture. On a
+    // The things that can be touched stir now and then: one at a time, a small jolt, and only those in the picture. On a
     // touch screen there is no cursor to turn into a hand and no label to read: this is all that says what can be touched.
-    // Only what counts towards finishing, and only where a touch does something: what takes a knock, the fairy ring by
-    // way of its mushrooms, and the cactus, which asks for its rain when it is knocked. Never scenery, toys or secrets.
+    // What counts towards finishing stirs until it is found: what takes a knock, the fairy ring by way of its mushrooms,
+    // and the cactus, which asks for its rain when it is knocked. So does what a secret or a friend is still to be had
+    // from (`wanting`: a sandcastle that never moved went unnoticed), and what a wish asks for (`wanted`), until it has
+    // given it. Never scenery, and never toys: they count for nothing, and a hint says there is something to count.
     if (time >= this.twitch) {
       this.twitch = time + 2.2 + Math.random() * 2.2
       const seen = this.things.filter((thing) => {
-        if (!(thing.hits || (thing.todo && (thing.touched || thing.tap))) || !thing.clue || !this.open[this.isle[thing.tile]]) return false
+        const due = (thing.hits || (thing.todo && (thing.touched || thing.tap))) && thing.clue
+        if (!(due || (thing.tap && thing.wanting?.()) || this.wanted.some((wants) => wants(thing))) || !this.open[this.isle[thing.tile]]) return false
         _p.set(tx(thing.tile), this.h[thing.tile] + 0.5, tz(thing.tile)).project(camera)
         return Math.abs(_p.x) < 0.92 && Math.abs(_p.y) < 0.88 && _p.z < 1
       })
@@ -2980,7 +3104,7 @@ export class Island {
     const thing = over >= 0 && over < PET ? this.things[over] : undefined
     if (over !== this.hover) {
       this.hover = over
-      if (thing) for (const cube of thing.play ? [...thing.cubes, ...thing.grown] : thing.cubes) solid.poke(cube, thing.hits ? 3.5 : 2)
+      if (thing) for (const cube of thing.play ? [...thing.cubes, ...thing.grown] : thing.cubes) solid.poke(cube, thing.hits || thing.tap ? 3.5 : 2)
     }
     const breakable = thing && (thing.hits || thing.tap || thing.play || (thing.guard !== undefined && this.things[thing.guard].hits))
     const animal = over >= PET ? this.critters.list[over - PET] : undefined

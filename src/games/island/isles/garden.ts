@@ -124,12 +124,12 @@ export const garden: Isle = {
       const box = (along: number, y: number, side: number, long: number, high: number, wide: number, color: number, add = w.put.bind(w)) => add(t, di * along - dj * side, y, dj * along + di * side, di ? long : wide, high, di ? wide : long, color)
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         keep: true,
         sound: 'slosh',
         tip: 'A watering can, full to the brim. All potential',
         clue: 'A [watering can] stands in the kitchen garden, full to the brim. Everything a garden needs, in the one container that cannot pour itself.',
-        onHit: () => w.say('The can is heavy with water. One more push will tip it. Go on. Be the push.'),
+        onHit: (left) => left === 1 && w.say('The can is heavy with water. One more push will tip it. Go on. Be the push.'),
         onBreak: () => {
           w.say('Water over the beds at last. Carrots, cabbages, pumpkins: the whole garden comes back. It was never gone. It was waiting for somebody to bother.')
           w.things[t].tip = 'A watering can, on its side. Empty, and pleased with itself'
@@ -160,6 +160,7 @@ export const garden: Isle = {
         auto: false,
         sound: 'rustle',
         tip: 'A scarecrow. Its hat just moved. It is choosing not to react',
+        wanting: () => !lodger.has(),
         tap: () => {
           const scarecrow = w.things[t]
           scarecrow.tap = undefined
@@ -191,11 +192,11 @@ export const garden: Isle = {
       w.put(coop, 0, 0.03, 0.5, 0.28, 0.06, 0.32, 0xb89572)
       const t = w.thing(tile, {
         auto: false,
-        hits: 2,
+        hits: 3,
         sound: 'cheep',
         tip: 'A chicken coop, barred shut. From the outside, note',
         clue: 'Something is cheeping inside the [little coop] in the kitchen garden. It has been cheeping at a door for some time. Be the worst day that door ever had.',
-        onHit: () => w.say('Cheep. Cheep cheep. Somebody in the coop wants out, and has a list of complaints that is one word long.'),
+        onHit: (left) => left === 2 && w.say('Cheep. Cheep cheep. Somebody in the coop wants out, and has a list of complaints that is one word long.'),
         onBreak: () => {
           w.things[coop].tip = 'The chicken coop. Empty, and the better for it'
           letOut(w, tile)
