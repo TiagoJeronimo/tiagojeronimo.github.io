@@ -169,6 +169,8 @@ const Cog = () => (
   </svg>
 )
 
+/** Development only (`?complete` in the address): the ending at once, and then the card for having found everything. */
+const everything = import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('complete')
 const START: GameState = { life: 0, found: 0, total: 8, hint: '', shown: false, waiting: 0, fresh: [], stuck: false, known: 'mzt', left: [], gone: [], done: false, tip: '', knocks: 0, combos: [0, 6], secrets: [0, 16], snails: [0, 10], friends: [], isles: [], finds: [], pairs: [], notes: [], tally: [0, 0, 0], credits: [], rolling: 0, rolled: 0, said: [], ended: false, cut: false }
 
 /**
@@ -303,7 +305,7 @@ export default function GamePage() {
   const onGame = useCallback((island: Island | null, session?: GameVisit) => {
     game.current = island
     visit.current = session ?? null
-    if (island && import.meta.env.DEV && new URLSearchParams(location.search).has('ending')) island.replayEnding() // to see the ending without playing the game
+    if (island && import.meta.env.DEV && (new URLSearchParams(location.search).has('ending') || everything)) island.replayEnding() // to see the ending without playing the game (and with `?complete`, the card for finding everything)
   }, [])
   const words = useRef<HTMLDivElement>(null)
   // A small label that follows the cursor and says what it is resting on.
@@ -346,7 +348,7 @@ export default function GamePage() {
   const wishes = [friends.filter((friend) => friend.patted).length + friends.filter((friend) => friend.granted).length, friends.length + friends.filter((friend) => friend.more).length]
   // Everything: the world awake, and every combo, secret, snail and wish found. The card at the end comes up again for it,
   // in a form of its own, even if it was put away long ago: finding the last of them is an ending too.
-  const complete = state.done && [combos, secrets, snails, wishes].every(([have, all]) => have >= all)
+  const complete = everything || (state.done && [combos, secrets, snails, wishes].every(([have, all]) => have >= all))
   const wasComplete = useRef(complete)
   useEffect(() => {
     if (complete && !wasComplete.current) setWaved(-1)
@@ -763,9 +765,16 @@ export default function GamePage() {
           </div>
           {complete ? (
             <>
-              <h2>There is nothing left</h2>
+              {/* Everything found: a stamp put down on the end of the title, like the ones on the map. */}
+              <h2 className="stamped">
+                There is nothing left
+                <span className="stamp full" aria-label="One hundred per cent">
+                  <b>100%</b>
+                  found
+                </span>
+              </h2>
               <p>
-                Every secret, every combo, every snail. One hundred per cent. You can stop looking now. I say that knowing you will knock on one more rock.
+                Every secret, every combo, every snail. One hundred per cent. I made all of this not knowing if anybody would find it. You found all of it. Thank you.
               </p>
               <p>Nobody was checking. You did it properly anyway. That is either the best thing about you or the thing to keep an eye on. Possibly both.</p>
             </>

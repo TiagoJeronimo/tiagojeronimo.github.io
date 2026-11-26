@@ -49,7 +49,7 @@ doorstep, still water off the coast, and so on. After changing a map: `node test
 ## Trying things
 
 In the dev server the game is `window.island`: `island.things[i]`, `island.strike(i)`, `island.mark[tile]` (its map
-character), `island.advance(0.05)`. `?ending` (dev server only) plays the ending at once, without finishing the game. `?seed=N` deals island N: use 9001 and up for tests, and take
+character), `island.advance(0.05)`. `?ending` (dev server only) plays the ending at once, without finishing the game; `?complete` does too, and then shows the card for having found everything. `?seed=N` deals island N: use 9001 and up for tests, and take
 `wake-the-island/3/<seed>` out of localStorage afterwards. Saving an edit restarts the running game from its save.
 `test/play.test.ts` plays whole games with no browser, and is the place to prove a rule.
 
