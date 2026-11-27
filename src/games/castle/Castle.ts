@@ -962,6 +962,13 @@ export class Castle {
   /** What it holds on the graphics card is given back: for a world that is thrown away for a new one. */
   dispose() {
     for (const mesh of [this.solid.mesh, this.wet.mesh, this.bits.mesh, this.sticks]) mesh.dispose()
+    // The rest is given back too: a new game happens in the same canvas, and the sun's shadow map alone is 64 MB.
+    this.key.dispose()
+    this.group.traverse((one) => {
+      const { geometry, material } = one as Mesh
+      geometry?.dispose()
+      for (const m of Array.isArray(material) ? material : material ? [material] : []) m.dispose()
+    })
   }
   /** A number from 0 to 1 that is the same whenever the same day is played the same way. */
   private chance() {

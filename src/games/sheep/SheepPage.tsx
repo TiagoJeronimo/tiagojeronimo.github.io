@@ -48,11 +48,14 @@ const PICTURES: Record<Wear | Memory | Extra | '', ReactNode> = {
   river: squares([6, 1, 1, 4, '#cfc6d6'], [4, 5, 5, 5, '#5fb4f0'], [5, 6, 1, 1, '#ffffff']),
 }
 
+const FIELD = 250
+
 /** Sheep as they come from somewhere this page does not control (this browser's storage, the server): checked over. */
 const entries = (list: unknown): Entry[] =>
   Array.isArray(list)
     ? list
         .filter((one) => one && Number.isInteger(one.id) && one.id > FLOCK[0].id && Number.isInteger(one.seed)) // (no listed sheep has the resident's number)
+        .slice(-FIELD) // (the server sends no more, but this list may come from anywhere: the field holds about this many)
         .map((one) => ({ id: one.id, seed: one.seed, date: /^\d{4}-\d{2}-\d{2}$/.test(one.date) ? one.date : '', ...tidy(one) }))
     : []
 
@@ -165,6 +168,15 @@ const portugal = (() => {
 const ORDER = portugal ? ['card', 'mb_way', 'twint', 'paypal', 'apple_pay', 'google_pay'] : ['card', 'twint', 'paypal', 'apple_pay', 'google_pay', 'mb_way']
 
 /** The sheep in the address, `?sheep=<id>`: where Stripe sends a giver back to (or the fake pay of step 2). */
+// Stripe's return address carries the payment's secret. Nothing here reads it, and analytics would see the whole address,
+// so it goes before anything else does (the one that is needed, `redirect_status`, stays).
+if (location.search.includes('payment_intent')) {
+  const rest = new URLSearchParams(location.search)
+  rest.delete('payment_intent')
+  rest.delete('payment_intent_client_secret')
+  history.replaceState(null, '', `${location.pathname}${rest.size ? `?${rest}` : ''}`)
+}
+
 const wanted = () => Number(new URLSearchParams(location.search).get('sheep'))
 /**
  * How a way of paying that went away (PayPal, a bank) came back, by Stripe's `redirect_status`: paid, still being

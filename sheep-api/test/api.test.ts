@@ -79,6 +79,16 @@ const field = async (origin = SITE) => answer(await call('/sheep', { headers: { 
   assert.equal((await post()).status, 200, 'under it')
 }
 
+// The list of sheep has its own limit.
+{
+  let over = true
+  const limited: Env = { ...env, SHEEP_LIMIT: { limit: async () => ({ success: !over }) } }
+  const get = () => worker.fetch(new Request('https://x.test/sheep', { headers: { origin: SITE } }), limited)
+  assert.equal((await get()).status, 429, 'over the limit')
+  over = false
+  assert.equal((await get()).status, 200, 'under it')
+}
+
 // A checkout.
 {
   const id = newId()

@@ -32,7 +32,7 @@ CURRENCY`), the sheep's number (`newId isId`) and its seed (`seedOf`).
   else; the account's secret key never leaves the worker. A refusal from Stripe is logged as its status, code and
   field, never its message.
 - Rate limit: `POST /checkout` is counted by the caller's address (`cf-connecting-ip`) with Cloudflare's rate-limit
-  binding `CHECKOUT_LIMIT` (`wrangler.toml`: ten a minute), and answers 429 `slow down` over it. The binding is
+  binding `CHECKOUT_LIMIT` (`wrangler.toml`: ten a minute), and answers 429 `slow down` over it. `GET /sheep` has `SHEEP_LIMIT` (sixty a minute) and sends only the newest 250 sheep (`FIELD` in `sql.ts`: the field is full beyond that; the rest stay in the table). The binding is
   optional in `Env`: the tests and a plain `wrangler dev` have none, and then nothing is counted. (A WAF rule would
   need a domain of his own: `workers.dev` has none.)
 - `POST /stripe` (256 KB at most): signature first; then `payment_intent.succeeded` (status `succeeded`, in euros or

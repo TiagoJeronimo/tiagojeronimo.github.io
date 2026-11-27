@@ -12,9 +12,11 @@ export type Db = { prepare(query: string): Statement }
 export type Row = { id: number; seed: number; look: string; name: string; message: string; date: string }
 
 /**
- * Every sheep, oldest first. A hidden one stays in the field, since somebody paid for it, but says nothing: its name
+ * The newest `FIELD` sheep, oldest first (every sheep stays in the database, but the field holds about this many before
+ * they stand on each other, and a request should not grow with the flock). A hidden one stays in the field, since somebody paid for it, but says nothing: its name
  * and message are left out (hiding keeps the sheep, since somebody paid for it).
  */
+export const FIELD = 250
 export const flock = (db: Db) =>
   db
     .prepare(
@@ -22,10 +24,10 @@ export const flock = (db: Db) =>
          CASE hidden WHEN 0 THEN name ELSE 'a sheep' END AS name,
          CASE hidden WHEN 0 THEN message ELSE '' END AS message,
          substr(created, 1, 10) AS date
-       FROM sheep ORDER BY created, id`,
+       FROM sheep ORDER BY created DESC, id DESC LIMIT ${FIELD}`,
     )
     .all<Row>()
-    .then((done) => done.results)
+    .then((done) => done.results.reverse())
 
 export const taken = async (db: Db, id: number) => !!(await db.prepare('SELECT 1 FROM sheep WHERE id = ?').bind(id).first())
 

@@ -2514,7 +2514,10 @@ export class Island {
     if (this.clicks.length > 11) this.aside('hammer', NOTICED.hammer)
     if (id >= PET) {
       const c = this.critters.list[id - PET]
-      this.record('p', c.key ?? c.friend ?? c.kind)
+      // A dozen pats of each are kept for next time, enough for "most patted" to come back right: every one, from a child
+      // who pats all afternoon, made the save grow without end and the page freeze for seconds when it was opened.
+      const who = c.key ?? c.friend ?? c.kind
+      if (this.log.filter(([, kind, key]) => kind === 'p' && key === who).length < 12) this.record('p', who)
       this.pet(c)
     } else if (id >= 0) {
       // Kept for next time only once it has broken, or given what it had (a secret, a friend, a wish): not every knock on

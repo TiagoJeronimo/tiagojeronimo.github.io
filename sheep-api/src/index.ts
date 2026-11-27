@@ -17,6 +17,7 @@ export type Env = Gate & {
   SITE: string
   /** Cloudflare's rate limiter for /checkout (see wrangler.toml). Not there in the tests and in `wrangler dev` of old. */
   CHECKOUT_LIMIT?: { limit(options: { key: string }): Promise<{ success: boolean }> }
+  SHEEP_LIMIT?: { limit(options: { key: string }): Promise<{ success: boolean }> }
 }
 
 /**
@@ -145,6 +146,8 @@ async function handle(request: Request, env: Env) {
     return new Response(null, { status: 204, headers: { ...allow, 'access-control-allow-methods': 'GET, POST', 'access-control-allow-headers': 'content-type', 'access-control-max-age': '86400' } })
   }
   if (request.method === 'GET' && pathname === '/sheep') {
+    // (Sixty a minute by address: a page asks once, and every call reads the table.)
+    if (env.SHEEP_LIMIT && !(await env.SHEEP_LIMIT.limit({ key: request.headers.get('cf-connecting-ip') ?? 'none' })).success) return no(429, 'slow down', allow)
     const sheep = (await flock(env.DB)).map(({ look, ...rest }) => ({ ...rest, look: JSON.parse(look) as unknown }))
     return json(sheep, 200, { ...allow, 'cache-control': 'public, max-age=5' })
   }
