@@ -150,6 +150,24 @@ function Player({ project }: { project: Project }) {
   )
 }
 
+/** Words meant to be pasted somewhere else, in a box with a button that copies them. */
+function Prompt({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () =>
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    }).catch(() => {})
+  return (
+    <div className="prompt">
+      <p>{text}</p>
+      <button className="sound" onClick={copy}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
 /** The link that writes to me. Under the cursor (or the keyboard) it also shows the address itself, with a button that copies it. */
 function Mail({ href }: { href: string }) {
   const address = href.replace('mailto:', '')
@@ -539,6 +557,7 @@ export default function Home() {
               {open.body.map((line) => (
                 <p key={line}>{line}</p>
               ))}
+              {open.prompt && <Prompt text={open.prompt} />}
               {open.aside && <p className="aside">{open.aside}</p>}
               {/* More pictures of the same thing, where there are any: small, and a click shows one big. */}
               {open.more && (

@@ -719,6 +719,29 @@
   font-style: italic;
   opacity: 0.75;
 }
+/* Words to copy: set apart from the prose, so it is clear where they start and end. */
+.sheet .prompt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0.6em 0 1em;
+  padding: 10px 10px 10px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.sheet .prompt p {
+  flex: 1;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.sheet .prompt button {
+  flex: none;
+  margin: 0;
+  padding: 4px 10px;
+}
 .tags {
   display: flex;
   flex-wrap: wrap;

@@ -40,6 +40,8 @@ export interface Project {
   more?: string[]
   /** Where I worked: what I was there, said under its name. */
   role?: string
+  /** Words to paste somewhere (into Claude, say), shown in a box of their own with a button that copies them. */
+  prompt?: string
   /** A small word of my own, at the end. */
   aside?: string
   /** The marks of the place, shown small in the corner of its picture. */
@@ -79,6 +81,28 @@ const made: Project[] = [
     after: '/thumbs/wake-the-island-woken.jpg',
     art: 'worm',
     wide: true,
+  },
+  {
+    slug: 'ai-debug-pins',
+    title: 'ai-debug-pins',
+    kind: 'web',
+    when: '2026',
+    blurb: 'Point at what’s wrong on the page you’re building, type a line, and Claude gets the picture.',
+    body: [
+      'A pin for pages in development. Click the thing that is wrong, say what is wrong with it, and Claude Code gets a picture of the page with a ring round the spot, your words, and where in the code it lives.',
+      'Plain JavaScript, a Vite plugin, a small Node server and a Claude Code plugin. The page draws its own picture, so it needs no extension and no permissions.',
+      'To set it up, paste this into Claude Code:',
+    ],
+    prompt:
+      'Set up ai-debug-pins here (https://github.com/TiagoJeronimo/ai-debug-pins): install its Claude Code plugin, then add it to my dev server as its README says, for development only. Then tell me how to use it.',
+    tags: ['JavaScript', 'Vite', 'Node.js', 'Claude Code'],
+    links: [
+      { label: 'The code', href: 'https://github.com/TiagoJeronimo/ai-debug-pins' },
+      { label: 'npm', href: 'https://www.npmjs.com/package/ai-debug-pins' },
+    ],
+    picture: '/thumbs/ai-debug-pins.jpg',
+    framed: true,
+    art: 'pin',
   },
   {
     slug: 'storm-the-castle',
