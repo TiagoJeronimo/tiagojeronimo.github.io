@@ -1,6 +1,6 @@
 import { note } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
-import { BARK, GROUND, NEVER, any, rnd, tx, tz, type Isle } from '../grid.ts'
+import { BARK, GROUND, NEAR, NEVER, any, rnd, step, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
 
 const LIT = [0xff9ad5, 0xffd45c, 0x9be3d0, 0x86b6f5, 0xc4a4f0]
@@ -77,7 +77,7 @@ function tap(w: Island, k: number) {
     ring.played = [...ring.played, k].slice(-5)
     if (w.memo.chorus || ring.played.join() !== ring.song.join()) return
     w.memo.chorus = 1
-    ring.sung('A secret: the song the frog sings, played back on the ring. The whole swamp joins in, and will not stop humming now. You taught a bog a tune. It cannot be untaught.')
+    ring.sung('Secret: the song the frog sings, played back on the ring. The whole swamp joins in, and will not stop humming now. You taught a bog a tune. It cannot be untaught.')
     for (let n = 0; n < 40; n++) w.after(n * 0.06, () => sing(w, tx(centre.tile) + Math.cos(n * 0.7) * 1.6, w.h[centre.tile] + 0.4, tz(centre.tile) + Math.sin(n * 0.7) * 1.6, n % 5))
     return
   }
@@ -99,6 +99,9 @@ function tap(w: Island, k: number) {
   for (let n = 0; n < 40; n++) w.bits.spawn(tx(centre.tile), w.h[centre.tile] + 0.4, tz(centre.tile), Math.cos(n) * (2 + (n % 5)), 1 + (n % 3), Math.sin(n) * (2 + (n % 5)), 0.1, LIT[n % 5], 1.6, NEVER, 0, 1, 2.5)
 }
 
+/** A lily pad, in pieces: across and along from its middle, how wide and deep, its green. And the bud on the smaller one: the last number is how far up it stands. */
+const PAD = [[0, 0, 0.66, 0.3, 0x6fbc6c], [0.03, 0.24, 0.5, 0.18, 0x7fca6c], [-0.06, -0.24, 0.4, 0.18, 0x7fca6c]]
+const BUD = [0.2, 0.26, 0.1, 0.1, 0xffc2d9, 0.08]
 /**
  * The mushroom swamp, west of the island: mud, reeds, and mushrooms as tall as trees.
  *   g  bog, filled by rain     f  the frog on its lily pad     1-5  the fairy ring, smallest to tallest     j  its middle
@@ -187,14 +190,54 @@ export const swamp: Isle = {
           croak(w, frog, false)
         },
       })
-      const pad = w.put(t, 0, 0.03, 0, 0.66, 0.06, 0.66, 0x6fbc6c)
+      // The pad: round as cubes get (a wide middle, a narrower piece before and behind it, the one behind set to one
+      // side for the notch), in two greens.
+      const leaf = (dx: number, dz: number, by: number, pieces: number[][]) => pieces.map(([px, pz, wide, deep, color, up = 0]) => w.put(t, dx + px * by, 0.03 + up, dz + pz * by, wide * by, up ? wide * by : 0.06, deep * by, color))
+      const float = (cubes: number[], u: number, by: number, pieces: number[][]) => cubes.forEach((cube, k) => w.solid.place(cube, tx(u) + pieces[k][0] * by, w.h[u] + 0.47 + (pieces[k][5] ?? 0), tz(u) + pieces[k][1] * by))
+      const pad = leaf(0, 0, 1, PAD)
+      const home = [x, top + 0.03, z] // a place to settle, for the firefly: on the pad, when the frog is not
+      w.rests.push(home)
       frog.thing = t
       frog.hidden = true
       w.sleepers[s].push(frog)
       w.onFill.push((filled) => {
+        if (filled === other) {
+          float(spare, other, 0.8, [...PAD, BUD])
+          away[1] = w.h[other] + 0.5
+        }
         if (filled !== tile) return
-        w.solid.place(pad, x, top + 0.47, z)
+        float(pad, tile, 1, PAD)
+        home[1] = top + 0.5
         w.critters.go(frog, x, top + 0.5, z, 0.4, 0.2)
+      })
+      // A second pad, smaller, with a bud on it, two tiles off over open water: now and then, awake and with nothing
+      // else on, the frog hops across to it in one long hop, sits a while and hops back. The pad is the frog's, so a
+      // click on either is a click on the frog. (Laid once the whole swamp is: that water may not have been drawn yet.)
+      let [other, spare, hopping] = [-1, [] as number[], 30 + Math.random() * 30]
+      const away = [0, 0, 0]
+      w.after(0, () => {
+        const water = (u: number) => u >= 0 && w.isle[u] === s && !!w.bed[u] && !w.standing[u].length && Math.abs(w.h[u] - top) < 0.01
+        // Two tiles off in a straight line with water between, or a knight's move off with water on the way; failing both (no map has that), next door.
+        const far = [[2, 0], [-2, 0], [0, 2], [0, -2]].filter(([di, dj]) => water(step(tile, di / 2, dj / 2)))
+        const bent = [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [-1, 2], [1, -2], [-1, -2]].filter(([di, dj]) => water(step(tile, Math.sign(di), 0)) || water(step(tile, 0, Math.sign(dj))))
+        other = [...far, ...bent, ...NEAR].map(([di, dj]) => step(tile, di, dj)).find(water) ?? -1
+        if (other < 0) return
+        spare = leaf(tx(other) - x, tz(other) - z, 0.8, [...PAD, BUD])
+        away.splice(0, 3, tx(other), w.h[other] + 0.03, tz(other))
+        w.rests.push(away)
+      })
+      w.ticks.push((dt) => {
+        if (other < 0 || frog.hidden || w.things[t].hits || frog.t < 1 || frog.pet || !w.filled[tile] || !w.filled[other] || (hopping -= dt) > 0) return
+        const here = Math.hypot(frog.x - x, frog.z - z) < 0.1
+        const to = here ? other : tile
+        // Not onto somebody: whoever swims there, or has settled on it, has it for now.
+        if (w.critters.list.some((c) => c !== frog && !c.hidden && Math.hypot(c.x - tx(to), c.z - tz(to)) < 0.7 && Math.abs(c.y - top - 0.5) < 0.6)) return void (hopping = 3)
+        hopping = here ? 8 + Math.random() * 14 : 40 + Math.random() * 60 // a while on the far pad, a long while at home; never the same twice
+        w.critters.go(frog, tx(to), w.h[to] + 0.5, tz(to), 0.75, 0.9, () => {
+          for (const cube of here ? spare : pad) w.solid.poke(cube, 6)
+          w.splash(frog.x, frog.y - 0.05, frog.z, 3)
+          if (w.hears(frog.x, frog.z) > 0.1) note(0.1, 0.05 * w.hears(frog.x, frog.z))
+        })
       })
     } else if ('12345'.includes(c)) {
       const k = Number(c) - 1
@@ -206,7 +249,7 @@ export const swamp: Isle = {
       ring.tiles[k] = tile
     } else if (c === 'j') {
       // (It is the five mushrooms round it that get tapped: they are what stirs, to say so.)
-      const t = w.thing(tile, { auto: false, todo: true, touched: () => ringOf(w).tiles.flatMap((u) => w.standing[u].flatMap((i) => w.things[i].cubes)), tip: 'A fairy ring: five little mushrooms, five sizes. They mind the order', clue: '[Five little mushrooms] stand in a circle in the swamp, each a bit taller than the last. Knock them from the smallest to the tallest. They would like to be noticed in the right order. Who would not.' })
+      const t = w.thing(tile, { auto: false, todo: true, touched: () => ringOf(w).tiles.flatMap((u) => w.standing[u].flatMap((i) => w.things[i].cubes)), tip: 'Fairy ring: five little mushrooms, five sizes. They mind the order', clue: '[Five little mushrooms] stand in a circle in the swamp, each a bit taller than the last. Knock them from the smallest to the tallest. They would like to be noticed in the right order. Who would not.' })
       w.put(t, 0, 0.04, 0, 0.7, 0.08, 0.7, 0x8f9a8a)
       w.put(t, 0, 0.1, 0, 0.3, 0.06, 0.3, 0xa9b29c)
       ringOf(w).centre = t
@@ -236,7 +279,11 @@ export const swamp: Isle = {
       w.put(t, 0.16, 1.2, 0, 0.42, 0.08, 0.08, BARK)
       w.put(t, 0.32, 0.92, 0, 0.26, 0.34, 0.26, 0x4a4458)
       w.put(t, 0.32, 1.12, 0, 0.3, 0.06, 0.3, 0x3a3340)
-      w.solid.paint(w.put(t, 0.32, 0.9, 0, 0.28, 0.2, 0.28, 0xffc24a, true), 0xffc24a, 2.6)
+      // Its flame is there at night and gone by day, like a switch: it pops in and out at the tap, and its glass is dark
+      // without it. (It used to stay lit all day once lit, and its colour faded up over a second.)
+      const flame = w.scar(t, 0.32, 0.9, 0, 0.28, 0.2, 0.28, 0xffc24a)
+      w.solid.paint(flame, 0xffc24a, 2.6)
+      w.onNight.push((night) => (night ? w.solid.show(flame) : w.solid.hide(flame)))
     } else if (c === 'H') {
       w.planks(w.thing(tile), 1, 0)
       w.signpost(tile, 1, 0, [
@@ -282,7 +329,7 @@ export const swamp: Isle = {
     }
     ghost.onPat = () => {
       w.pat(ghost)
-      seen('A secret: the swamp has a ghost. It is shy, and only comes out at night. It is not haunting anything. It just did not know where else to go.')
+      seen('Secret: the swamp has a ghost. It is shy, and only comes out at night. It is not haunting anything. It just did not know where else to go.')
     }
     w.ticks.push(() => (ghost.hidden = !(w.open[s] && w.night)))
     // Will-o'-the-wisps over the bog, once it is night.

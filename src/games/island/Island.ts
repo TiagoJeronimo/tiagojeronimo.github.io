@@ -1,5 +1,5 @@
 import {
-  CircleGeometry, Color, DirectionalLight, Group, HemisphereLight, Mesh, MeshStandardMaterial, Plane, PointLight, Raycaster, ShadowMaterial, SpotLight, Vector2, Vector3,
+  CircleGeometry, Color, DirectionalLight, Fog, Group, HemisphereLight, Mesh, MeshStandardMaterial, Plane, PointLight, Raycaster, ShadowMaterial, SpotLight, Vector2, Vector3,
   type Light, type PerspectiveCamera, type Scene,
 } from 'three'
 import { Butterflies } from './Butterflies.ts'
@@ -45,9 +45,44 @@ export const forget = (seed: number) => {
 // What the animals say to a pat.
 const VOICES: Record<string, string> = {
   bird: 'tweet', bunny: 'squeak', tortoise: 'hmm', duck: 'quack', chick: 'cheep', penguin: 'honk', beaver: 'chrr', frog: 'ribbit', crab: 'clack', mole: 'snf',
-  snail: 'squish', balloon: 'whoosh', capybara: 'mm', axolotl: 'blip', bottle: 'clink', marmot: 'eep', goat: 'meh', dragon: 'rawr', fish: 'blub', owl: 'hoo', ghost: 'boo', bat: 'eek', eagle: 'kree', squirrel: 'chk', flock: 'tweet', sparrow: 'chirp', nestling: 'peep',
+  snail: 'squish', balloon: 'whoosh', capybara: 'mm', axolotl: 'blip', bottle: 'clink', marmot: 'eep', goat: 'meh', fox: 'yip', dragon: 'rawr', fish: 'blub', owl: 'hoo', ghost: 'boo', bat: 'eek', eagle: 'kree', squirrel: 'chk', flock: 'tweet', sparrow: 'chirp', nestling: 'peep',
 }
 const DAYTIME = ['bird', 'bunny', 'tortoise', 'duck', 'chick', 'penguin', 'beaver', 'crab', 'mole', 'marmot', 'goat', 'dragon'] // who sleeps at night
+/** The flag an isle puts up once all of it is awake and found: its colour, and what a click on it says. */
+const FLAGS: Record<string, [number, string]> = {
+  island: [0xe9806f, 'The island’s flag. Everything here is found, and it is still just a place. Finishing a thing does not change the thing. It changes how long you look at it.'],
+  meadow: [0xffd45c, 'The meadow’s flag. All of it done, in an afternoon. You will remember the part where it was not finished yet. That was the good part, it turns out.'],
+  snow: [0x7fb6e0, 'The snow’s flag. Nothing left to thaw. It was easier to love when it needed you. Most things are. Stay anyway.'],
+  mountain: [0xc4a4f0, 'The mountain’s flag. You got to the top of everything there is here. The view is of the other things you finished. It is a nice view. It is not a plan.'],
+  swamp: [0x9be3d0, 'The swamp’s flag. Even the swamp is complete now, and it never asked to be. Some things were fine unfinished. You fixed them too.'],
+  beach: [0xff9ab0, 'The beach’s flag. Every shell turned, every plug pulled. The tide will not notice. You did it for the tide anyway. That is most of what anyone does.'],
+  volcano: [0xff8a3c, 'The volcano’s flag. All found, on a thing that could go off again whenever it likes. Finished is only ever finished for now. The flag knows. It is up regardless.'],
+  newland: [0xf5e04a, 'The new land’s flag. It is an hour old, and already there is nothing left to find on it. It would like you to know it is doing its best.'],
+  garden: [0x8fd16b, 'The garden’s flag. Everything picked, everybody fed. A garden is the one thing you finish that starts again by itself. It will not hold that against you.'],
+  islet: [0xfff3df, 'The islet’s flag. A whole island, completed, that nobody needed you to find. Nobody was counting but you. That has never once stopped you.'],
+}
+/** What is said when the fox is patted: one of these each time (see `patFox`). */
+const FOX_PATS = [
+  'The fox takes the pat and looks at the horizon, as if it were a coincidence. You are both in on it. That is most of what company is.',
+  'The fox lets you pat her. She leans in a little, and then remembers herself. Wanting things is fine. It is being seen wanting them.',
+  'A pat for the fox. She acts as if it happens all the time. It is the acting that gives her away.',
+  'The fox holds very still for the pat, the way you do when something nice is happening and you would like not to scare it off.',
+  'The fox likes the pat. She is also watching herself like it, from a little way off. That is the trouble with being clever.',
+  'The fox stands still for the pat. Only for a second. She has a whole island to be unimpressed by, and it will not do itself.',
+  'Another pat for the fox. She had told herself she would not count them. She is on a number anyway.',
+  'The fox goes everywhere and stays nowhere, and calls that freedom. Then somebody pats her, and she stays for that.',
+  'The fox takes the pat well. She has read that you are meant to let people be kind to you. She is practising. You are the practice.',
+  'The fox takes the pat. She will think about it later, when you are not looking, at some length. For now she has somewhere to be. She does not.',
+]
+/** And when she is patted in the middle of something: at the water, before the windmill, on a shore looking across, out at night. */
+const FOX_AT: Record<string, string> = {
+  drink: 'The fox looks up from the water with a wet chin. She was having a moment with her reflection. It did not go anywhere, and neither did she.',
+  sails: 'The fox was watching the sails go round. They work very hard to stay exactly where they are. She did not say it reminded her of anyone.',
+  shore: 'The fox was looking at the place across the water. It is probably the same over there. She would still like to be sure.',
+  night: 'A pat in the dark for the fox. She was up anyway. She says the night is quieter. She means there is nobody to be fine in front of.',
+}
+const AIRY = ['bubble', 'arrow', 'glow', 'star', 'balloon', 'beam', 'sails', 'bat', 'ghost'] // what is never on the ground of a tile (see `taken`)
+const FLIERS = ['bird', 'owl', 'dragon'] // who comes down out of the air onto a spot (see `perched`)
 const SMALL = ['bunny', 'chick', 'marmot'] // who makes off when a dragon comes over
 const TILT = 0.72 // how steeply the camera looks down, from where it takes in the whole world
 const STIR = 4.5 // how hard a thing still to be found stirs: about an eighth bigger for a moment (a knock is a quarter)
@@ -262,8 +297,8 @@ export class Island {
   readonly bits = new Bits(1600)
   readonly critters = new Critters()
   private butterflies = new Butterflies()
-  private key = new DirectionalLight(0xffe9cf, 3.2)
-  private sky = new HemisphereLight(0xe6efff, 0xffd9c4, 1.25)
+  private key = new DirectionalLight(0xffdebc, 2.6)
+  private sky = new HemisphereLight(0xdcd6ff, 0xffd9c4, 1.45)
   readonly things: Thing[] = []
 
   // Per tile.
@@ -302,12 +337,24 @@ export class Island {
   /** Called every frame. */
   readonly ticks: ((dt: number, time: number) => void)[] = []
   readonly perches: number[][] = []
+  readonly rests: number[][] = [] // low places for something small that flies to settle on (the lily pads): x, the height of the top, z
+  /** Ways over the water for whoever goes on foot: from a tile to a tile, by these points, while `open` says so. */
+  private ways: { a: number; b: number; via: number[][]; open: () => boolean }[] = []
+  private lanes = new Map<number, number[]>() // where to walk on a tile a bridge leaves from: to one side, clear of its signpost
+  readonly roofed = new Uint8Array(W * D) // something hangs low over it (the swing): whoever is tall goes round
+  /** The fox, and what she is up to: see `roam`. */
+  fox?: Critter
+  /** A thought bubble with a question mark over somebody, for so many seconds (made in `wishes.ts`, with the other bubbles). */
+  think?: (c: Critter, seconds: number) => void
+  private woke = 0 // when she was woken
+  private den = { tile: -1, trail: [] as number[][], errand: undefined as (() => void) | undefined, tries: 0, steps: 0, out: false, abed: false, sat: false, hint: false, fresh: -1, doing: '', until: 0, bag: [] as number[], rounds: 0, told: new Set<string>() }
   readonly showers: number[][] = [] // where it rains: x, z, until
   private bees: number[] = []
   /** Seeds the flock still carries. */
   seeds = 0
   night = false
   private dusk = 0
+  private turned = 0 // how far the clock of that has run: 0 day, 1 night (`dusk` is this, eased)
   private ink?: string // the colour of the words, as last set: not yet, to begin with, so that the first frame sets it whatever was there before
   private glows: number[][] = []
   private drift?: { cubes: number[]; x: number; z: number; to: number[]; then?: () => void; busy: boolean }
@@ -322,6 +369,7 @@ export class Island {
   private nudges = 0
   private hint = 'It has not rained here in a long time. Nobody is coming to fix it. Well. You came. Poke around.'
   private lines: string[] = [] // what is waiting to be said, in the order it will be
+  private queued = new Map<string, number>() // and since when each of them has waited
   private heard: Said[] = [] // everything that has been said on this island, the latest last: each line once, with who or what it is about
   private whose = new Map<string, About>() // who or what a line is about, from when it is said until it comes up
   private wentOff: [object | undefined, number] = [undefined, 0] // the camera's last move of its own, and when it set off (see `update`)
@@ -447,6 +495,7 @@ export class Island {
   /** Who is sitting on the tortoise, if anyone is. */
   seat?: Critter
   private seated = false // and whether it has got there yet
+  private rider?: [Critter, (c: Critter) => void, number] // a bunny riding the tortoise: what it did before, and until when it rides (0 while it is on its way up)
   private stone?: Critter // the one flat stone there is to skip
   private blooms: number[] = [] // the head of every flower: they shut at night
   private shaking = 0
@@ -463,7 +512,13 @@ export class Island {
   private lifting = -1 // how much of the picture the line across the bottom takes, eased (see `update`): not yet worked out, to begin with
   private hover = -1
   private label = ['', 9, 9, 0] as [string, number, number, number] // what the cursor last rested on, where it was then, and where the camera was
-  private bg = new Color(0xeadcc2)
+  private bg = new Color(0xecdbbd)
+  private haze = new Fog(0xecdbbd, 30, 60) // the far side of the land fades a little into the paper (its colour is `bg`)
+  private gold = 0 // how far into the golden light between day and night
+  private petals = 0 // until when blossom falls on a world just won
+  private flags = ISLES.map(() => false) // the isles that have put their flag up
+  private flagged = 0 // when that was last looked into
+  private shadow = new ShadowMaterial({ color: 0x6d4a7a, opacity: 0.25 }) // the shade the land throws on the paper below: plum by day, a deep navy by night
   private scene: Scene
   private canvas: Element // what the world is drawn on. The map has small canvases of its own, and those are not the world.
   private report: (state: GameState) => void
@@ -499,11 +554,12 @@ export class Island {
     this.span = this.reach
 
     key.castShadow = true
-    key.shadow.bias = -0.0004
-    key.shadow.normalBias = 0.04
+    // Just enough nudge to keep stripes off flat ground: more, and a shadow starts a little way from what casts it (a blade of grass seems to float).
+    key.shadow.bias = -0.0001
+    key.shadow.normalBias = 0.01
     this.shadows(0)
     Object.assign(key.shadow.camera, { near: 1, far: 120 })
-    const floor = new Mesh(new CircleGeometry(300, 32), new ShadowMaterial({ color: 0x6d4a7a, opacity: 0.25 }))
+    const floor = new Mesh(new CircleGeometry(300, 32), this.shadow)
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = true
     wet.mesh.castShadow = false
@@ -511,6 +567,8 @@ export class Island {
     this.group.add(solid.mesh, wet.mesh, this.bits.mesh, this.critters.mesh, this.butterflies.mesh, key, key.target, this.sky, floor)
     scene.add(this.group)
     scene.background = this.bg
+    this.haze.color = this.bg
+    scene.fog = this.haze
 
     addEventListener('pointermove', this.onMove)
     addEventListener('pointerdown', this.onDown)
@@ -649,6 +707,7 @@ export class Island {
     removeEventListener('blur', this.onBlur)
     this.scene.remove(this.group)
     this.scene.background = null
+    this.scene.fog = null
     for (const mesh of [this.solid.mesh, this.wet.mesh, this.bits.mesh, this.critters.mesh, this.butterflies.mesh]) mesh.dispose()
     document.body.style.cursor = ''
     document.documentElement.style.removeProperty('--ink')
@@ -710,8 +769,12 @@ export class Island {
         this.until = Math.min(this.until, this.time - LINGER)
         this.jump++ // it stands first among those waiting: whatever else this click brings about goes in behind it
       } else this.voice(text)
-    } else if (this.jump > 0) this.lines.splice(Math.min(this.jump - 1, this.lines.length), 0, text)
-    else this.lines.push(text)
+    } else {
+      // It has to wait its turn. Not for long: see `due`.
+      if (this.jump > 0) this.lines.splice(Math.min(this.jump - 1, this.lines.length), 0, text)
+      else this.lines.push(text)
+      this.queued.set(text, this.time)
+    }
     if (this.jump >= 0) this.jump++
   }
   /**
@@ -770,8 +833,20 @@ export class Island {
   private due() {
     while (this.lines.length) {
       const line = this.lines.shift()!
-      if (!this.moot(line)) return line
+      // A line that has waited more than four seconds behind others is about something long past by the time it could
+      // come up: it is not shown. It goes to the log, which shows its dot, as a line cut off before it could be read
+      // does. (Not the line of a click that is waiting for what it is about to finish: that one was never queued.)
+      const since = this.queued.get(line)
+      this.queued.delete(line)
+      if (this.moot(line)) continue
+      if (since !== undefined && this.time - since > 4) this.shelve(line)
+      else return line
     }
+  }
+  /** A line goes to the log unsaid, marked as new there. */
+  private shelve(text: string) {
+    if (!this.fresh.includes(text)) this.fresh.push(text)
+    this.keep(text)
   }
   /**
    * Whether a line has lost its point: one that says what to do about a thing, a secret or a wish is not said once
@@ -819,13 +894,15 @@ export class Island {
     }
   }
   /**
-   * Something the game has noticed about how it is being played. It says so once, ever, and after whatever else is
-   * waiting to be said: a remark never pushes in front of a line that matters.
+   * Something the game has noticed about how it is being played. It says so once, ever, and only if nothing else is
+   * being said or waiting to be: a remark never pushes in front of a line that matters, and never queues behind one.
    */
   aside(id: string, text: string) {
     if (this.fast || this.notes.said.includes(id)) return
     this.notes.said.push(id)
     this.whose.set(text, ['about you', -1, ''])
+    // A remark never waits in a queue: with a line up, or others waiting, it goes straight to the log (with its dot).
+    if (this.time < this.until || this.lines.length) return this.shelve(text)
     this.lines.push(text)
   }
   /** The player moved: the pointer, a key. If that is the first sign of life in over a minute, it gets a mention. */
@@ -944,7 +1021,7 @@ export class Island {
       tally[0]++
       if (kind === 'secret' && s >= 0) this.hid[s][0]++
       // The first few words of what is said about it are its name on the map.
-      const name = text.replace(/^A secret: /, '').split(/[.!]/)[0]
+      const name = text.replace(/^Secret: /, '').split(/[.!]/)[0]
       entry.name = name[0].toUpperCase() + name.slice(1)
       // Where it is: its own place if it has one, else that of whatever was knocked on. The line leads there. It is
       // said at once (no `breath` first): nothing much moves for a secret or a combo, and a wait would only look slow.
@@ -1045,8 +1122,8 @@ export class Island {
 
   /** A pat: the animal wobbles, hearts go up, and the friend book takes note. */
   pat(c: Critter) {
-    if (!this.fast) {
-      // Who gets the pats is noticed: one who gets three times as many as anybody else is a favourite.
+    if (!this.fast && c !== this.fox) {
+      // Who gets the pats is noticed (but for the fox, who is patted for what she says and would always win): one who gets three times as many as anybody else is a favourite.
       const { pats } = this.notes
       const id = c.friend ?? c.kind
       const n = (pats[id] = (pats[id] ?? 0) + 1)
@@ -1059,6 +1136,20 @@ export class Island {
     for (let k = 0; k < 3; k++) this.bits.spawn(c.x + any() * 0.3, c.y + 0.5, c.z + any() * 0.3, any(), 2.2, any(), 0.12, 0xff8fb0, 0.8, NEVER, 0, 2)
     const friend = this.friends.find((f) => f.id === (c.friend ?? c.kind))
     if (friend) friend.patted = true
+    if (c === this.fox) this.patFox()
+    if (c.kind === 'bunny' && c.next && c.t >= 1 && c.nap < 0.1) this.leapfrog(c)
+    if (c.kind === 'marmot' && !c.friend && c.next) {
+      // The lookout: the one that was patted stands up for a look, and the others near by after it, one by one, all facing the same way.
+      const pack = this.critters.list.filter((o) => o.kind === 'marmot' && !o.friend && o.next && !o.hidden && Math.hypot(o.x - c.x, o.z - c.z) < 6)
+      pack.sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))
+      // (One that is in the middle of a hop just then stands as soon as it has landed: a few tries, a moment apart.)
+      const up = (o: Critter, tries: number) => {
+        if (this.critters.perform(o, 'watch')) o.face = c.face
+        else if (tries) this.after(0.35, () => up(o, tries - 1))
+      }
+      pack.forEach((o, k) => this.after(1.6 + k * 0.33, () => up(o, 6)))
+    }
+    if (c.kind === 'tortoise' && c.thing === undefined) for (let k = 0; k < 20; k++) this.after(k * 0.5, () => this.board(c)) // (the stop is requested for ten seconds: a bunny in mid-hop hears it when it lands, and a bird on the seat has to leave first)
     this.notice(() => (c.hidden ? undefined : [c.x, c.y + 0.3 * c.grow, c.z]), 1.4, 3.2, 1, c) // and whoever is near wonders why not them
   }
   /**
@@ -1165,7 +1256,7 @@ export class Island {
     // Told now, like one a bottle brought: its riddle stays next to it on the map.
     if (!find.told) this.record('a', `secret${this.finds.indexOf(find)}`)
     find.told = true
-    this.say(`A secret: ${find.riddle}`, 'tip')
+    this.say(`Secret: ${find.riddle}`, 'tip')
     const at = find.at?.()
     if (!at) return
     this.going = { x: at[0], z: at[2], zoom: Math.max(this.zoom, 2.6) }
@@ -1397,7 +1488,7 @@ export class Island {
     const isle = ISLES[s]
     const { look } = isle
     const bed = isle.beds.includes(c)
-    const top = GROUND + level - (bed ? 0.6 : 0)
+    const top = GROUND + level - (bed ? 0.6 : 0) + (isle.lift?.[c] ?? 0)
     this.mark[tile] = c
     this.isle[tile] = s
     this.tiles[s].push(tile)
@@ -1512,10 +1603,10 @@ export class Island {
     if (!this.fast) this.still = Math.max(this.still, this.time + seconds + 0.2)
     this.after(seconds, () => this.raise(name))
   }
-  /** A new isle comes up out of the sea, from (x, z) outwards; from its middle if not given. */
+  /** A new isle comes up out of the sea, from (x, z) outwards; from its middle if not given. It says how long until it starts to. */
   raise(name: string, x?: number, z?: number) {
     const s = this.index(name)
-    if (this.open[s]) return
+    if (this.open[s]) return 0
     const [mx, mz] = this.middle(name)
     this.open[s] = true
     this.stirred = this.time
@@ -1532,11 +1623,13 @@ export class Island {
     this.after(lead, () => {
       this.surface(s, 1.2) // the water on it too, and whatever falls over its edge: not before the ground is there to fall from
       for (const critter of this.sleepers[s]) critter.hidden = false
+      this.den.fresh = s // new land: the fox will want a look, if there is a way
       for (let k = 0; k < 5; k++) this.after(k * 0.2, thump)
       this.rumble(0.7)
       for (const tile of this.tiles[s]) if (rnd(tile) < 0.5) this.bits.spawn(tx(tile), 0.4, tz(tile), any() * 3, 6 + Math.random() * 5, any() * 3, 0.2, 0xeaf6ff, 1.4, 0, 0)
       this.notice([mx, GROUND + 1, mz], 3)
     })
+    return lead
   }
 
   // --- water and waking ground ---------------------------------------------------------------
@@ -1676,9 +1769,13 @@ export class Island {
     this.trail(() => (Math.hypot(drift.to[0] - drift.x, drift.to[1] - drift.z) > 0.1 ? [drift.x, drift.z] : undefined), 30) // the camera goes with the cloud
     drift.then = () => {
       this.showers.push([x, z, this.time + 4.5])
+      // What the rain feeds starts to fill while it is still raining, a tile at a time from under the cloud outwards:
+      // the first water a little under a second in, the last by two and a half. (It used to wait for the rain to
+      // stop, four and a half seconds, and then all of it was there at once.)
+      const fed = this.tiles[s].filter((tile) => ISLES[s].rainfed?.includes(this.mark[tile])).sort((a, b) => Math.hypot(tx(a) - x, tz(a) - z) - Math.hypot(tx(b) - x, tz(b) - z))
+      fed.forEach((tile, k) => this.after(0.8 + (1.6 * k) / Math.max(1, fed.length - 1), () => this.fill(tile)))
       this.after(4.5, () => {
         drift.busy = false
-        for (const tile of this.tiles[s]) if (ISLES[s].rainfed?.includes(this.mark[tile])) this.fill(tile)
         for (const thing of this.things) if (this.isle[thing.tile] === s) thing.rain?.()
         then?.()
       })
@@ -1822,9 +1919,92 @@ export class Island {
     return this.near * Math.max(0, 1 - Math.hypot(x - this.centre.x - this.view[0], z - this.centre.z - this.view[1]) / 9)
   }
 
+  /** Whether a place is in the picture right now. (With nothing drawn, as in a test, nothing is.) */
+  seen(x: number, y: number, z: number) {
+    return !!this.camera && Math.abs(_p.set(x, y, z).project(this.camera).x) < 1 && Math.abs(_p.y) < 1 && _p.z < 1
+  }
+  /** Rain has just fallen here, or somebody has just come out of the water: whoever is that near and wet shakes dry. */
+  soak(x: number, z: number, within: number) {
+    if (this.fast) return
+    for (const c of this.critters.list) if (Math.hypot(c.x - x, c.z - z) < within) this.after(Math.random() * 0.8, () => this.critters.perform(c, 'shake')) // (the frog too, on its pad: it called the rain, and it still gets wet)
+  }
+
+  /**
+   * Whether somebody who flies sits at a place, or is on the way there. One spot, one bird: every place a bird comes
+   * down on (a tree top, a mushroom cap, an arm of the scarecrow, the ground, a place by the fire, beside an apple) is
+   * asked this first.
+   * @param but the one who is asking
+   */
+  perched(x: number, y: number, z: number, but?: Critter) {
+    for (const o of this.critters.list) {
+      if (o === but || o.hidden || !FLIERS.includes(o.kind)) continue
+      if (Math.hypot(o.x - x, o.y - y, o.z - z) < 0.6 || (o.t < 1 && Math.hypot(o.to[0] - x, o.to[1] - y, o.to[2] - z) < 0.6)) return true
+    }
+    return false
+  }
+
+  /**
+   * An isle's flag: a pennant on a twig, on its highest open ground (the nearest of that to its middle), in a colour
+   * of its own, going with the wind. A click on it says its line. It is made when the isle is whole, with no word said:
+   * a game put back gets its flags back the same way. (Made by hand and not by `thing`: it must not use up one of the
+   * turns by which things made later get their names in a saved game.)
+   */
+  private flag(s: number) {
+    const [mx, mz] = this.middle(ISLES[s].name)
+    const off = (u: number) => Math.hypot(tx(u) - mx, tz(u) - mz)
+    const tile = this.tiles[s].filter((u) => this.free(u)).sort((a, b) => this.h[b] - this.h[a] || off(a) - off(b))[0]
+    const [color, line] = FLAGS[ISLES[s].name] ?? []
+    if (tile === undefined || !line) return
+    this.flags[s] = true
+    const t = this.things.push({ tile, cubes: [], grown: [], auto: false, key: `flag:${ISLES[s].name}`, sound: 'flap', tip: 'A flag. The isle put it up itself, and is trying to look casual', play: () => this.say(line, 'flag') }) - 1
+    this.standing[tile].push(t)
+    this.clear(tile)
+    this.put(t, 0, 0.42, 0, 0.06, 0.84, 0.06, BARK)
+    for (const [dx, wide, high] of [[0.17, 0.28, 0.2], [0.36, 0.1, 0.1]]) this.solid.bendy(this.put(t, dx, 0.72, 0, wide, high, 0.03, color), 0.2, this.h[tile], tx(tile), tz(tile))
+  }
+
   /** Open ground: nothing stands there and no water runs through. */
-  free(tile: number) {
-    return !!this.exists[tile] && !this.bed[tile] && !this.standing[tile].length
+  free(tile: number, big = false) {
+    return !!this.exists[tile] && !this.bed[tile] && !this.standing[tile].length && this.foxless(tile, big ? 1.45 : 0.75) && !this.taken(tile)
+  }
+  /**
+   * Whether somebody is on the ground of a tile, or on the way to it. One tile, one animal: every hop, walk, leap and
+   * getting-off asks this of where it would come down (`free` does, for all of them), so that nobody lands in anybody.
+   * Whoever is overhead (in flight, on a perch, on the tortoise's back) or in the water does not count.
+   * @param but the one who is asking
+   */
+  taken(tile: number, but?: Critter) {
+    const level = this.h[tile]
+    for (const o of this.critters.list) {
+      if (o === but || o.hidden || AIRY.includes(o.kind)) continue
+      if (Math.abs(o.y - level) < 0.5 && tileAt(o.x, o.z) === tile) return true
+      if (o.t >= 1 || Math.abs(o.to[1] - level) > 0.5) continue
+      if (tileAt(o.to[0], o.to[2]) === tile) return true
+      // And under a leap (somebody on a long high arc): every tile it passes over is spoken for until it is down.
+      const steps = o.arc >= 1 ? Math.ceil(Math.hypot(o.to[0] - o.from[0], o.to[2] - o.from[2]) * 2.5) : 0
+      for (let k = 1; k < steps; k++) if (tileAt(o.from[0] + ((o.to[0] - o.from[0]) * k) / steps, o.from[2] + ((o.to[2] - o.from[2]) * k) / steps) === tile) return true
+    }
+    return false
+  }
+  /**
+   * Nobody lands on the fox: the tile she is on, and the one she is on her way to, are taken.
+   * @param room how far off its middle has to be: more for somebody big, or for a bird, which comes in low and flat
+   */
+  /** Whether the fox stands within a tile of the straight way from one place to another: whoever walks it in one go would walk through her. */
+  foxOnWay(x0: number, z0: number, x1: number, z1: number) {
+    const fox = this.fox
+    if (!fox || fox.hidden) return false
+    const [dx, dz] = [x1 - x0, z1 - z0]
+    const near = (x: number, z: number) => {
+      const along = Math.min(1, Math.max(0, ((x - x0) * dx + (z - z0) * dz) / (dx * dx + dz * dz || 1)))
+      return Math.hypot(x0 + dx * along - x, z0 + dz * along - z) < 1.1
+    }
+    return near(fox.x, fox.z) || (fox.t < 1 && near(fox.to[0], fox.to[2])) // where she is, and where her hop is taking her
+  }
+  foxless(tile: number, room = 0.75) {
+    const fox = this.fox
+    if (!fox || fox.hidden) return true
+    return Math.hypot(tx(tile) - fox.x, tz(tile) - fox.z) >= room && (fox.t >= 1 || Math.hypot(tx(tile) - fox.to[0], tz(tile) - fox.to[2]) >= room)
   }
 
   /**
@@ -1839,9 +2019,12 @@ export class Island {
     for (let k = 0; k < n; k++) {
       const a = (k / n) * 6.283 + 0.4
       const u = tileAt(x + Math.sin(a) * far, z + Math.cos(a) * far)
-      if (!this.free(u) || Math.abs(this.h[u] - level) > 0.6) continue
-      // Well inside its tile: the next one over may be sea.
-      places.push([Math.min(tx(u) + 0.3, Math.max(tx(u) - 0.3, x + Math.sin(a) * far)), this.h[u], Math.min(tz(u) + 0.3, Math.max(tz(u) - 0.3, z + Math.cos(a) * far)), a])
+      if (!this.free(u) || !this.foxless(u, 2.6) || Math.abs(this.h[u] - level) > 0.6) continue // (birds come to a gathering low and flat: not past the fox's ears)
+      // Well inside its tile: the next one over may be sea. And a place of its own: not where a bird sits already, nor
+      // so near another place that two who settle there would sit in each other (two places can end up in one corner of a tile).
+      const [px, pz] = [Math.min(tx(u) + 0.3, Math.max(tx(u) - 0.3, x + Math.sin(a) * far)), Math.min(tz(u) + 0.3, Math.max(tz(u) - 0.3, z + Math.cos(a) * far))]
+      if (this.perched(px, this.h[u], pz) || places.some((place) => Math.hypot(place[0] - px, place[2] - pz) < 0.6)) continue
+      places.push([px, this.h[u], pz, a])
     }
     return places
   }
@@ -1871,36 +2054,44 @@ export class Island {
     const { critters } = this
     const fly = (x: number, y: number, z: number, then?: () => void) => {
       const far = Math.hypot(x - bird.x, z - bird.z)
-      critters.go(bird, x, y, z, 0.5 + far / 6, 0.5 + far * 0.1, then)
+      if (this.seat === bird) this.seat = undefined // off the tortoise, if that is where it was: the seat is free once it has really gone
+      critters.go(bird, x, y, z, 0.7 + far / 4.5, 0.6 + far * 0.12, then) // unhurried, in a long arc: it used to zip
     }
     bird.roost = undefined
-    if (this.seat === bird) this.seat = undefined // off the tortoise, if that is where it was
     let tile = -1
     for (let k = 0; k < 60 && tile < 0; k++) {
       const u = Math.floor(Math.random() * W * D)
-      if (this.plantable(u)) tile = u
+      if (this.plantable(u) && this.foxless(u, 2.6) && !this.perched(tx(u), this.h[u], tz(u), bird) && !this.perched(tx(u), this.h[u] + 2.2, tz(u), bird)) tile = u
     }
     if (tile >= 0 && this.seeds > 0 && bird.kind === 'bird' && Math.random() < 0.6) {
       this.seeds--
-      bird.rest = 0.6
+      // It hangs there a moment, wings going, to see the seed down, before it is off again.
+      bird.rest = 1.5
       return fly(tx(tile), this.h[tile] + 2.2, tz(tile), () => {
+        critters.perform(bird, 'flap')
         this.bits.spawn(bird.x, bird.y, bird.z, 0, 0, 0, 0.14, BARK, 1, this.h[tile], 0)
         this.after(0.45, () => this.sapling(tile))
       })
     }
     bird.rest = 2 + Math.random() * 6
     // Now and then the tortoise will do for a perch: it gets a look for that, and takes the bird along.
-    const tortoise = bird.kind === 'bird' && !this.seat && Math.random() < 0.15 ? this.tortoise : undefined
-    if (tortoise && critters.lively(tortoise)) {
-      this.seat = bird
-      this.seated = false
+    const tortoise = bird.kind === 'bird' && !this.seat && !this.rider && Math.random() < 0.15 ? this.tortoise : undefined
+    if (tortoise && critters.lively(tortoise) && !this.perched(tortoise.x, tortoise.y + 0.81, tortoise.z, bird)) {
       bird.rest = 6 + Math.random() * 8
-      return fly(tortoise.x, tortoise.y + 0.81, tortoise.z, () => {
+      fly(tortoise.x, tortoise.y + 0.81, tortoise.z, () => {
         this.seated = true
         critters.look(tortoise, bird, 2)
       })
+      this.seat = bird // (after it has set off: setting off is what gives a seat up)
+      this.seated = false
+      return
     }
-    const perch = this.perches[Math.floor(Math.random() * this.perches.length)]
+    // A perch nobody has: a few tries at one, and otherwise the ground.
+    let perch: number[] | undefined
+    for (let k = 0; k < 6 && !perch; k++) {
+      const one = this.perches[Math.floor(Math.random() * this.perches.length)]
+      if (one && !this.perched(one[0], one[1], one[2], bird)) perch = one
+    }
     if (perch && Math.random() < 0.85) {
       bird.roost = perch
       fly(perch[0] + any() * 0.2, perch[1], perch[2] + any() * 0.2)
@@ -1910,7 +2101,7 @@ export class Island {
       // than hang in the air where it last was until there is.
       for (let k = 0; k < 60; k++) {
         const u = Math.floor(Math.random() * W * D)
-        if (this.free(u) && this.open[this.isle[u]]) return fly(tx(u), this.h[u], tz(u))
+        if (this.free(u) && this.foxless(u, 2.6) && this.open[this.isle[u]] && !this.perched(tx(u), this.h[u], tz(u), bird)) return fly(tx(u), this.h[u], tz(u))
       }
     }
   }
@@ -1935,12 +2126,29 @@ export class Island {
       for (let k = 1; k < steps; k++) {
         const u = tileAt(c.x + ((x - c.x) * k) / steps, c.z + ((z - c.z) * k) / steps)
         const end = u === tileAt(x, z) || u === tileAt(c.x, c.z)
-        if (!this.exists[u] || this.bed[u] || Math.abs(this.h[u] - y) > 0.1 || (this.standing[u].length && !end)) return false
+        if (!this.exists[u] || this.bed[u] || Math.abs(this.h[u] - y) > 0.1 || (this.standing[u].length && !end) || this.taken(u, c)) return false
       }
       return Math.abs(c.y - y) < 0.1
     }
     const walker = about(['bunny', 'chick', 'marmot', 'tortoise', 'goat'], 4.5).find(clear)
-    const c = walker ?? about(['bird'], Infinity)[0]
+    // The fox, if she is about and no further off than that: by her own way of going, tile by tile, to the nearest open ground beside it.
+    const fox = !walker && this.fox && this.fox.next && critters.lively(this.fox) && !this.den.abed && far(this.fox) < 6 ? this.fox : undefined
+    if (fox) {
+      const came = this.reachable(tileAt(fox.x, fox.z))
+      let to = -1
+      for (const u of came.keys()) if (!this.standing[u].length && Math.hypot(tx(u) - x, tz(u) - z) < 1.3 && this.roomFor(fox, tx(u), this.h[u], tz(u))) to = to < 0 ? u : to
+      if (
+        this.send(came, to, () => {
+          fox.face = Math.atan2(x - fox.x, z - fox.z)
+          then(fox)
+        })
+      ) {
+        fox.rest = 0
+        return true
+      }
+    }
+    // (A bird comes in low: not with the fox standing right there. Somebody will come once she has moved on.)
+    const c = walker ?? (!this.foxless(tileAt(x, z), 2.6) || this.perched(x, y, z) ? undefined : about(['bird'], Infinity)[0])
     if (!c) return false
     // It stops just short. Those that hop go in hops; a bird comes in one flight.
     const d = Math.max(far(c), 0.01)
@@ -1949,7 +2157,8 @@ export class Island {
     const hops = walker && SMALL.includes(c.kind) ? Math.max(1, Math.round(d / 0.8)) : 1
     const [dur, arc] = !walker ? [0.6 + d / 6, 0.5 + d * 0.1] : SMALL.includes(c.kind) ? [0.32, 0.4] : [d * (c.kind === 'tortoise' ? 2.2 : 0.9), 0]
     c.roost = undefined
-    const leg = (k: number) => critters.go(c, sx + ((ex - sx) * k) / hops, y, sz + ((ez - sz) * k) / hops, dur, arc, () => (k < hops ? leg(k + 1) : then(c)))
+    // (Each hop of the way waits for anybody near who is up on a high jump to come down first: see `clearJump`.)
+    const leg = (k: number): void => (this.aloft(c) ? this.after(0.3, () => leg(k)) : critters.go(c, sx + ((ex - sx) * k) / hops, y, sz + ((ez - sz) * k) / hops, dur, arc, () => (k < hops ? leg(k + 1) : then(c))))
     leg(1)
     return true
   }
@@ -1959,7 +2168,12 @@ export class Island {
    * where the camera starts. A click reads it: one of its lines, and the next one the next time.
    * @param di which way the bridge leaves this tile, and `dj`: the sign stands to one side of that
    */
-  signpost(tile: number, di: number, dj: number, lines: string[]) {
+  signpost(tile: number, di: number, dj: number, lines: string[], via?: number[][]) {
+    // The bridge it stands by is a way across for whoever walks: over the middle of the planks unless `via` says
+    // otherwise (stones, a slab of ice), and past the sign on the side it does not stand on.
+    const lane = [dj * 0.2, -di * 0.2]
+    this.lanes.set(tile, lane)
+    this.crossing(tile, step(tile, di * 2, dj * 2), via ?? [[tx(tile) + di + lane[0], this.h[tile] + 0.06, tz(tile) + dj + lane[1]]])
     let read = 0
     const t = this.thing(tile, { tip: 'A sign. Somebody wrote on it', fuss: 'You have read that sign twice through now. It has not changed. That is what makes it a sign.', play: () => this.say(lines[read++ % lines.length], 'sign') })
     const [x, z] = [-di * 0.12 - dj * 0.25, -dj * 0.12 + di * 0.25]
@@ -1969,13 +2183,18 @@ export class Island {
     for (const [dy, wide] of [[0.1, 0.34], [0, 0.38], [-0.1, 0.24]]) this.put(t, x - 0.19 + wide / 2, 0.58 + dy, z + 0.05, wide, 0.04, 0.02, 0x6b5a5a)
   }
 
+  /** A way over the water, for whoever goes on foot (see `ways`). */
+  crossing(a: number, b: number, via: number[][], open = () => true) {
+    this.ways.push({ a, b, via, open })
+  }
+
   /** A slow wander from tile to tile, for animals with nothing left to do. */
   stroll = (c: Critter) => {
     const here = tileAt(c.x, c.z)
     const [di, dj] = NEAR[Math.floor(Math.random() * 4)]
     const u = step(here, di, dj)
     c.rest = 3 + Math.random() * 7
-    if (u >= 0 && this.free(u) && this.isle[u] === this.isle[here] && Math.abs(this.h[u] - this.h[here]) < 0.1) this.critters.go(c, tx(u), this.h[u], tz(u), c.kind === 'snail' ? 7 : c.kind === 'tortoise' ? 2.6 : 1.1)
+    if (u >= 0 && this.free(u, c.kind === 'tortoise') && this.isle[u] === this.isle[here] && Math.abs(this.h[u] - this.h[here]) < 0.1) this.critters.go(c, tx(u), this.h[u], tz(u), c.kind === 'snail' ? 7 : c.kind === 'tortoise' ? 2.6 : 1.1)
   }
 
   /** Swimmers drift from one tile of their water to the next; on a dry bed they walk it. */
@@ -2004,6 +2223,7 @@ export class Island {
 
   /** Bunnies, marmots and the crab make for the nearest bare ground on their isle. Where they land, it wakes. */
   hop = (c: Critter) => {
+    if (c.still || this.aloft(c)) return void (c.rest = 0.3) // somebody is in the air over it, or near by: a hop would reach up into a leap
     const here = tileAt(c.x, c.z)
     const s = this.isle[here]
     this.source(here, 1.5)
@@ -2016,7 +2236,7 @@ export class Island {
         const u = step(queue[q], di, dj)
         if (u < 0 || !this.exists[u] || this.isle[u] !== s) continue
         if (!this.alive[u] && this.wakeAt[u] === Infinity) to = queue[q]
-        else if (!from.has(u) && !this.bed[u] && !this.standing[u].length && Math.abs(this.h[u] - this.h[queue[q]]) < 1.2) {
+        else if (!from.has(u) && !this.bed[u] && !this.standing[u].length && this.foxless(u) && !this.taken(u, c) && (!di || !dj || (this.foxless(step(queue[q], di, 0)) && this.foxless(step(queue[q], 0, dj)) && !this.taken(step(queue[q], di, 0), c) && !this.taken(step(queue[q], 0, dj), c))) && Math.abs(this.h[u] - this.h[queue[q]]) < 1.2) { // (and not slantwise past anybody's nose: two who cross corners at once meet in the middle)
           from.set(u, queue[q])
           queue.push(u)
         }
@@ -2031,6 +2251,442 @@ export class Island {
     const crab = c.kind === 'crab'
     this.critters.go(c, tx(to) + any() * 0.3, this.h[to], tz(to) + any() * 0.3, crab ? 0.5 : 0.34, crab ? 0 : 0.45)
     if (crab) c.face += Math.PI / 2 // sideways, as crabs do
+  }
+
+  /**
+   * Leapfrog: a bunny that is patted with another near by goes over it in one arc, straight over its back, and lands
+   * as far beyond it as it started short of it, if that is open ground; and then the other goes over it, if there is
+   * room for that too. The one underneath is held still, and the one in the air is by then higher than its ears (see
+   * the skill `draw-world`, a leap).
+   */
+  private leapfrog(a: Critter, again = true) {
+    const { critters } = this
+    if (a.still) return false // it is being leapt over itself, just now
+    const far = (o: Critter) => Math.hypot(o.x - a.x, o.z - a.z)
+    const others = critters.list.filter((o) => o !== a && o.kind === 'bunny' && o.next && critters.lively(o) && far(o) > 0.9 && far(o) < 2.7 && Math.abs(o.y - a.y) < 0.1).sort((p, q) => far(p) - far(q))
+    for (const b of others) {
+      const d = far(b)
+      const reach = Math.max(1, d)
+      const land = tileAt(b.x + ((b.x - a.x) / d) * reach, b.z + ((b.z - a.z) / d) * reach)
+      if (land === tileAt(b.x, b.z) || !this.free(land) || Math.abs(this.h[land] - a.y) > 0.1) continue
+      const [lx, lz] = [b.x + ((b.x - a.x) / d) * reach, b.z + ((b.z - a.z) / d) * reach]
+      if (!this.clearJump(a, lx, lz, b)) continue
+      // The one underneath holds still until the other is down: no hop of its own, no leap, whatever is clicked meanwhile.
+      b.rest = Math.max(b.rest, 1.4)
+      b.still = true
+      // Down inside the tile it lands on.
+      const inside = (at: number, middle: number) => Math.min(middle + 0.15, Math.max(middle - 0.15, at)) // (as far off the middle as a hop lands, and no further: its neighbours count on that)
+      critters.go(a, inside(b.x + ((b.x - a.x) / d) * reach, tx(land)), this.h[land], inside(b.z + ((b.z - a.z) / d) * reach, tz(land)), 0.5 + (d + reach) * 0.12, 1.1 + 0.15 * Math.max(0, d + reach - 2), () => {
+        a.rest = 1.2
+        b.still = false
+        critters.look(a, b, 1)
+        if (again) this.after(0.4, () => critters.lively(b) && this.leapfrog(b, false))
+      })
+      return true
+    }
+    return false
+  }
+  /**
+   * The one rule for every high jump (a leap over somebody, onto the tortoise, off it): whether one may set off from
+   * where it is to a place just now. Not while anybody near is in the air on a high arc (two up there can meet), nor
+   * while anybody near is in the middle of a hop of its own (a hopping bunny stands taller than a sitting one, and
+   * the jump would come down through it), nor over anybody on the ground along the way but the ones named.
+   * @param but whoever it is meant to go over, or onto
+   */
+  private clearJump(a: Critter, x: number, z: number, ...but: Critter[]) {
+    if (this.aloft(a)) return false
+    const span = (x - a.x) ** 2 + (z - a.z) ** 2 || 1
+    const near = (ox: number, oz: number) => {
+      const along = Math.min(1, Math.max(0, ((ox - a.x) * (x - a.x) + (oz - a.z) * (z - a.z)) / span))
+      return Math.hypot(a.x + (x - a.x) * along - ox, a.z + (z - a.z) * along - oz) < 0.7
+    }
+    for (const o of this.critters.list) {
+      if (o === a || o.hidden || AIRY.includes(o.kind) || FLIERS.includes(o.kind)) continue
+      if (o.t < 1 && Math.hypot(o.x - a.x, o.z - a.z) < 6) return false
+      if (!but.includes(o) && Math.abs(o.y - a.y) < 1.2 && near(o.x, o.z)) return false
+    }
+    return true
+  }
+  /** Whether anybody near one animal is up in the air on a high arc just now: a leap, or a jump onto the tortoise or off it. */
+  private aloft(c: Critter) {
+    return this.critters.list.some((o) => o !== c && !o.hidden && o.t < 1 && o.arc >= 0.48 && !FLIERS.includes(o.kind) && Math.hypot(o.x - c.x, o.z - c.z) < 5)
+  }
+  /**
+   * The bus: a pat on the tortoise, once it is up and about, and the nearest bunny hops onto its shell, rides a while
+   * and hops off. One passenger at a time: a bird sitting there leaves first.
+   */
+  private board(tortoise: Critter) {
+    const { critters } = this
+    if (this.rider || !tortoise.next || tortoise.nap > 0.1 || this.aloft(tortoise)) return
+    // A bird that has the seat gives it up: it is off, and the bunny is called again in a moment (see `pat`).
+    if (this.seat) return void (this.seated && (this.seat.rest = 0))
+    const far = (o: Critter) => Math.hypot(o.x - tortoise.x, o.z - tortoise.z)
+    const bunny = critters.list.filter((o) => o.kind === 'bunny' && o.next && critters.lively(o) && far(o) < 4.5 && Math.abs(o.y - tortoise.y) < 0.3).sort((a, b) => far(a) - far(b))[0]
+    if (!bunny || tortoise.t < 1 || !this.clearJump(bunny, tortoise.x, tortoise.z, tortoise)) return // (it is asked again in a moment: see `pat`)
+    this.rider = [bunny, bunny.next!, 0]
+    bunny.next = undefined
+    tortoise.rest = Math.max(tortoise.rest, 1.5) // it waits for its passenger
+    critters.go(bunny, tortoise.x, tortoise.y + 0.81, tortoise.z, 0.35 + far(bunny) * 0.12, 0.6 + far(bunny) * 0.15, () => this.rider && (this.rider[2] = this.time + 10 + Math.random() * 8))
+  }
+
+  // --- the fox ------------------------------------------------------------------------------
+  // She is the one animal that goes everywhere there is a way to: tile by tile, a hop each, over the bridges and the
+  // stones of the isles that are up. She starts asleep in a nest on the rim of the first island; a click wakes her.
+  // After that she goes from one small thing to the next (a drink, the fish, a bunny, the sails of the windmill, the
+  // shore where a way is still shut), by day and on some nights; the other nights she goes home and sleeps.
+
+  /** Her nest, and her in it: called by the first island for the tile it keeps for that. */
+  nest(tile: number, t: number) {
+    const fox = (this.fox = this.critters.spawn('fox', tx(tile), this.h[tile] + 0.04, tz(tile), 0xf08a4b))
+    Object.assign(fox, { thing: t, nap: 1 }) // square to her nest: curled up she just fits inside the twigs
+    this.den.tile = tile
+    this.onNight.push((night) => {
+      this.den.out = night && Math.random() < 0.4 // some nights she stays up
+      if (!fox.thing) fox.rest = Math.min(fox.rest, 1.5)
+    })
+  }
+  /** She wakes: a click on her in her nest. That click is her first pat, too. */
+  wakeFox() {
+    const { fox } = this
+    if (!fox || fox.thing === undefined) return
+    const nest = this.things[fox.thing]
+    nest.tap = undefined
+    nest.tip = 'A nest of twigs, still warm. The fox made it herself, and it shows'
+    fox.thing = undefined
+    this.memo.fox = 1
+    this.woke = this.time
+    this.say('The fox wakes, and looks at you for a while. She was dreaming that somebody came. She would rather not say how often.', 'fox')
+    this.pat(fox)
+    fox.rest = 1.6
+    this.after(0.7, () => this.critters.perform(fox, 'stretch'))
+    fox.next = this.roam
+  }
+  /** A pat: if the player is stuck just now, she goes and shows them something (see `plan`). */
+  private patFox() {
+    const { den, fox } = this
+    if (!fox || fox.thing !== undefined || den.abed) return
+    if (!this.stuck) {
+      // A word about how she takes it: a different one every time, all of them once round before any comes again
+      // (in a new order each round), and now and then one about what she was in the middle of.
+      if (this.fast || this.time - this.woke < 5) return
+      const doing = this.time < den.until ? den.doing : this.night ? 'night' : ''
+      if (FOX_AT[doing] && !den.told.has(doing) && Math.random() < 0.7) {
+        den.told.add(doing)
+        return this.say(FOX_AT[doing])
+      }
+      if (!den.bag.length) {
+        if (den.rounds++) den.told.clear()
+        den.bag = FOX_PATS.map((_, k) => k).sort(() => Math.random() - 0.5)
+        // (The very first is always the same one.)
+        if (!this.notes.said.includes('foxpat')) {
+          den.bag.splice(den.bag.indexOf(0), 1)
+          den.bag.push(0)
+          this.notes.said.push('foxpat')
+        }
+      }
+      return this.say(FOX_PATS[den.bag.pop()!])
+    }
+    den.hint = true
+    // At once, unless she is half way over a bridge: that she finishes first.
+    if (this.walkable(tileAt(fox.x, fox.z))) den.trail.length = 0
+    den.errand = undefined
+  }
+  /** Whether she may stand on a tile: ground, nothing on it (but a bridge's own tile is its way on, and her nest is hers), nothing low over it. */
+  private walkable(u: number) {
+    return !!this.exists[u] && !this.bed[u] && !this.roofed[u] && (!this.standing[u].length || this.lanes.has(u) || u === this.den.tile)
+  }
+  /** Every tile she can get to from one, nearest first, each with the tile she would come to it from: a step up or down at most, over a brook at a leap, and over the sea only by a way that is open. */
+  private reachable(from: number) {
+    const came = new Map([[from, from]])
+    const queue = [from]
+    for (let q = 0; q < queue.length; q++) {
+      const at = queue[q]
+      for (const [di, dj] of NEAR) {
+        let u = step(at, di, dj)
+        // A river one tile wide she takes at a leap, bank to bank: not lava, not with a dam or a lodge in the way, and not a wider water.
+        if (u >= 0 && this.exists[u] && this.bed[u] && !this.hot[u] && !this.standing[u].length) {
+          u = step(u, di, dj)
+          if (u >= 0 && Math.abs(this.h[u] - this.h[at]) > 0.1) continue
+        }
+        if (u < 0 || came.has(u) || !this.walkable(u) || Math.abs(this.h[u] - this.h[at]) > 1.05) continue
+        came.set(u, at)
+        queue.push(u)
+      }
+      for (const { a, b, open } of this.ways) {
+        const u = a === at ? b : b === at ? a : -1
+        if (u < 0 || came.has(u) || !this.walkable(u) || !open()) continue
+        came.set(u, at)
+        queue.push(u)
+      }
+    }
+    return came
+  }
+  /**
+   * Somebody on foot goes to the nearest tile that will do, by the fox's ways and at a hop a tile, and `then` happens there.
+   * @param hop what one hop is: it is given the place, and what to call once there (a crab goes sideways)
+   * @returns whether there is a way
+   */
+  lead(c: Critter, ok: (u: number) => boolean, hop: (x: number, y: number, z: number, then: () => void) => void, then: () => void) {
+    const came = this.reachable(tileAt(c.x, c.z))
+    let to = -1
+    for (const u of came.keys()) if (to < 0 && ok(u)) to = u
+    if (to < 0) return false
+    const way: number[] = []
+    for (let u = to; came.get(u) !== u; u = came.get(u)!) way.unshift(u)
+    let waits = 0
+    const next = () => {
+      const u = way.shift()
+      if (u === undefined) return then()
+      // (The fox in the way: a moment's wait, and another; and if she will not move, asleep there perhaps, it ends here.)
+      if (!this.foxless(u)) return void (++waits > 12 ? then() : (way.unshift(u), this.after(0.5, next)))
+      hop(tx(u), this.h[u], tz(u), next)
+    }
+    next()
+    return true
+  }
+  /** Where she stands on a tile: its middle, to one side on a bridge's tile, on the straw in her nest. */
+  private stand(u: number) {
+    const lane = this.lanes.get(u)
+    return [tx(u) + (lane?.[0] ?? 0), this.h[u] + (u === this.den.tile ? 0.04 : 0), tz(u) + (lane?.[1] ?? 0)]
+  }
+  /** She sets off for a tile she can get to, and does `errand` when she is there. */
+  private send(came: Map<number, number>, to: number, errand?: () => void) {
+    const { den } = this
+    if (to < 0 || !came.has(to)) return false
+    den.trail.length = 0
+    // Back from where she is going to where she is: each tile's place, and before it the stones or planks that lead to it.
+    for (let u = to; came.get(u) !== u; u = came.get(u)!) {
+      const from = came.get(u)!
+      den.trail.unshift(this.stand(u))
+      const way = Math.abs(tx(u) - tx(from)) + Math.abs(tz(u) - tz(from)) > 1 ? this.ways.find(({ a, b }) => (a === from && b === u) || (a === u && b === from)) : undefined
+      if (way) den.trail.unshift(...(way.a === from ? way.via : [...way.via].reverse()))
+    }
+    den.errand = errand
+    den.tries = den.steps = 0
+    return true
+  }
+  /** Room for her at a place: nobody else on the ground within a tile of it, or on their way there. (Swimmers are below the bank, and whatever flies or perches is overhead.) */
+  private roomFor(c: Critter, x: number, y: number, z: number) {
+    for (const o of this.critters.list) {
+      if (o === c || o.hidden) continue
+      const level = (at: number) => at < y + 1 && at > y - 0.9 && !(at < y - 0.1 && FLOAT[o.kind] !== undefined && o.kind !== 'penguin') // on the ground she is on: not overhead, not down in the water (a penguin stands tall out of it)
+      // (More room for the big ones, and for a bird on the ground or coming down to it: it takes off and lands low and
+      // flat, over whoever is beside it. A long flight is still under a fox's ears two tiles from where it ends.)
+      const bird = o.kind === 'bird' || o.kind === 'owl' || o.kind === 'dragon'
+      const room = o.kind === 'tortoise' || o.kind === 'capybara' ? 1.45 : bird ? 2 : 0.9
+      if ((level(o.y) && Math.hypot(o.x - x, o.z - z) < room) || (o.t < 1 && level(o.to[1]) && Math.hypot(o.to[0] - x, o.to[2] - z) < (bird ? 2.6 : room))) return false
+      // Nor into the way of somebody who is on a straight way of their own just now (the penguin, off to the fire or up onto its slide).
+      if (o.t < 1 && !bird && (level(o.y) || level(o.to[1]))) {
+        const [dx, dz] = [o.to[0] - o.x, o.to[2] - o.z]
+        const along = Math.min(1, Math.max(0, ((x - o.x) * dx + (z - o.z) * dz) / (dx * dx + dz * dz || 1)))
+        if (Math.hypot(o.x + dx * along - x, o.z + dz * along - z) < room) return false
+      }
+    }
+    return true
+  }
+  /** What she does next: the next hop of the way she is on; at the end of it, what she came for; and then somewhere new. */
+  roam = (c: Critter) => {
+    const { den, critters } = this
+    if (den.sat) {
+      // Up from sitting.
+      c.tilt = 0
+      c.y -= 0.045
+      den.sat = false
+    }
+    const here = tileAt(c.x, c.z)
+    const home = this.night && !den.out
+    if (den.abed) {
+      if (home) return void (c.rest = 1)
+      den.abed = false
+      c.rest = 3
+      return void this.after(1.2, () => critters.perform(c, 'stretch'))
+    }
+    const next = den.trail[0]
+    if (next && this.aloft(c)) return void (c.rest = 0.3) // somebody near is up on a high jump: she waits for them to land
+    if (next && Math.hypot(next[0] - c.x, next[2] - c.z) > 2.3) den.trail.length = 0 // she has been somewhere else since (an apple): that way is no use now
+    else if (next) {
+      // She turns standing, between two hops, and only then goes: the way she looks.
+      const way = Math.atan2(next[0] - c.x, next[2] - c.z)
+      if (Math.abs(Math.atan2(Math.sin(way - c.face), Math.cos(way - c.face))) > 0.3) {
+        c.face = way
+        return void (c.rest = 0.22)
+      }
+      // Somebody in the way: she waits, and if they stay she thinks of something else.
+      // (Before a leap over a brook, that goes for whoever is in the brook, too, and for what they are thinking of.)
+      const [mx, mz] = [(c.x + next[0]) / 2, (c.z + next[2]) / 2]
+      const leap = Math.hypot(next[0] - c.x, next[2] - c.z) > 1.5 && critters.list.some((o) => o !== c && !o.hidden && Math.hypot(o.x - mx, o.z - mz) < 0.95)
+      if (leap || !this.roomFor(c, next[0], next[1], next[2])) {
+        if (++den.tries > 4 && this.walkable(here)) den.trail.length = 0 // (on a plank or a stone she only waits: there is nowhere else to think of from there)
+        return void (c.rest = 0.4 + Math.random() * 0.5)
+      }
+      // The way was found a while ago: if something has come to stand on the next tile since (a sapling), she thinks again.
+      const onto = tileAt(next[0], next[2])
+      if (this.exists[onto] && !this.walkable(onto)) return void (den.trail.length = 0)
+      den.trail.shift()
+      den.tries = 0
+      // She gathers speed over the first two hops and loses it over the last two. Up or down a step, or over a brook, a higher hop.
+      const slow = den.steps++ < 2 || den.trail.length < 2
+      const far = Math.max(0.6, Math.hypot(next[0] - c.x, next[2] - c.z))
+      critters.go(c, next[0], next[1], next[2], (slow ? 0.6 : 0.48) * Math.min(far, 1.5), 0.26 + 0.6 * Math.abs(next[1] - c.y) + 0.3 * Math.max(0, far - 1.2))
+      return void (c.rest = 0.04)
+    }
+    if (den.errand) {
+      const { errand } = den
+      den.errand = undefined
+      return errand()
+    }
+    this.plan(c, here, home)
+  }
+  /** Somewhere to go and something to do there. Each is tried in turn, from a different one each time, until one has a way to it. */
+  private plan(c: Critter, here: number, home: boolean) {
+    const { den, critters, bits } = this
+    const came = this.reachable(here)
+    const nearest = (ok: (u: number) => boolean) => {
+      for (const u of came.keys()) if (ok(u)) return u
+      return -1
+    }
+    // For her rounds, not always the nearest place of a kind: half the time any of them, or she would drink from one tile of one river all her life.
+    const one = (ok: (u: number) => boolean) => {
+      if (Math.random() < 0.5) return nearest(ok)
+      const all = [...came.keys()].filter(ok)
+      return all[Math.floor(Math.random() * all.length)] ?? -1
+    }
+    const beside = (u: number, ok: (v: number) => boolean) => NEAR.some(([di, dj]) => ok(step(u, di, dj)))
+    const face = (x: number, z: number) => (c.face = Math.atan2(x - c.x, z - c.z))
+    const fits = (u: number) => this.roomFor(c, tx(u), this.h[u], tz(u))
+    c.tip = this.memo.tide && this.isle[here] === this.index('islet') ? 'A fox, waiting for the tide. She has done this before' : undefined
+    c.rest = 1 + Math.random() * 3 // if nothing below comes of it, she stands about a while, never the same while twice
+    if (home) {
+      // Bedtime: home to the nest if there is a way, and to sleep; where she is, if there is none.
+      if (here !== den.tile && this.send(came, den.tile)) return
+      den.abed = true
+      if (here === den.tile) c.face = 0
+      c.rest = 2
+      return void critters.perform(c, 'yawn')
+    }
+    if (den.hint) {
+      // The player is stuck, and patted her: she goes to the nearest thing still to be found that she can get near,
+      // sits down beside it and looks at it. A clue as a picture.
+      den.hint = false
+      let [to, best, at] = [-1, Infinity, -1]
+      for (const thing of this.things) {
+        if (!(thing.hits || thing.todo) || !this.exists[thing.tile]) continue
+        const u = nearest((v) => v !== thing.tile && Math.max(Math.abs(tx(v) - tx(thing.tile)), Math.abs(tz(v) - tz(thing.tile))) <= 1 && fits(v))
+        const far = u < 0 ? Infinity : Math.hypot(tx(u) - c.x, tz(u) - c.z) + (this.isle[u] === this.isle[here] ? 0 : 30)
+        if (far < best) [to, best, at] = [u, far, thing.tile]
+      }
+      if (
+        this.send(came, to, () => {
+          face(tx(at), tz(at))
+          Object.assign(c, { tilt: -0.28, y: c.y + 0.045, rest: 9 })
+          den.sat = true
+          critters.look(c, () => [tx(at), this.h[at] + 0.5, tz(at)], 9)
+          this.think?.(c, 9) // and over her head, a bubble with a question in it
+          this.say('The fox sits down by something you have not found yet, and waits. She has walked past it a hundred times and never touched it. Knowing what is wrong was never the hard part.', 'fox')
+        })
+      )
+        return
+    }
+    if (den.fresh >= 0) {
+      // New land has come up: if there is a way onto it, that is where she goes next.
+      const s = den.fresh
+      den.fresh = -1
+      if (this.isle[here] !== s && this.send(came, nearest((u) => this.isle[u] === s && !this.lanes.has(u) && fits(u)), () => void critters.perform(c, 'sniff'))) return
+    }
+    const water = (v: number) => v >= 0 && !!this.filled[v] && !this.hot[v] && this.lid[v] < 0
+    const sails = this.memo.wind && this.memo.mill ? critters.list.find((o) => o.kind === 'sails' && !o.hidden) : undefined
+    const plans = [
+      // A drink: to the bank, head down, and a drop or two.
+      () => {
+        const to = one((u) => beside(u, water) && fits(u))
+        return this.send(came, to, () => {
+          const [di, dj] = NEAR.find(([i, j]) => water(step(to, i, j))) ?? [0, 1]
+          face(c.x + di, c.z + dj)
+          c.rest = 4
+          Object.assign(den, { doing: 'drink', until: this.time + 4 })
+          this.after(0.3, () => critters.perform(c, 'graze'))
+          for (const at of [1.4, 2.2]) this.after(at, () => c.act === 'graze' && bits.spawn(c.x + di * 0.5, c.y + 0.05, c.z + dj * 0.5, any(), 1.8, any(), 0.08, WATER, 0.6, c.y - 0.2, 0))
+        })
+      },
+      // The fish: she watches one, pounces, and comes down short, on the bank where she stood. The fish is off, and then comes back to look at her.
+      () => {
+        const school = critters.list.filter((o) => o.kind === 'fish' && !o.hidden && water(tileAt(o.x, o.z)))
+        const to = one((u) => fits(u) && school.some((o) => Math.abs(tx(u) - o.x) + Math.abs(tz(u) - o.z) < 1.3))
+        return this.send(came, to, () => {
+          const fish = school.find((o) => !o.hidden && Math.hypot(o.x - c.x, o.z - c.z) < 1.7)
+          if (!fish) return
+          c.rest = 5.5
+          critters.look(c, fish, 1.6)
+          this.after(1.8, () => {
+            if (!critters.perform(c, 'pounce')) return
+            this.after(0.7, () => {
+              this.splash(fish.x, fish.y + 0.15, fish.z, 4)
+              fish.rest = 0
+            })
+            this.after(2.6, () => critters.look(fish, c, 2))
+          })
+        })
+      },
+      // A bunny: she bows to it, tail going. It hops a tile off and looks back, and she gives a hop too.
+      () => {
+        const bunnies = critters.list.filter((o) => o.kind === 'bunny' && o.next && critters.lively(o))
+        const to = one((u) => fits(u) && bunnies.some((o) => Math.abs(tx(u) - o.x) + Math.abs(tz(u) - o.z) < 1.3 && tileAt(o.x, o.z) !== u))
+        return this.send(came, to, () => {
+          const bunny = bunnies.find((o) => critters.lively(o) && Math.hypot(o.x - c.x, o.z - c.z) < 1.7)
+          if (!bunny) return
+          face(bunny.x, bunny.z)
+          c.rest = 4
+          critters.look(bunny, c, 1.2)
+          this.after(0.3, () => Math.hypot(bunny.x - c.x, bunny.z - c.z) > 0.95 && critters.perform(c, 'bow')) // (a bow leans forward: not into a bunny that sits at the near edge of its tile)
+          this.after(1.3, () => {
+            if (!critters.lively(bunny)) return
+            const from = tileAt(bunny.x, bunny.z)
+            const far = (u: number) => Math.hypot(tx(u) - c.x, tz(u) - c.z)
+            const off = RING.map(([di, dj]) => step(from, di, dj))
+              .filter((u) => u >= 0 && this.free(u) && this.isle[u] === this.isle[from] && Math.abs(this.h[u] - this.h[from]) < 0.1)
+              .reduce((a, b) => (far(b) > far(a) ? b : a), from)
+            this.word(VOICES.bunny, bunny.x, bunny.y + 0.6, bunny.z)
+            bunny.rest = 2.4
+            if (off !== from && !this.aloft(bunny)) critters.go(bunny, tx(off) + any() * 0.3, this.h[off], tz(off) + any() * 0.3, 0.32, 0.5, () => critters.look(bunny, c, 2))
+            this.after(0.8, () => (critters.perform(c, 'hop'), critters.look(c, bunny, 1.5)))
+          })
+        })
+      },
+      // The windmill, while it turns: she stands in front of it and her head goes round with one sail.
+      () => {
+        if (!sails) return false
+        const mill = this.memo.mill
+        const to = nearest((u) => Math.abs(tx(u) - tx(mill)) <= 2 && tz(u) - tz(mill) >= 2 && tz(u) - tz(mill) <= 3 && fits(u))
+        return this.send(came, to, () => {
+          c.rest = 6
+          Object.assign(den, { doing: 'sails', until: this.time + 6 })
+          critters.look(c, () => [sails.x + Math.cos(sails.roll) * 1.3, sails.y + Math.sin(sails.roll) * 1.3, sails.z], 5.5)
+        })
+      },
+      // A way that is still shut: she stands on the shore nearest an isle that has not come up, and looks across.
+      () => {
+        const shut = ISLES.map((_, s) => s).filter((s) => !this.open[s])
+        if (!shut.length || Math.random() > shut.length * 0.3) return false // (with one isle left, not the same shore every time)
+        const [mx, mz] = this.middle(ISLES[shut[Math.floor(Math.random() * shut.length)]].name)
+        let [to, best] = [-1, Infinity]
+        for (const u of came.keys()) {
+          const far = Math.hypot(tx(u) - mx, tz(u) - mz)
+          if (far < best && !this.lanes.has(u) && fits(u)) [to, best] = [u, far]
+        }
+        return this.send(came, to, () => {
+          c.rest = 5
+          Object.assign(den, { doing: 'shore', until: this.time + 5 })
+          critters.look(c, () => [mx, GROUND, mz], 4.5)
+        })
+      },
+      // Or just somewhere else: near by, mostly; now and then anywhere at all that there is a way to.
+      () => {
+        const all = [...came.keys()].filter((u) => !this.lanes.has(u) && u !== den.tile)
+        return this.send(came, all[Math.floor(Math.random() * (Math.random() < 0.5 ? all.length : Math.min(all.length, 40)))] ?? -1)
+      },
+    ]
+    const first = Math.floor(Math.random() * plans.length)
+    for (let k = 0; k < plans.length; k++) if (plans[(first + k) % plans.length]()) return
   }
 
   // --- snails, stars, a balloon -------------------------------------------------------------
@@ -2063,7 +2719,7 @@ export class Island {
         this.critters.paint(snail, [2, 3], 0xe9605a)
         const n = ++this.snails[0]
         this.say(n < 10 ? `A snail! That is ${n} of ten. There is one on every isle, and each believes it is the only snail.` : 'A snail! That is all ten. They have never met. You are the only thing they have in common.', 'snail')
-        if (n === 10) all('A secret: ten snails, one on every isle. They are off on a very slow race. Nobody will finish, and all of them are winning.')
+        if (n === 10) all('Secret: ten snails, one on every isle. They are off on a very slow race. Nobody will finish, and all of them are winning.')
         if (n === 10) this.after(8, () => this.aside('snails', NOTICED.snails))
       }
       if (name !== 'meadow') return
@@ -2098,6 +2754,20 @@ export class Island {
       Object.assign(guest, { x: tx(home), y: this.h[home] + (kind === 'capybara' ? 0.14 : 0.26), z: tz(home), hidden: false, face: 0.5 })
       if (kind === 'axolotl') guest.next = this.paddle
     }
+    // A pat on the capybara, and the penguin, if it is about, comes over and gets in beside it; and they yawn, one after the other.
+    if (kind === 'capybara')
+      guest.onPat = () => {
+        this.pat(guest)
+        const penguin = this.critters.list.find((c) => c.kind === 'penguin' && c.next && this.critters.lively(c) && this.isle[tileAt(c.x, c.z)] === this.index('snow'))
+        const beside = water.find((u) => u !== tileAt(guest.x, guest.z) && Math.hypot(tx(u) - guest.x, tz(u) - guest.z) < 1.1)
+        if (!penguin || beside === undefined) return
+        penguin.rest = 6
+        this.critters.go(penguin, tx(beside), this.h[beside] + 0.18, tz(beside), 0.6 + Math.hypot(tx(beside) - penguin.x, tz(beside) - penguin.z) * 0.4, 0.4, () => {
+          this.splash(penguin.x, penguin.y + 0.2, penguin.z, 4)
+          this.after(0.6, () => this.critters.perform(penguin, 'yawn'))
+          this.after(2, () => this.critters.perform(guest, 'yawn'))
+        })
+      }
     this.onFill.push(arrive)
     arrive()
   }
@@ -2111,7 +2781,7 @@ export class Island {
     const was = new Vector3() // where it was a moment ago: the tail is laid between there and where it is now
     const wish = this.act('star', () => {
       this.say('You caught a falling star. Wherever its dust comes down, something flowers. This is not how stars work. Do not write in.', 'falling star')
-      caught('A secret: you caught a falling star. Make a wish. Not that one. A smaller one.')
+      caught('Secret: you caught a falling star. Make a wish. Not that one. A smaller one.')
       const living = this.tiles.flat().filter((u) => this.alive[u] && !this.bed[u])
       for (let k = 0; k < 14 && living.length; k++) {
         const u = living[Math.floor(Math.random() * living.length)]
@@ -2283,12 +2953,13 @@ export class Island {
     for (const c of critters.list) {
       // A duck with its head under sends a drop or two up; a dragon that yawns lets a little fire go.
       if (c.act === 'dip' && Math.random() < dt * 4) bits.spawn(c.x + Math.sin(c.yaw) * 0.3, c.y + 0.12, c.z + Math.cos(c.yaw) * 0.3, any() * 1.2, 2, any() * 1.2, 0.09, WATER, 0.6, c.y, 0)
+      if (c.act === 'shake' && Math.random() < dt * 14) bits.spawn(c.x, c.y + 0.35 * c.grow, c.z, any() * 3.5, 1.2, any() * 3.5, 0.07, WATER, 0.5, c.y, 0)
       if (c.act === 'yawn' && c.kind === 'dragon' && c.acted > 0.7 && c.acted < 1.3 && Math.random() < dt * 25)
         bits.spawn(c.x + Math.sin(c.yaw) * 0.35, c.y + 0.45, c.z + Math.cos(c.yaw) * 0.35, Math.sin(c.yaw) * 1.2 + any() * 0.4, 0.9, Math.cos(c.yaw) * 1.2 + any() * 0.4, 0.09, 0xffb347, 0.5, NEVER, 0, -1, 2.2)
       if (c.kind !== 'dragon' || c.t >= 1 || c.hidden) continue
       // Small things on the ground do not care for a dragon overhead: they are off, a hop away, and then look back at it.
       for (const small of critters.list) {
-        if (!SMALL.includes(small.kind) || !small.next || !critters.lively(small) || c.y - small.y < 0.6 || Math.hypot(c.x - small.x, c.z - small.z) > 1.7) continue
+        if (!SMALL.includes(small.kind) || !small.next || !critters.lively(small) || this.aloft(small) || c.y - small.y < 0.6 || Math.hypot(c.x - small.x, c.z - small.z) > 1.7) continue
         const here = tileAt(small.x, small.z)
         const far = (u: number) => Math.hypot(tx(u) - c.x, tz(u) - c.z)
         const to = RING.map(([di, dj]) => step(here, di, dj))
@@ -2298,6 +2969,26 @@ export class Island {
         this.word(VOICES[small.friend ?? small.kind] ?? '', small.x, small.y + 0.6, small.z)
         small.rest = 1.6
         critters.go(small, tx(to) + any() * 0.3, this.h[to], tz(to) + any() * 0.3, 0.32, 0.5, () => critters.look(small, c, 1.5))
+      }
+    }
+    // A bunny on the tortoise goes where the tortoise goes, and after a while hops off onto open ground beside it.
+    if (this.rider) {
+      const [bunny, was, until] = this.rider
+      const on = tortoise && [tortoise.x, tortoise.y + 0.81 * (1 - tortoise.nap * 0.3), tortoise.z]
+      // (Where to get off is only looked for once the ride is over: nothing is made anew in a frame until then.)
+      const off = !on || bunny.hidden || !until || this.time < until ? undefined : NEAR.map(([di, dj]) => step(tileAt(on[0], on[2]), di, dj)).find((u) => u >= 0 && this.free(u) && Math.abs(this.h[u] - tortoise!.y) < 0.1)
+      if (!on || bunny.hidden) {
+        bunny.next = was
+        this.rider = undefined
+      } else if (!until) bunny.to = on
+      else if (off !== undefined && critters.lively(bunny) && tortoise!.t >= 1 && this.clearJump(bunny, tx(off), tz(off), tortoise!)) {
+        this.rider = undefined
+        critters.go(bunny, tx(off), this.h[off], tz(off), 0.4, 0.5, () => (bunny.next = was))
+      } else {
+        bunny.x = on[0]
+        bunny.y = on[1]
+        bunny.z = on[2]
+        bunny.face = tortoise!.yaw
       }
     }
     // A bird that has picked the tortoise for a perch lands wherever the tortoise has got to by then, and goes along with it.
@@ -2731,7 +3422,8 @@ export class Island {
           this.critters.perform(c, 'yawn')
         }
       } else if (this.abed.delete(c) && !c.hidden && c.t >= 1) this.after(1.2 + Math.random() * 0.8, () => this.critters.perform(c, 'stretch'))
-      const sleeps = tired && this.abed.has(c) && c.act !== 'yawn'
+      // (The fox keeps her own hours: asleep in her nest until somebody wakes her, and after that on the nights she turns in.)
+      const sleeps = c === this.fox ? c.act !== 'yawn' && (c.thing !== undefined || this.den.abed) : tired && this.abed.has(c) && c.act !== 'yawn'
       c.nap += ((sleeps ? 1 : 0) - c.nap) * Math.min(1, dt * 2.5)
       if (c.nap > 0.7 && Math.random() < dt * 0.3) bits.spawn(c.x + 0.12, c.y + 0.45 * c.grow, c.z, 0.12, 0.4, 0, 0.09, 0xffffff, 1.5, NEVER, 0, -0.3)
     }
@@ -2739,7 +3431,10 @@ export class Island {
     // Rain where it rains, water and lava off every edge and down every step.
     for (let k = this.showers.length - 1; k >= 0; k--) {
       const [x, z, until] = this.showers[k]
-      if (time > until) this.showers.splice(k, 1)
+      if (time > until) {
+        this.showers.splice(k, 1)
+        this.soak(x, z, 4.5)
+      }
       else {
         this.stir(x, z)
         for (let n = 0; n < 3; n++) {
@@ -2818,6 +3513,7 @@ export class Island {
     if (won && !this.over) {
       // Once: the camera pulls back to take it all in and drifts round it, and everybody jumps for joy.
       this.over = true
+      this.petals = this.fast ? 0 : time + 20
       this.show = { x: this.centre.x, z: this.centre.z, zoom: 1, until: time + 14, free: true }
       this.orbit = time + 14
       for (const critter of this.critters.list) critter.pet = 1
@@ -2831,10 +3527,18 @@ export class Island {
     }
     if (this.show?.free) this.going = this.following = undefined // the ending keeps the camera back: nothing sets it going in
     if (time < this.orbit) this.yaw += dt * 0.09
-    if (won) {
-      if (Math.random() < dt * 20) bits.spawn(this.centre.x + any() * 2 * this.span, 10, this.centre.z + any() * 2 * this.span, any(), -1, any(), 0.15, BLOSSOM[Math.floor(Math.random() * 3)], 6, GROUND, 0, 1.5)
+    // Blossom comes down over all of it when the world is first won: a shower of twenty seconds that thins out to
+    // nothing, once. It used to fall for ever after, on every later visit too, which made the finished world the one
+    // that never held still; a game put back as it was has had its shower.
+    if (won && time < this.petals) {
+      if (Math.random() < dt * (this.petals - time)) bits.spawn(this.centre.x + any() * 2 * this.span, 10, this.centre.z + any() * 2 * this.span, any(), -1, any(), 0.15, BLOSSOM[Math.floor(Math.random() * 3)], 6, GROUND, 0, 1.5)
     }
 
+    // An isle that is whole (all of it awake, every thing on it found, its secrets and its snail) puts up a flag.
+    if (time - this.flagged > 1) {
+      this.flagged = time
+      ISLES.forEach((_, s) => !this.flags[s] && this.open[s] && this.awake[s] === this.tiles[s].length && this.foundOn[s] === this.quota[s] && this.hid[s][0] === this.hid[s][1] && this.snailOn[s] !== false && this.flag(s))
+    }
     this.company(dt)
     this.critters.update(dt, time)
     this.watched = this.watched.filter(([c, until]) => time < until && !c.hidden)
@@ -2923,13 +3627,25 @@ export class Island {
 
     // The mood follows the land: dusty at first, fresh at the end. And the lantern can turn the day into night.
     const life = this.lifeCount / this.total
-    const dusk = (this.dusk += ((this.night ? 1 : 0) - this.dusk) * (1 - Math.exp(-dt * 1.6)))
-    this.bg.set(0xeadcc2).lerp(_c.set(0xd9f0e4), life).lerp(_c.set(0x3b416e), dusk)
-    key.color.set(0xffe9cf).lerp(_c.set(0xcfd6ff), dusk)
-    key.intensity = 3.2 - 1.5 * dusk
-    sky.color.set(0xe6efff).lerp(_c.set(0xa9b1de), dusk)
+    // Day turns to night slowly enough to watch, and on the way through there is a while of golden light: the sun low
+    // and warm, the shadows long. The sky light is a little lilac, so that shade reads soft rather than dark.
+    // It runs on a plain clock, eased at both ends: four seconds, the gold at its fullest at two, and the same going
+    // back to day. (Easing by a share of what is left got half way in a second, shadows swinging, and then crawled.)
+    this.turned = Math.min(1, Math.max(0, this.turned + (this.night ? dt : -dt) / 4))
+    const dusk = (this.dusk = this.turned * this.turned * (3 - 2 * this.turned))
+    const gold = (this.gold = 4 * dusk * (1 - dusk))
+    // The sky takes some of the gold too: half way from cream to indigo is otherwise a grey mauve, just when the light is at its warmest.
+    // (The day itself rests a little way into that gold: the sun a shade warmer and a touch less strong than white
+    // noon, and the paper a shade warmer to go with it. Only where the day ends up: the night, and the way there, are as they were.)
+    this.bg.set(0xecdbbd).lerp(_c.set(0xe0efd8), life).lerp(_c.set(0x3b416e), dusk).lerp(_c.set(0xf6b98a), gold * 0.6)
+    key.color.set(0xffdebc).lerp(_c.set(0xcfd6ff), dusk).lerp(_c.set(0xffc58f), gold)
+    // On the night's navy, plum shade came out as bright blotches of magenta: there it is a darker blue than the sea, and lighter on it.
+    this.shadow.color.set(0x6d4a7a).lerp(_c.set(0x141a3c), dusk)
+    this.shadow.opacity = 0.25 - 0.07 * dusk
+    key.intensity = 2.6 - 0.9 * dusk + 0.9 * gold // more of it while it is low: a low sun gives the ground less, and the ground would be darker at dusk than at night
+    sky.color.set(0xdcd6ff).lerp(_c.set(0xa9b1de), dusk).lerp(_c.set(0xe8dcff), gold)
     sky.groundColor.set(0xffd9c4).lerp(_c.set(0x5d6494), dusk)
-    sky.intensity = 1.25 - 0.2 * dusk
+    sky.intensity = 1.45 - 0.4 * dusk
     const style = document.documentElement.style
     const paper = `#${toned(this.bg).getHexString()}`
     if (paper !== this.paper) {
@@ -3091,8 +3807,14 @@ export class Island {
       const far = _p.set(this.centre.x + Math.cos(a) * out, 0.05, this.centre.z + Math.sin(a) * out).distanceTo(camera.position)
       bits.spawn(_p.x, 0.05, _p.z, 0, 0, 0, far * 0.0013, 0xcfe0ff, 1.4, NEVER, 0, 0, 1.6)
     }
-    // The sun and its shadows keep the whole of it covered.
-    key.position.set(this.centre.x - 14, 24, this.centre.z + 10)
+    // The sun and its shadows keep the whole of it covered. It stands off to the side, not behind the camera, so that
+    // what stands casts a shadow that shows; lower in the golden light between day and night.
+    // It is never square to the rows of tiles (shadows along the grid, and nothing on the faces that look at the camera),
+    // and it travels as it dips: by night the light comes from the north, so the night's shadows are not the day's.
+    key.position.set(this.centre.x - 17 + 7 * this.dusk, 24 - 13 * this.gold, this.centre.z + 5 - 19 * this.dusk)
+    const reach = camera.position.distanceTo(this.centre)
+    this.haze.near = reach + this.span * 0.5
+    this.haze.far = reach + this.span * (3 - 1.2 * this.gold) // a little more haze in the golden light
     key.target.position.copy(this.centre)
     const edge = this.span * 1.25 + 4
     Object.assign(key.shadow.camera, { left: -edge, right: edge, top: edge, bottom: -edge })
@@ -3107,9 +3829,12 @@ export class Island {
     const thing = over >= 0 && over < PET ? this.things[over] : undefined
     if (over !== this.hover) {
       this.hover = over
-      if (thing) for (const cube of thing.play ? [...thing.cubes, ...thing.grown] : thing.cubes) solid.poke(cube, thing.hits || thing.tap ? 3.5 : 2)
+      const wished = !!thing && this.wanted.some((wants) => wants(thing))
+      if (thing) for (const cube of thing.play || wished ? [...thing.cubes, ...thing.grown] : thing.cubes) solid.poke(cube, thing.hits || thing.tap || wished ? 3.5 : 2)
     }
-    const breakable = thing && (thing.hits || thing.tap || thing.play || (thing.guard !== undefined && this.things[thing.guard].hits))
+    // (What a click would give to somebody who wishes for it counts too: a carrot for the bunnies, a tree with a branch
+    // for the beaver, a palm for the crab. It answers a click, so the cursor says so.)
+    const breakable = thing && (thing.hits || thing.tap || thing.play || (thing.guard !== undefined && this.things[thing.guard].hits) || this.wanted.some((wants) => wants(thing)))
     const animal = over >= PET ? this.critters.list[over - PET] : undefined
     let tip = (animal ? (animal.tip ?? this.friends.find((f) => f.id === (animal.friend ?? animal.kind))?.name) : thing?.tip) ?? ''
     // The label stays up until the cursor moves on, or the view does: animals do not hold still to be read.

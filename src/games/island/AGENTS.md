@@ -46,12 +46,30 @@ places when an island is dealt from a seed, `finds` must not end up behind anyth
 dealing has to keep to is in `deal` and in `test/isles.test.ts`: nothing in the sails of the windmill or on its
 doorstep, still water off the coast, and so on. After changing a map: `node test/play.test.ts 300` plays 300 islands.
 
+## The fox
+
+One animal goes everywhere there is a way to (`roam`, `plan`, `reachable` in `Island.ts`): tile by tile at a hop, over
+a brook at a leap, over the sea only by a bridge, the stones or the ice (`crossing`; every `signpost` makes one). She
+starts asleep in a nest on a ledge of the first island (`n` on its maps, `low` in the isle), and a click wakes her:
+`island.wakeFox()` from the console. Nobody lands on her tile (`foxless`, inside `free`), and she steps onto nobody's
+(`roomFor`). Patted by a stuck player, she goes and sits by something still to be found. `test/fox.test.ts` proves
+where she may be, and holds what else came with her: the stones and the tide, the lighthouse's cloud, leapfrog, the
+marmots' lookout, the bunny on the tortoise, the chicks on the scarecrow.
+
+## Who may be where
+
+One tile, one animal; one spot, one bird. `free(tile)` is the rule for everything that walks, hops, leaps or gets off
+something: no thing on it, no water, nobody on it or on the way to it (`taken`), and not the fox's. `perched(x, y, z)`
+is the same for whoever flies, asked of every place a bird comes down on. An isle may lift single tiles off the
+map's heights (`lift`: the fox's ledge, the beach's plinth where the crab sets down its oyster).
+
 ## Trying things
 
 In the dev server the game is `window.island`: `island.things[i]`, `island.strike(i)`, `island.mark[tile]` (its map
 character), `island.advance(0.05)`. `?ending` (dev server only) plays the ending at once, without finishing the game; `?complete` does too, and then shows the card for having found everything. `?seed=N` deals island N: use 9001 and up for tests, and take
 `wake-the-island/3/<seed>` out of localStorage afterwards. Saving an edit restarts the running game from its save.
-`test/play.test.ts` plays whole games with no browser, and is the place to prove a rule.
+`test/play.test.ts` plays whole games with no browser, and is the place to prove a rule. (`advance` moves no cubes:
+`solid.up` is never true there, `solid.on` is.)
 
 ## Settled, not to be undone unasked
 

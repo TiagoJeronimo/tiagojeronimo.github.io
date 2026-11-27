@@ -53,9 +53,11 @@ function freeBird(w: Island, bird: Critter) {
   critters.go(bird, x, GROUND + 3, z, flight, 1.2, () => {
     w.bits.spawn(x, GROUND + 2.9, z, 0, 0, 0, 0.2, BARK, 2, 0.2, 0)
     w.soon('meadow', 0.5)
-    // And straight on, somewhere to land: it used to wait up there while the meadow came up, and hung in the air.
+    // It hangs there a moment, wings going, to see the seed down, and then is off to find somewhere to land: unhurried.
+    // (It used to be gone the instant the seed left it.)
+    critters.perform(bird, 'flap')
+    bird.rest = 1.2
     bird.next = w.flit
-    w.flit(bird)
   })
 }
 
@@ -104,6 +106,7 @@ function swing(w: Island, s: number) {
   if (!tree || !side) return
   const [di, dj] = side
   const { tile } = tree
+  w.roofed[step(tile, di, dj)] = 1 // the seat hangs at about the height of a fox's ears
   const [x, top, z] = [tx(tile), w.h[tile], tz(tile)]
   let push = 0.2 // how far it swings: 1 right after a push, and never quite still
   let rider: Critter | undefined
@@ -166,6 +169,7 @@ function swing(w: Island, s: number) {
  *   D  beaver dam across the side channel     V  the beaver, asleep on its side
  *   h  hill pond under a cloud     e  its stream bed     O  old tree in thorns
  *   W  capped well     C  crate     G  bird cage     M  seed pod     4  a clover with one leaf too many
+ *   n  a ledge on the south shore, half a step down, with the fox's nest on it
  */
 export const island: Isle = {
   name: 'island',
@@ -186,7 +190,7 @@ export const island: Isle = {
     ' ..W....rr..... ',
     '  .......r..b.  ',
     '   ...T..r...   ',
-    '     ....r.     ',
+    '     ....r.n    ',
   ],
   high: [
     '          11    ',
@@ -203,6 +207,7 @@ export const island: Isle = {
   // and the beach land on (5, 0), (1, 3), (0, 9), (15, 9) and (8, 15), which stay bare ground. The river's last tile on the
   // southernmost row: water there is what raises the beach. The hill's stream apart from the river, or the rain would fill
   // the river round the boulder. And the dam in a stretch that runs east to west, with ground south of it for the beaver.
+  // The fox's ledge at (11, 15), with bare ground west of it at (10, 15): her way up onto the island.
   variants: [
     {
       rows: [
@@ -221,7 +226,7 @@ export const island: Isle = {
         ' .W.......rr.G. ',
         '  ....T..rr...  ',
         '   ....b.rT..   ',
-        '     ....r.     ',
+        '     ....r.n    ',
       ],
       high: [
         '       1111     ',
@@ -250,7 +255,7 @@ export const island: Isle = {
         ' .....r..T....T ',
         '  b...r.......  ',
         '   .T.r....b.   ',
-        '     .r....     ',
+        '     .r....n    ',
       ],
       high: [
         '                ',
@@ -263,6 +268,7 @@ export const island: Isle = {
     },
   ],
   beds: 'SBrDphe',
+  lift: { n: -0.5 },
   loose: 'CGMTbo',
   finds: 'BVhOWCGM4',
   look: {
@@ -276,7 +282,15 @@ export const island: Isle = {
     const z = tz(tile)
     const top = w.h[tile]
     if (c === 'S') w.filled[tile] = 1
-    else if (c === 'B') {
+    else if (c === 'n') {
+      // The fox's nest: a bed of straw with twigs laid round it, low enough that she lies over them. She is asleep in
+      // it until somebody clicks on her (see `nest` in `Island.ts`); after that it is where she sleeps.
+      const t: number = w.thing(tile, { auto: false, sound: 'yip', tip: 'A fox, asleep in a nest she built facing the sea. Knock, and she is up', tap: () => w.wakeFox() })
+      w.put(t, 0, 0.02, 0, 0.66, 0.04, 0.66, 0xe6d5a0)
+      for (const [dx, dz] of NEAR) w.put(t, dx * 0.4, 0.07, dz * 0.4, dx ? 0.14 : 0.64, 0.14, dx ? 0.64 : 0.14, dx ? BARK : 0xa98463)
+      for (const [dx, dz, high] of [[0.4, 0.4, 0.2], [-0.4, 0.4, 0.16], [0.4, -0.4, 0.17], [-0.4, -0.4, 0.22]]) w.put(t, dx, high / 2, dz, 0.16, high, 0.16, dx * dz > 0 ? 0xa98463 : BARK)
+      w.nest(tile, t)
+    } else if (c === 'B') {
       // The boulder that plugs the spring.
       const t = w.thing(tile, { hits: 3, start: true, sound: 'tock', tip: 'A boulder. In the way, which is all a boulder ever wanted', clue: 'That [boulder] sits right where the water comes up. It is not being difficult. It is being a boulder. Knock anyway.', onBreak: () => freeRiver(w, tile) })
       const rocks = w.stones(t, 1.7, tile)
@@ -335,7 +349,7 @@ export const island: Isle = {
         squirrel.friend = 'squirrel'
         squirrel.grow = 0.7
         squirrel.next = w.stroll
-        lodger('A secret: a squirrel lives in the old tree. It was only waiting for somebody to knock. For years. It could have just come out. So could we all.')
+        lodger('Secret: a squirrel lives in the old tree. It was only waiting for somebody to knock. For years. It could have just come out. So could we all.')
       }
       // Thorns wound round its trunk.
       const t = w.thing(tile, {
@@ -417,7 +431,7 @@ export const island: Isle = {
           // A coin goes in, from the side the player is on, and then the splash: every time, not only the first.
           w.bits.spawn(x + Math.sin(w.turn) * 1.1, top + 1.7, z + Math.cos(w.turn) * 1.1, -Math.sin(w.turn) * 2.2, 1.6, -Math.cos(w.turn) * 2.2, 0.1, 0xffd45c, 0.5, top + 0.5, 0, 22, 2.5)
           w.after(0.5, () => w.splash(x, top + 0.6, z, 6))
-          wished('A secret: you toss a wish into the well. It lands with a very small splash. That is what a wish sounds like at actual size.')
+          wished('Secret: you toss a wish into the well. It lands with a very small splash. That is what a wish sounds like at actual size.')
         },
       })
       // Two long walls, and two short ones that fit between them: no two pieces share a corner.
@@ -510,7 +524,7 @@ export const island: Isle = {
     } else if (c === '4') {
       // It comes up with the grass, and looks like one more tuft unless you look.
       const lucky = w.extra('secret', { icon: 'clover', hint: 'Three leaves are common. Somewhere on the first island there are four. Luck is mostly looking at the ground for longer than is normal.', at: () => w.above(tile, 0.5) })
-      const t: number = w.thing(tile, { wanting: () => !!w.things[t].up && !lucky.has(), tap: () => w.things[t].up && lucky('A secret: a four-leaf clover. Lucky you. It was there the whole time, which is the least comforting thing about luck.') })
+      const t: number = w.thing(tile, { wanting: () => !!w.things[t].up && !lucky.has(), tap: () => w.things[t].up && lucky('Secret: a four-leaf clover. Lucky you. It was there the whole time, which is the least comforting thing about luck.') })
       w.put(t, 0, 0.12, 0, 0.05, 0.24, 0.05, 0x4f9a5a, true)
       for (const [dx, dz] of NEAR) w.put(t, dx * 0.1, 0.26, dz * 0.1, 0.14, 0.05, 0.14, 0x3f8f52, true)
     }

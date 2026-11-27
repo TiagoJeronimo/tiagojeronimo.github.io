@@ -113,9 +113,13 @@ function play(seed: number) {
       game.strike(plug)
       wait(6)
       assert.ok(!game.memo.tide && open('islet') && game.things[shell].tip?.includes('comes back in') && game.things[plug].tip?.includes('pulled'), say(`the plug is out, and: ${game.things[shell].tip} / ${game.things[plug].tip}`))
+      // A knock on the pulled plug puts it back, and the sea comes back in, as it does for the shell; and out again.
       game.strike(plug)
-      wait(2)
-      assert.ok(!game.memo.tide, say('a knock on a plug that is out did something to the sea'))
+      wait(6)
+      assert.ok(game.memo.tide && game.things[shell].tip?.includes('there is a plug') && game.things[plug].tip?.includes('out it comes'), say(`a knock on the pulled plug did not bring the sea back: ${game.things[shell].tip} / ${game.things[plug].tip}`))
+      game.strike(plug)
+      wait(6)
+      assert.ok(!game.memo.tide && game.things[plug].tip?.includes('goes back in'), say('the plug would not come out a second time'))
       game.strike(shell)
       wait(6)
       assert.ok(game.memo.tide && game.things[shell].tip?.includes('there is a plug') && game.things[plug].tip?.includes('out it comes'), say(`the tide is back in, and: ${game.things[shell].tip} / ${game.things[plug].tip}`))
@@ -339,12 +343,21 @@ console.log('animals: ok')
     }
   }
   const said = (start: string) => heard.find(([line]) => line.startsWith(start))
-  wait(3)
-  // Lines come up one at a time, each for as long as it takes to read: a second one waits for the first.
-  game.say('One short line.')
-  game.say('And another, which has to wait its turn.')
+  const shelf = game as unknown as { fresh: string[]; heard: [string, ...unknown[]][] }
+  const shelved = (start: string) => shelf.fresh.some((line) => line.startsWith(start)) && shelf.heard.some(([line]) => line.startsWith(start))
   wait(1)
-  assert.ok(!said('One short line.'), 'a line pushed out the one before it, which had not had its time')
+  // Lines come up one at a time, each for as long as it takes to read. One that would have to wait more than four
+  // seconds for that is not shown at all: it goes to the log, with the dot. Here the line the game opens with is up.
+  game.say('A line about something that happened while the opening line was still being read.')
+  wait(1)
+  assert.ok(!said('A line about something'), 'a line pushed out the one before it, which had not had its time')
+  wait(30)
+  assert.ok(!said('A line about something') && shelved('A line about something'), 'a line that waited more than four seconds was shown after all, or is not in the log as unread')
+  // A second line that has only a short one to wait for does come up: after it, and a breath more.
+  // (It turns up when the first has two seconds of its time left, so that its wait is about three.)
+  game.say('One short line.')
+  wait(held('One short line.') - 2)
+  game.say('And another, which has to wait its turn.')
   wait(30)
   const [one, two] = [said('One short line.')!, said('And another')!]
   assert.ok(one && two && two[1] - one[1] > held('One short line.') + 0.9, `the second line did not wait for the first to be read, and a breath more (${one}, ${two})`)
@@ -370,22 +383,23 @@ console.log('animals: ok')
   assert.ok(!said('Five knocks'), 'four knocks on nothing, and already there is a remark')
   game.strike(dull)
   wait(12)
-  assert.ok(said('Five knocks, and nothing.'), 'five knocks on nothing went unremarked')
+  assert.ok(said('Five knocks, and nothing.') || shelved('Five knocks, and nothing.'), 'five knocks on nothing went unremarked')
   assert.equal(game.notes.idle, 5, 'the knocks that came to nothing were not counted')
   for (let k = 0; k < 5; k++) game.strike(dull)
   wait(12)
-  assert.ok(said('Ten knocks on the same thing.'), 'ten knocks on nothing went unremarked')
+  assert.ok(said('Ten knocks on the same thing.') || shelved('Ten knocks on the same thing.'), 'ten knocks on nothing went unremarked')
   // A favourite: one that gets all the pats.
   for (const tip of ['A cage', 'A cage', 'A cage']) game.strike(game.things.findIndex((thing) => thing.tip?.startsWith(tip)))
   wait(8)
   const bird = game.critters.list.find((c) => c.kind === 'bird' && c.thing === undefined)
   for (let k = 0; k < 6; k++) game.pat(bird)
   wait(60)
-  assert.ok(said('You have patted the bluebird 6 times.'), `a favourite went unremarked: ${heard.map(([line]) => line.slice(0, 24))}`)
+  assert.ok(said('You have patted the bluebird 6 times.') || shelved('You have patted the bluebird 6 times.'), `a favourite went unremarked: ${heard.map(([line]) => line.slice(0, 24))}`)
   // A thing that is not left alone says so, once: a sign read six times.
   for (let k = 0; k < 6; k++) game.strike(sign)
   wait(150) // six lines, read without hurry, and then the remark
-  assert.ok(said('You have read that sign twice through now.'), 'a sign read six times had nothing to say about it')
+  // (A remark never waits behind a line: with one up it goes straight to the log, as here, behind the sign's own.)
+  assert.ok(said('You have read that sign twice through now.') || shelved('You have read that sign twice through now.'), 'a sign read six times had nothing to say about it')
   // And nothing that was said got lost on the way: whatever waited has had its turn by now.
   assert.equal(game.lines.length, 0, `lines still waiting after all that quiet: ${game.lines}`)
   // The player can move a line on: with one waiting, the next comes at once; with none, the line goes.
@@ -402,7 +416,10 @@ console.log('animals: ok')
   // All of it is kept, for the map: every line that came up, once each, and the one said last at the end.
   const kept = (game as unknown as { heard: [string, string, number, string][] }).heard
   const lines = kept.filter(([, about]) => about !== 'land')
-  assert.deepEqual(lines.map(([line]) => line).sort(), [...new Set(heard.map(([line]) => line))].sort(), 'what the map keeps is not what was said')
+  // (And those few that waited too long to be shown, and went to the log unsaid.)
+  const came = new Set(heard.map(([line]) => line))
+  assert.ok([...came].every((line) => lines.some(([one]) => one === line)), 'a line that was said is not kept for the map')
+  assert.ok(lines.filter(([line]) => !came.has(line)).length <= 6 && new Set(lines.map(([line]) => line)).size === lines.length, 'the map keeps lines twice, or a good many that were never said')
   assert.equal(lines[lines.length - 1][0], game.hint, 'the line said last is not the last one kept')
   // Among them, a mark where land came up: the meadow, which the bird let out of its cage went and planted.
   assert.ok(kept.some(([line, about]) => about === 'land' && line === 'meadow'), 'the log has no mark for the meadow coming up')
@@ -424,7 +441,7 @@ console.log('animals: ok')
   // A wish is not said when its bubble comes up: it goes into the log, and counts as not looked at until the log is.
   const quiet = game as unknown as { whisper(text: string, about?: string): void; read(): void; fresh: string[] }
   quiet.whisper('Somebody would like something.', 'beaver')
-  assert.ok(quiet.fresh.length === 1 && !game.hint.startsWith('Somebody would like'), 'a wish was said out loud, or not counted as new')
+  assert.ok(quiet.fresh.includes('Somebody would like something.') && !game.hint.startsWith('Somebody would like'), 'a wish was said out loud, or not counted as new')
   quiet.read()
   assert.equal(quiet.fresh.length, 0, 'looking at the log did not clear what was new in it')
 }

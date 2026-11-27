@@ -17,6 +17,10 @@ export const mute = (yes: boolean) => (muted = yes)
 export function setSound(yes: boolean) {
   on = yes
   if (!on) return
+  // On an iPhone or iPad, web audio counts as a ringtone unless told otherwise, and the silent switch mutes it: the
+  // sound button would light up and nothing be heard. As playback it plays, as a video would.
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
+  if (session) session.type = 'playback'
   ctx ??= new AudioContext()
   if (ctx.state !== 'running') void ctx.resume()
 }
@@ -158,6 +162,24 @@ export function sfx(what: 'baa' | 'pop' | 'tinkle' | 'bark' | 'jingle', tone = 0
     soft.connect(bus(c))
     voice(c, 'square', 400 + tone * 80, 240, now, 0.09, 0.05, soft)
   } else if (what === 'jingle') for (let k = 0; k < 4; k++) voice(c, 'triangle', pitch(4 + k * 2), pitch(4 + k * 2), now + k * 0.09, 0.4, 0.06)
+}
+
+const rolls = bucket(0.25, 1) // thunder: one clap, and the next no sooner than four seconds on
+/**
+ * Thunder, as a toy has it: "brrum". Three soft low notes, each a little lower and softer than the one before, with
+ * the same an octave up under them so that a small loudspeaker has something to say. Notes, not noise: a real rumble
+ * was the one sound here that was not a music box. Under the same switch and through the same output as the small
+ * noises.
+ * @param loud 0..1
+ */
+export function thunder(loud = 1) {
+  if (!on || !ctx || muted || !rolls(ctx.currentTime)) return
+  const [c, now] = [ctx, ctx.currentTime]
+  const g = Math.max(0.05, Math.min(1, loud))
+  ;[[0, 98, 0.5, 0.3], [0.17, 82, 0.5, 0.22], [0.36, 65, 0.8, 0.18]].forEach(([at, hertz, long, gain]) => {
+    voice(c, 'triangle', hertz * 1.12, hertz, now + at, long, gain * g)
+    voice(c, 'sine', hertz * 2.24, hertz * 2, now + at, long * 0.7, gain * 0.35 * g)
+  })
 }
 
 const BEAT = 0.62 // seconds: slow

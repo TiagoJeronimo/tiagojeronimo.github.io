@@ -401,8 +401,9 @@ export class Sheep {
     const { sun } = this
     sun.position.set(-16, 30, 12)
     sun.castShadow = true
-    sun.shadow.bias = -0.0004
-    sun.shadow.normalBias = 0.04
+    // Just enough nudge to keep stripes off flat ground: more, and a shadow starts a little way from what casts it (a blade of grass seems to float).
+    sun.shadow.bias = -0.0001
+    sun.shadow.normalBias = 0.01
     this.shadows(0)
     Object.assign(sun.shadow.camera, { near: 1, far: 90, left: -24, right: 24, top: 24, bottom: -24 })
     const floor = new Mesh(new CircleGeometry(300, 32), new ShadowMaterial({ color: 0x6d4a7a, opacity: 0.25 }))

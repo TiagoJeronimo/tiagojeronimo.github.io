@@ -1,6 +1,6 @@
 import { note } from '../../sound.ts'
 import type { Critter } from './critters.ts'
-import { BARK, GROUND, NEAR, NEVER, WOOD, any, step, tx, tz, type Thing } from './grid.ts'
+import { BARK, GROUND, NEAR, NEVER, WOOD, any, step, tileAt, tx, tz, type Thing } from './grid.ts'
 import type { Island } from './Island.ts'
 
 /**
@@ -43,6 +43,7 @@ const FRIENDS = [
   ['goat', 'Goat', 'Likes its ledge.', 'Stood on its ledge while everything was dead, and stands on it now that everything is alive. The ledge was never the problem.'],
   ['eagle', 'Eagle', 'Sees the whole world from up there.', 'Sees the whole world from up there, and has no notes.'],
   ['owl', 'Owls', 'Come out when a bell rings in the dark.', 'Came because somebody rang a bell in the dark. Stayed because nobody asked them to leave.'],
+  ['fox', 'Fox', 'Goes everywhere there is a way to.', 'Has been to every isle there is a way to, and reports that they are all islands. Is going round again, in case she missed the one that is not.'],
 ]
 
 // A thought bubble, seen from the front, and the little pictures that go in it: [x, y, z, width, height, depth, colour].
@@ -56,6 +57,8 @@ const BUBBLE = [
   [-0.1, -0.03, 0, 0.08, 0.07, 0.05, PAPER],
   [-0.17, -0.12, 0, 0.05, 0.045, 0.05, PAPER],
 ]
+/** A question mark, for a bubble over somebody who is wondering. */
+const QUERY = [[0, 0.31, 0.04, 0.14, 0.04, 0.04, 0xf08a4b], [0.05, 0.265, 0.04, 0.04, 0.05, 0.04, 0xf08a4b], [0, 0.215, 0.04, 0.04, 0.07, 0.04, 0xf08a4b], [0, 0.12, 0.04, 0.045, 0.045, 0.04, 0xf08a4b]]
 const SOON = 60 // how long somebody has been free before a bubble comes up over it (seconds), and
 const APART = 20 // how long after one bubble the next may come: never two at once
 const ICONS: Record<string, number[][]> = {
@@ -83,6 +86,8 @@ interface Wish {
   where?: () => number[] | undefined
   owner?: Critter
   bubble?: Critter
+  /** Its thanks are not said when it is granted: `give` says them, when what comes of it has. */
+  late?: boolean
   since?: number
   /** The wished thing is on its way. */
   sent?: boolean
@@ -131,13 +136,13 @@ export function wishes(w: Island) {
     wish.granted = true
     friend(wish.who)!.granted = true
     if (w.friends.every((f) => !f.more || f.granted)) w.aside('wishes', 'Everybody has what they wished for. It took an afternoon. Try not to compare that with anything.')
-    wish.bubble!.hidden = true
+    if (wish.bubble) wish.bubble.hidden = true // (the frog may get its night-light before it has let on that it wants one)
     owner.tip = undefined
     owner.pet = 1
     for (let k = 0; k < 6; k++) bits.spawn(owner.x + any() * 0.4, owner.y + 0.5, owner.z + any() * 0.4, any() * 1.5, 2.4, any() * 1.5, 0.13, 0xff8fb0, 1, NEVER, 0, 2)
     for (let k = 0; k < 3; k++) w.after(k * 0.13, () => note(0.5 + k * 0.2, 0.12))
     w.breath()
-    w.say(wish.thanks, wish.who)
+    if (!wish.late) w.say(wish.thanks, wish.who)
     wish.give(owner)
   }
   /** The wished thing flies over, in one big arc, to whoever wished for it. */
@@ -154,29 +159,96 @@ export function wishes(w: Island) {
     w.trail(() => (w.time - from < flight ? [x + vx * (w.time - from), z + vz * (w.time - from)] : [owner.x, owner.z]), flight + 1.6)
   }
 
-  // The frog would like a night-light. One fat firefly is about after dark; it settles on the lily pad, and the frog sings.
-  const light = critters.spawn('glow', 0, GROUND + 3, 0, 0xe9ff8a, undefined, 3)
+  // The frog would like a night-light. One fat firefly is about over the swamp every night from the moment the swamp
+  // is there, never far from the frog's water: a click on it sends it to the frog, whether or not the frog has let on
+  // yet, and it settles on the lily pad, and the frog sings. By day it is nowhere, the frog's or not. (It used to be
+  // there only once the frog's bubble was up, and it went from tree to tree all over the world: nobody could find it.)
+  const light = critters.spawn('glow', 0, -40, 0, 0xe9ff8a, undefined, 4.5)
   light.hidden = true
   light.grow = 1.5
   light.tip = 'A firefly, fatter than the rest. It is not sorry'
   const candle = w.candle() // a night-light has to give light
-  light.next = w.flit
+  const theFrog = () => critters.list.find((c) => c.kind === 'frog')
+  // It never hangs in the air: when it is not on its way somewhere it has settled on something. A lily pad the frog
+  // is not on, or the cap of a mushroom near the frog's water; and, once it is the frog's, the frog's own head.
+  const SIT = 0.11 // how far its middle is above what it sits on
+  const spots = (owner: Critter, far: number) =>
+    [...w.rests, ...w.perches].filter((p) => {
+      // (Near the frog's own pad, wherever the frog is sitting just now, and not where it is sitting.)
+      const pad = owner.thing === undefined ? tileAt(owner.x, owner.z) : w.things[owner.thing].tile
+      const off = Math.hypot(p[0] - owner.x, p[2] - owner.z)
+      return Math.hypot(p[0] - tx(pad), p[2] - tz(pad)) < far && off > 0.5 && Math.hypot(p[0] - light.x, p[2] - light.z) > 0.3 && !w.perched(p[0], p[1], p[2])
+    })
+  /** Off to one of those, gently, and down on it. */
+  const settle = (owner: Critter, far: number) => {
+    const all = spots(owner, far)
+    const p = all[Math.floor(Math.random() * all.length)]
+    if (!p) return false
+    const way = Math.hypot(p[0] - light.x, p[2] - light.z)
+    critters.go(light, p[0], p[1] + SIT, p[2], 1 + way * 0.5, 0.3 + way * 0.12)
+    return true
+  }
+  const head = (owner: Critter) => [owner.x, owner.y + 0.38, owner.z + 0.02]
+  // Until it is the frog's it goes from one such place to another, with a sit of a few seconds on each.
+  light.next = (c) => {
+    const owner = theFrog()
+    c.rest = 2.5 + Math.random() * 4
+    if (owner) settle(owner, 3.2)
+  }
   const frog: Wish = {
     who: 'frog',
     icon: 'firefly',
     high: 0.5,
-    want: 'The frog would like a night-light. It can call the weather, and it is scared of the dark. Fireflies only come out at night, and one of them is fatter than the rest.',
-    thanks: 'A night-light for the frog. The firefly settles beside it, and the frog begins to sing: five notes, over and over, like somebody with one good idea. The ring next door seems to be listening.',
+    want: 'The frog would like a night-light. It can call the weather, and it is scared of the dark. After dark, one firefly over the swamp is fatter than the rest, and has no plans.',
+    thanks: 'A night-light for the frog. The firefly settles on its head, and the frog begins to sing: five notes, over and over, like somebody with one good idea. The ring next door seems to be listening.',
     give: () => (w.memo.frogSong = 1),
     where: () => (light.hidden ? undefined : [light.x, light.y, light.z]),
   }
+  // Once it is the frog's, it has a small life of its own: every so often, after dark and while anybody is looking, it
+  // drifts out over the water next to the frog, hangs there a moment and comes back; and the frog turns on its pad to
+  // keep it in sight. A pat sends it off at once. It keeps above the water, where nothing else is, and close: it is
+  // never more than a tile and a half from the frog.
+  let jaunt = 0 // when it goes next
+  let away = false // out on one of those: otherwise its place is on the frog's head, wherever the frog has hopped to
+  const drift = () => {
+    const owner = frog.owner
+    if (!owner || light.t < 1 || light.hidden || away || !settle(owner, 2.6)) return
+    jaunt = w.time + 16 + Math.random() * 14
+    away = true
+    critters.look(owner, light, 6)
+    w.after(light.dur + 2 + Math.random() * 2, () => (away = false))
+  }
+  w.ticks.push(() => {
+    const owner = frog.owner
+    if (!frog.granted || !owner || light.t < 1) return
+    const at = head(owner)
+    if (!away && owner.t >= 1 && Math.hypot(at[0] - light.x, at[1] - light.y, at[2] - light.z) > 0.05) return critters.go(light, at[0], at[1], at[2], 1.2, 0.4)
+    if (!away && w.night && w.time > jaunt && w.seen(light.x, light.y, light.z)) drift()
+  })
   light.onPat = () => {
-    if (!open(frog) || frog.sent) return w.pat(light)
+    const owner = theFrog()
+    if (frog.granted) drift()
+    // (A frog still asleep on its pad is given nothing yet: the firefly gets a pat, and stays where it is.)
+    if (frog.granted || frog.sent || !owner || !free(owner)) return w.pat(light)
     frog.sent = true
+    frog.owner = owner
     light.next = undefined
-    critters.go(light, frog.owner!.x + 0.26, frog.owner!.y + 0.24, frog.owner!.z + 0.1, 1.5, 1.5, () => grant(frog))
+    const at = head(owner)
+    critters.go(light, at[0], at[1], at[2], 1.5, 1.5, () => grant(frog))
     w.watch(light, 3.1) // and the camera goes with it, as with every wish on its way
   }
+  // A bubble with a question in it, for whoever is wondering about something: the fox, sat by a thing still to be found.
+  const query = critters.spawn('bubble', 0, -40, 0, 0, [...BUBBLE, ...QUERY])
+  Object.assign(query, { hidden: true, key: 'bubble:fox' })
+  let asking: [Critter, number] | undefined
+  w.think = (c, seconds) => (asking = [c, w.time + seconds])
+  query.onPat = () => asking && w.pat(asking[0])
+  w.ticks.push((_, time) => {
+    // It goes when its time is up, or when whoever it is over moves on.
+    if (asking && (time > asking[1] || asking[0].t < 1 || asking[0].hidden)) asking = undefined
+    query.hidden = !asking
+    if (asking) Object.assign(query, { x: asking[0].x, y: asking[0].y + 1.08 + Math.sin(time * 2) * 0.04, z: asking[0].z, face: w.turn, yaw: w.turn, grow: 1.7 + Math.sin(time * 3) * 0.06 })
+  })
 
   // The bunnies would like a carrot. There are rows of them in the kitchen garden, once it has had its drink.
   const carrots = () => w.things.filter((thing) => thing.up && thing.pick && w.mark[thing.tile] === 'c' && w.isle[thing.tile] === w.index('garden'))
@@ -205,7 +277,7 @@ export function wishes(w: Island) {
             w.solid.poke(lid, 14)
             w.solid.show(gold)
             for (let k = 0; k < 6; k++) bits.spawn(tx(tile), w.h[tile] + 0.5, tz(tile), any() * 3, 4 + Math.random() * 2.5, 0.6 + Math.random() * 2, 0.11, 0xffd45c, 2.4, w.h[tile], 0.45, 22, 2.5)
-            secret.chest('A secret: the chest the bunnies dug up. Old seed packets, and one gold coin. Somebody was saving up for something. It turns out it was this.')
+            secret.chest('Secret: the chest the bunnies dug up. Old seed packets, and one gold coin. Somebody was saving up for something. It turns out it was this.')
           },
         })
         for (let k = 0; k < 8; k++) bits.spawn(tx(tile), w.h[tile] + 0.2, tz(tile), any() * 4, 3 + Math.random() * 3, any() * 4, 0.16, 0xb8956a, 1.2, w.h[tile], 0.3)
@@ -254,7 +326,7 @@ export function wishes(w: Island) {
           tap: () => {
             w.things[t].tap = undefined
             w.things[t].tip = 'A bottle, empty. The note got where it was going'
-            secret.bottle('A secret: a note in a bottle. “The island is not dead, only asleep. Be gentle with it, and be curious.” Whoever wrote that meant it. Awkward for the rest of us.')
+            secret.bottle('Secret: a note in a bottle. “The island is not dead, only asleep. Be gentle with it, and be curious.” Whoever wrote that meant it. Awkward for the rest of us.')
           },
         })
         w.splash(owner.x, owner.y + 0.3, owner.z, 8)
@@ -332,29 +404,73 @@ export function wishes(w: Island) {
       const palms = w.things.filter(palm)
       return palms[Math.floor(Math.random() * palms.length)]?.perch
     },
+    late: true, // its thanks are said when the oyster has been set down, not before
+    // It carries its oyster, sideways and at its own pace, to the one place kept for it: the plinth of sand on the
+    // beach ('P' on its maps). There it sets it down, pearl and all, and steps back. The camera goes along.
     give: (owner) =>
       w.after(1.2, () => {
-        const tile = spot('beach', owner.x, owner.z, false)
+        const tile = isle('beach').find((u) => w.mark[u] === 'P')
         if (tile === undefined) return
         w.clear(tile)
-        pearl = [tx(tile), w.h[tile] + 0.4, tz(tile)]
-        const t: number = w.thing(tile, {
-          auto: false,
-          key: 'pearl',
-          sound: 'plink',
-          tip: 'A pearl. How an oyster deals with a problem',
-          tap: () => {
-            if (!open(dragon) || dragon.sent) return w.say('A pearl. You have no pockets. Somebody small and warm would treasure this.')
-            w.things[t].tap = undefined
-            w.burst(t)
-            send(dragon, tx(tile), w.h[tile] + 0.3, tz(tile), 0xffffff)
-          },
+        const t: number = w.thing(tile, { auto: false, key: 'pearl', sound: 'plink', tip: 'An oyster, on its way somewhere. The crab knows where' })
+        const BOXES = [[0, 0.05, 0, 0.36, 0.1, 0.3, 0xffd9e6], [0, 0.22, -0.16, 0.36, 0.3, 0.06, 0xffc9d6], [0, 0.2, 0, 0.18, 0.18, 0.18, 0xffffff]]
+        const cubes = BOXES.map(([dx, dy, dz, wide, high, deep, color]) => w.put(t, dx, dy, dz, wide, high, deep, color))
+        w.solid.paint(cubes[2], 0xffffff, 1.8)
+        const down = () => {
+          carried = undefined
+          cubes.forEach((cube, k) => w.solid.place(cube, tx(tile) + BOXES[k][0], w.h[tile] + BOXES[k][1], tz(tile) + BOXES[k][2]))
+          for (const cube of cubes) w.solid.poke(cube, 8)
+          pearl = [tx(tile), w.h[tile] + 0.4, tz(tile)]
+          Object.assign(w.things[t], {
+            tip: 'A pearl. How an oyster deals with a problem',
+            tap: () => {
+              if (!open(dragon) || dragon.sent) return w.say('A pearl. You have no pockets. Somebody small and warm would treasure this.')
+              w.things[t].tap = undefined
+              w.burst(t)
+              send(dragon, tx(tile), w.h[tile] + 0.3, tz(tile), 0xffffff)
+            },
+          })
+          w.say(crab.thanks, 'crab')
+        }
+        const was = owner.next ?? w.hop // (in its hammock just then it had nothing to do next: afterwards it is back to pottering)
+        owner.next = undefined
+        carried = [owner, cubes, BOXES]
+        const beside = (u: number) => u !== tile && NEAR.some(([di, dj]) => step(u, di, dj) === tile) && Math.abs(w.h[u] - w.h[tile]) < 1.05
+        const sideways = (x: number, y: number, z: number, then: () => void) => {
+          critters.go(owner, x, y, z, 0.6, Math.abs(y - owner.y) > 0.1 ? 0.4 : 0, then)
+          owner.face += Math.PI / 2
+        }
+        const there = w.lead(owner, beside, sideways, () => {
+          owner.face = Math.atan2(tx(tile) - owner.x, tz(tile) - owner.z)
+          down()
+          // And a step back from it, to have a look at what it has done.
+          const here = tileAt(owner.x, owner.z)
+          const far = (u: number) => Math.hypot(tx(u) - tx(tile), tz(u) - tz(tile))
+          const back = NEAR.map(([di, dj]) => step(here, di, dj)).filter((u) => u >= 0 && w.free(u) && Math.abs(w.h[u] - w.h[here]) < 0.1).reduce((a, b) => (far(b) > far(a) ? b : a), here)
+          w.after(0.9, () => {
+            if (back === here) return void (owner.next = was)
+            critters.go(owner, tx(back), w.h[back], tz(back), 0.6, 0, () => {
+              owner.face = Math.atan2(tx(tile) - owner.x, tz(tile) - owner.z)
+              owner.rest = 2
+              owner.next = was
+            })
+          })
         })
-        w.put(t, 0, 0.05, 0, 0.36, 0.1, 0.3, 0xffd9e6)
-        w.put(t, 0, 0.22, -0.16, 0.36, 0.3, 0.06, 0xffc9d6)
-        w.solid.paint(w.put(t, 0, 0.2, 0, 0.18, 0.18, 0.18, 0xffffff), 0xffffff, 1.8)
+        // (No way there, which no map has: it is simply there.)
+        if (there) w.watch(owner, 9)
+        else {
+          down()
+          owner.next = was
+        }
       }),
   }
+  // The oyster on its way: it rides on the crab's back.
+  let carried: [Critter, number[], number[][]] | undefined
+  w.ticks.push(() => {
+    if (!carried) return
+    const [owner, cubes, boxes] = carried
+    cubes.forEach((cube, k) => w.solid.place(cube, owner.x + boxes[k][0], owner.y + 0.42 + boxes[k][1], owner.z + boxes[k][2]))
+  })
   w.wanted.push((thing) => open(crab) && !crab.sent && palm(thing))
   w.onKnock.push((thing) => {
     if (!open(crab) || crab.sent || !palm(thing)) return false
@@ -389,7 +505,7 @@ export function wishes(w: Island) {
   let finale = false
   w.ticks.push((dt, time) => {
     candle.position.set(light.x, light.y, light.z)
-    candle.intensity += ((w.night && !light.hidden ? 2.2 : 0) - candle.intensity) * Math.min(1, dt * 3)
+    candle.intensity += ((w.night && !light.hidden ? 3 : 0) - candle.intensity) * Math.min(1, dt * 3)
     // Every bubble floats over its animal's head and faces the camera.
     for (const wish of list) {
       if (!wish.bubble || !wish.owner) continue
@@ -409,7 +525,8 @@ export function wishes(w: Island) {
       const known = friend(c.friend ?? c.kind)
       if (known && free(c) && c.size > 0.5) known.met = true
     }
-    if (w.friends.every((f) => f.patted)) secret.everybody("A secret: everybody's friend. There is nobody left who has not had a pat. You were thorough about being kind.")
+    // (The fox counts from when she is woken, which is her first pat: a game from before there was a fox keeps its secret.)
+    if (w.friends.every((f) => f.patted || (f.id === 'fox' && !w.memo.fox))) secret.everybody("Secret: everybody's friend. There is nobody left who has not had a pat. You were thorough about being kind.")
     // Fish move into the island's river once it runs.
     if (w.memo.river && !school.length) {
       const river = isle('island').filter((u) => w.mark[u] === 'r' && w.filled[u])
@@ -422,8 +539,16 @@ export function wishes(w: Island) {
         school.push(fish)
       }
     }
-    // The fat firefly is only about after dark, and only while the frog is wishing for it. Once given, it stays.
-    light.hidden = !frog.granted && !(open(frog) && w.night)
+    // The fat firefly is there from the first night the swamp sees, by the frog's water: after dark only, the frog's
+    // or not. At dawn it dwindles and is gone, and at nightfall it is back where it was.
+    const marsh = w.open[w.index('swamp')]
+    if (marsh && light.hidden && light.y < 0) {
+      const owner = theFrog()
+      // (It turns up on something to sit on, if there is anything: see `spots`.)
+      const [px, py, pz] = (owner && spots(owner, 3.2)[0]) ?? [(owner?.x ?? 0) + 1, GROUND + 1, owner?.z ?? 0]
+      Object.assign(light, { x: px, y: py + SIT, z: pz, from: [px, py + SIT, pz], to: [px, py + SIT, pz], rest: 1 })
+    }
+    light.hidden = !marsh || !w.night
     // Whatever would grant an open wish gives a little sparkle now and then, so that it can be found.
     for (const wish of list) {
       const at = open(wish) && !wish.sent ? wish.where?.() : undefined
@@ -433,7 +558,7 @@ export function wishes(w: Island) {
     // three in all. (A game being put back does not wait: what was granted then has to be open to be granted again.)
     let showing = list.filter(open).length
     for (const wish of list) {
-      const owner = wish.bubble ? undefined : critters.list.find((c) => (c.friend ?? c.kind) === wish.who && free(c))
+      const owner = wish.bubble || wish.granted || wish.sent ? undefined : critters.list.find((c) => (c.friend ?? c.kind) === wish.who && free(c))
       if (!owner || showing >= 3 || (!w.replaying && (time - (wish.since ??= time) < SOON || time - last < APART))) continue
       const known = friend(wish.who)!
       last = time

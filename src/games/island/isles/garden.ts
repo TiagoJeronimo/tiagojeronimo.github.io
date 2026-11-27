@@ -23,7 +23,9 @@ function letOut(w: Island, tile: number) {
         const here = tileAt(chick.x, chick.z)
         const [di, dj] = NEAR[Math.floor(Math.random() * 4)]
         const u = step(here, di, dj)
-        const to = u >= 0 && w.isle[u] === w.isle[tile] && '.ckpH'.includes(w.mark[u]) ? u : here
+        const fits = (v: number) => v >= 0 && w.isle[v] === w.isle[tile] && '.ckpH'.includes(w.mark[v])
+        // (Down from an arm of the scarecrow, where it spent the night, it is off to whichever side there is ground.)
+        const to = fits(u) ? u : w.mark[here] === 'Z' ? (NEAR.map(([i, j]) => step(here, i, j)).find(fits) ?? here) : here
         const perch = !w.alive[to] ? 0 : w.mark[to] === 'k' ? 0.43 : w.mark[to] === 'p' ? 0.37 : 0
         const roam = perch ? 0.12 : 0.5
         const [hx, hz] = [tx(to) + any() * roam, tz(to) + any() * roam]
@@ -31,7 +33,7 @@ function letOut(w: Island, tile: number) {
         const up = beat / 2
         const lead = wait >= up ? wait - up : wait + beat - up
         w.after(lead, () => {
-          if (chick.hidden || chick.nap > 0.1) return // night has fallen meanwhile: it is asleep
+          if (chick.hidden || chick.nap > 0.1 || w.night || !w.foxless(to) || w.taken(to, chick)) return // night has fallen meanwhile: it is asleep, or off to roost. Or somebody has got there first.
           w.critters.go(chick, hx, w.h[to] + perch, hz, up, 0.14, () => cheep(chick))
         })
         chick.rest = lead + Math.floor(Math.random() * 4) * beat + 0.05
@@ -153,7 +155,37 @@ export const garden: Isle = {
       w.ticks.push(() => {
         if (roost || !w.alive[tile]) return
         roost = true
-        w.perches.push([x, top + 1.66, z], [x - 0.42, top + 1, z], [x + 0.42, top + 1, z])
+        w.perches.push([x, top + 1.66, z], ...armPerches)
+      })
+      const armPerches = [[x - 0.42, top + 1, z], [x + 0.42, top + 1, z]]
+      // At nightfall the chicks, if they are out, hop up onto its arms, one each side, and sleep there; in the morning
+      // they hop down. The arms are not a perch for a bird while a chick has them, and its label owns up.
+      const arms = [-0.33, 0.33]
+      let roosting: Critter[] = []
+      let label = ''
+      w.onNight.push((night) => {
+        const scarecrow = w.things[t]
+        if (!night) {
+          if (!roosting.length) return
+          scarecrow.tip = label
+          roosting = []
+          // The arms are the birds' again once the chicks have had time to hop down.
+          return void w.after(4, () => !w.night && w.perches.push(...armPerches.filter((perch) => !w.perches.includes(perch))))
+        }
+        if (!roost) return
+        // (A bird asleep on an arm keeps it.)
+        const taken = (dx: number) => w.critters.list.some((c) => c.kind === 'bird' && !c.hidden && Math.hypot(c.x - x - dx, c.z - z) < 0.5 && c.y > top + 0.5)
+        const chicks = w.critters.list.filter((c) => c.kind === 'chick' && !c.hidden && c.nap < 0.1 && w.isle[tileAt(c.x, c.z)] === w.isle[tile])
+        roosting = chicks.slice(0, 2).filter((chick, k) => {
+          if (taken(arms[k])) return false
+          const far = Math.hypot(x + arms[k] - chick.x, z - chick.z)
+          w.critters.go(chick, x + arms[k], top + 0.97, z, 0.35 + far * 0.2, 0.6 + far * 0.12, () => (chick.face = 0))
+          return true
+        })
+        if (!roosting.length) return
+        for (const perch of armPerches) if (w.perches.includes(perch)) w.perches.splice(w.perches.indexOf(perch), 1)
+        label = scarecrow.tip ?? ''
+        scarecrow.tip = roosting.length > 1 ? 'A scarecrow, with a chick asleep on each arm. It had one job' : 'A scarecrow, with a chick asleep on one arm. It had one job'
       })
       const lodger = w.extra('secret', { icon: 'bird/b08a6a', hint: 'The hat of the scarecrow is not empty. The scarecrow has known for a while, and is being very decent about it.', at: () => w.above(tile, 2) })
       const t: number = w.thing(tile, {
@@ -164,14 +196,15 @@ export const garden: Isle = {
         tap: () => {
           const scarecrow = w.things[t]
           scarecrow.tap = undefined
-          scarecrow.tip = 'A scarecrow. Its hat is to let again'
+          scarecrow.tip = label = 'A scarecrow. Its hat is to let again' // (and that is what it says again in the morning, if chicks are on its arms now)
+          if (roosting.length) scarecrow.tip = 'A scarecrow, with chicks asleep on its arms and nobody in its hat'
           w.solid.poke(hat, 12)
           const sparrow = w.critters.spawn('bird', x, top + 1.65, z, 0xb08a6a)
           sparrow.friend = 'sparrow'
           sparrow.grow = 0.75
           sparrow.tip = 'The sparrow from the scarecrow’s hat. Scared of nothing'
           sparrow.next = w.flit
-          lodger('A secret: the scarecrow has a lodger. A sparrow has been living in its hat. It had one job, scaring birds, and took one in instead. Nobody is cross.')
+          lodger('Secret: the scarecrow has a lodger. A sparrow has been living in its hat. It had one job, scaring birds, and took one in instead. Nobody is cross.')
         },
       })
       w.put(t, 0, 0.65, 0, 0.1, 1.3, 0.1, BARK)

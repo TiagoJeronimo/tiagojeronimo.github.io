@@ -59,6 +59,8 @@ export interface Ask {
   still?: boolean
 }
 /** What a cube belongs to, where that is something to click on: a tree, a rock, a plot or a flower bed (add which one), and the rest. */
+/** How far the sun's shadow box reaches from the middle of the world, each way. */
+const SUN_REACH = 26
 export const TREE = 1000
 export const ROCK = 2000
 export const PLOT = 3000
@@ -940,10 +942,11 @@ export class Castle {
     const { key } = this
     key.position.set(-16, 30, 12)
     key.castShadow = true
-    key.shadow.bias = -0.0004
-    key.shadow.normalBias = 0.04
+    // Just enough nudge to keep stripes off flat ground: more, and a shadow starts a little way from what casts it (a blade of grass seems to float).
+    key.shadow.bias = -0.0001
+    key.shadow.normalBias = 0.01
     this.shadows(0)
-    Object.assign(key.shadow.camera, { near: 1, far: 110, left: -36, right: 36, top: 36, bottom: -36 })
+    Object.assign(key.shadow.camera, { near: 1, far: 110, left: -SUN_REACH, right: SUN_REACH, top: SUN_REACH, bottom: -SUN_REACH })
     const floor = new Mesh(new CircleGeometry(300, 32), new ShadowMaterial({ color: 0x6d4a7a, opacity: 0.25 }))
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = true
@@ -956,8 +959,13 @@ export class Castle {
     this.update(0)
   }
   /** The shadows at the size that goes with a step of the picture (see `../Picture.tsx`). */
+  // The sun's box holds the world and a little over (it reaches 24 from the middle, measured, and the camp walks in from
+  // the edge), so a map half the usual size has squares only a little coarser than before, and they are blurred over as
+  // much ground as before: as soft. The same to the eye, and a frame about a millisecond cheaper.
   shadows(tier: number) {
     shade(this.key, tier)
+    this.key.shadow.mapSize.multiplyScalar(0.5)
+    this.key.shadow.radius *= 18 / SUN_REACH
   }
   /** What it holds on the graphics card is given back: for a world that is thrown away for a new one. */
   dispose() {

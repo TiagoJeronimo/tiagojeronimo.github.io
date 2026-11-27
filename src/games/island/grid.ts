@@ -62,6 +62,8 @@ export interface Isle {
   variants?: Pick<Isle, 'rows' | 'high'>[]
   /** Characters that are beds: lower tiles that carry water once it gets there. */
   beds: string
+  /** Characters whose ground lies higher or lower than the map's heights say, and by how much of a step: a ledge on the rim, a plinth. */
+  lift?: Record<string, number>
   /** Beds that carry lava instead. */
   lava?: string
   /** Beds that fill when it rains. */

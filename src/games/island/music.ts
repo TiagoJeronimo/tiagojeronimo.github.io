@@ -98,16 +98,16 @@ function tick() {
     if (voices >= 4 && Math.random() < 0.14) tone(ctx, to, 'triangle', pitch(5 + Math.floor(Math.random() * 6), 784), at, 0.035, 0.005, 1.8)
     // A fifth, an answer on the off beats.
     if (voices >= 5 && k % 2 === 1 && Math.random() < 0.35) tone(ctx, to, 'triangle', pitch(walk - 2), at, 0.045, 0.01, 0.5)
-    // A sixth, something to keep time: a soft tick, past the filter so that it stays crisp.
+    // A sixth, something to keep time: a very soft tick, past the filter. Not too high or too loud: any more and it is a metronome.
     if (voices >= 6 && k % 2 === 0) {
       const source = ctx.createBufferSource()
       const high = ctx.createBiquadFilter()
       const gain = ctx.createGain()
       source.buffer = out.hiss
       high.type = 'highpass'
-      high.frequency.value = 6000
-      gain.gain.setValueAtTime(k === 0 ? 0.03 : 0.015, at)
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.06)
+      high.frequency.value = 3500
+      gain.gain.setValueAtTime(k === 0 ? 0.012 : 0.005, at)
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.04)
       source.connect(high).connect(gain).connect(out.gain)
       source.start(at)
       source.stop(at + 0.08)

@@ -2,7 +2,7 @@ import { Color, DynamicDrawUsage, Euler, InstancedMesh, Matrix4, MeshStandardMat
 import { ARROW } from '../basics.ts'
 import { dirty, unit } from '../cubes.ts'
 
-export type Kind = 'bird' | 'bunny' | 'tortoise' | 'duck' | 'chick' | 'penguin' | 'beaver' | 'frog' | 'crab' | 'mole' | 'marmot' | 'goat' | 'dragon' | 'fish' | 'owl' | 'ghost' | 'bat' | 'snail' | 'star' | 'balloon' | 'arrow' | 'beam' | 'bottle' | 'capybara' | 'axolotl' | 'glow' | 'bubble' | 'sails' | 'snowball' | 'pebble'
+export type Kind = 'bird' | 'bunny' | 'tortoise' | 'duck' | 'chick' | 'penguin' | 'beaver' | 'frog' | 'crab' | 'mole' | 'marmot' | 'goat' | 'fox' | 'dragon' | 'fish' | 'owl' | 'ghost' | 'bat' | 'snail' | 'star' | 'balloon' | 'arrow' | 'beam' | 'bottle' | 'capybara' | 'axolotl' | 'glow' | 'bubble' | 'sails' | 'snowball' | 'pebble'
 
 export interface Critter {
   kind: Kind
@@ -107,6 +107,10 @@ const ACTS: Record<string, [number, (u: number, pose: number[]) => void]> = {
   hop: [0.9, (u, p) => (p[LIFT] = 0.2 * Math.abs(Math.sin(u * 6.283)))], // twice, on the spot
   croak: [1.6, (u, p) => (p[PUFF] = 0.16 * Math.max(0, Math.sin(u * 12.566)))],
   sniff: [1.6, (u, p) => (p[LEAN] = (-0.3 + 0.05 * Math.sin(u * 50)) * hold(u))], // nose in the air
+  shake: [0.9, (u, p) => void ((p[COCK] = Math.sin(u * 50) * 0.45 * hold(u, 0.15)), (p[LIFT] = 0.03 * Math.abs(Math.sin(u * 50)) * hold(u, 0.15)))], // wet through: head from side to side, fast
+  pounce: [1.1, (u, p) => void ((p[LIFT] = 0.3 * Math.sin(u * Math.PI)), (p[LEAN] = 0.45 * hold(u, 0.3)))], // up, and down on her nose, on the spot
+  bow: [1.4, (u, p) => void ((p[LEAN] = 0.14 * hold(u)), (p[NOD] = 0.5 * hold(u)), (p[FLAP] = hold(u, 0.15)))], // head and front down, tail going: come and play
+  watch: [2.6, (u, p) => (p[PUFF] = 0.2 * hold(u, 0.15))], // up on its hind legs and quite still: the marmots' lookout
   stand: [2.8, (u, p) => void ((p[PUFF] = 0.2 * hold(u, 0.15)), (p[TURN] = Math.sin(u * 6.283) * 0.8))], // up on its hind legs, for a look round
 }
 /** Which of those each kind of animal does. An animal that is not here does not fidget, and does not look at things. */
@@ -123,6 +127,7 @@ const IDLE: Partial<Record<Kind, string[]>> = {
   mole: ['sniff', 'yawn'],
   marmot: ['look', 'stand', 'scratch', 'chew'],
   goat: ['graze', 'look', 'chew'],
+  fox: ['look', 'scratch', 'yawn'], // (nothing that leans: she is as long as a tile, and would lean into her neighbour)
   dragon: ['look', 'flap', 'yawn'],
   owl: ['flap', 'croak'],
   capybara: ['yawn', 'chew'],
@@ -130,7 +135,7 @@ const IDLE: Partial<Record<Kind, string[]>> = {
 // Where the head starts on those that have one apart from the body: every box at least this high up and this far
 // forward is part of it, and nods and turns with it.
 const NECKS: Partial<Record<Kind, number[]>> = {
-  bird: [0.28, -1], bunny: [0.3, -1], tortoise: [0, 0.5], duck: [0.33, 0], penguin: [0.48, -1], beaver: [0.2, 0.19], marmot: [0.36, -1], goat: [0.4, 0.2], dragon: [0.32, 0], capybara: [0.3, 0.3],
+  bird: [0.28, -1], bunny: [0.3, -1], tortoise: [0, 0.5], duck: [0.33, 0], penguin: [0.48, -1], beaver: [0.2, 0.19], marmot: [0.36, -1], goat: [0.4, 0.2], fox: [0.36, 0.2], dragon: [0.32, 0], capybara: [0.3, 0.3],
 }
 /** The boxes of an animal that are its head: none for one whose head is its body. */
 export const headOf = (kind: Kind, parts: number[][]) => {
@@ -276,6 +281,26 @@ const SHAPES: Record<Kind, (c: number) => number[][]> = {
     [0.105, 0.6, 0.36, 0.02, 0.04, 0.04, EYE],
     [-0.105, 0.6, 0.36, 0.02, 0.04, 0.04, EYE],
     [0, 0.48, -0.27, 0.08, 0.08, 0.05, c],
+  ],
+  // A fox: orange, dark socks and ears, a big head with a pale muzzle, a cream bib, and a thick tail with a white
+  // tip that wags (it is marked as a wing is). No longer than a tile from nose to tail, so that she fits on one
+  // whichever way she stands. Asleep she is laid out another way altogether: see `CURLED`.
+  fox: (c) => [
+    [0, 0.25, -0.02, 0.26, 0.2, 0.36, c],
+    [0.09, 0.075, 0.11, 0.07, 0.15, 0.07, 0x5b463c],
+    [-0.09, 0.075, 0.11, 0.07, 0.15, 0.07, 0x5b463c],
+    [0.09, 0.075, -0.15, 0.07, 0.15, 0.07, 0x5b463c],
+    [-0.09, 0.075, -0.15, 0.07, 0.15, 0.07, 0x5b463c],
+    [0, 0.47, 0.24, 0.3, 0.24, 0.24, c],
+    [0, 0.41, 0.4, 0.14, 0.1, 0.08, 0xfff3df],
+    [0, 0.44, 0.455, 0.05, 0.04, 0.03, 0x4a3b3b],
+    [0.1, 0.65, 0.22, 0.09, 0.12, 0.06, 0x5b463c],
+    [-0.1, 0.65, 0.22, 0.09, 0.12, 0.06, 0x5b463c],
+    [0.155, 0.5, 0.3, 0.02, 0.05, 0.05, EYE],
+    [-0.155, 0.5, 0.3, 0.02, 0.05, 0.05, EYE],
+    [0, 0.24, 0.17, 0.16, 0.14, 0.02, 0xfff3df],
+    [0, 0.3, -0.3, 0.18, 0.18, 0.2, c, 1],
+    [0, 0.3, -0.445, 0.14, 0.14, 0.09, 0xffffff, 1],
   ],
   dragon: (c) => [
     [0, 0.18, 0, 0.26, 0.24, 0.36, c],
@@ -440,6 +465,32 @@ const SHAPES: Record<Kind, (c: number) => number[][]> = {
   ],
 }
 
+/**
+ * How an animal lies when it is fast asleep, for one that does more than go flat: the same boxes in the same order, each
+ * with another place and size (a size of nothing for what is tucked away underneath). The fox curls up: a loaf of a
+ * body, her head down in front of it with her nose to one side, her tail brought round to her nose, her legs under
+ * her, and her eyes two shut lines. Awake to asleep, each box goes from the one place to the other.
+ */
+const CURLED: Partial<Record<Kind, number[][]>> = {
+  fox: [
+    [-0.07, 0.11, -0.08, 0.4, 0.22, 0.3],
+    [-0.07, 0.05, -0.08, 0, 0, 0],
+    [-0.07, 0.05, -0.08, 0, 0, 0],
+    [-0.07, 0.05, -0.08, 0, 0, 0],
+    [-0.07, 0.05, -0.08, 0, 0, 0],
+    [-0.13, 0.12, 0.19, 0.26, 0.24, 0.24],
+    [0.04, 0.07, 0.19, 0.08, 0.1, 0.14],
+    [0.095, 0.09, 0.19, 0.03, 0.04, 0.05],
+    [-0.04, 0.29, 0.12, 0.09, 0.1, 0.06],
+    [-0.22, 0.29, 0.12, 0.09, 0.1, 0.06],
+    [-0.06, 0.15, 0.315, 0.07, 0.02, 0.01],
+    [-0.2, 0.15, 0.315, 0.07, 0.02, 0.01],
+    [-0.07, 0.05, -0.08, 0, 0, 0],
+    [0.23, 0.09, 0.02, 0.18, 0.18, 0.3],
+    [0.23, 0.08, 0.235, 0.14, 0.14, 0.13],
+  ],
+}
+
 /** The boxes one of them is made of: for a picture of it on the map. */
 export const shapeOf = (kind: Kind, color: number) => SHAPES[kind](color)
 
@@ -583,18 +634,24 @@ export class Critters {
       const waddle = moving && !c.arc && !c.tilt && !STEADY.includes(c.kind) ? Math.sin(time * (c.kind === 'tortoise' ? 7 : 13)) * 0.1 : 0
       const flap = (air || (moving && c.kind === 'crab') ? 1 : flutter) * Math.sin(time * 32) * 0.07
       const k = c.size * c.grow * (1 + c.pet * 0.3 * Math.sin(c.pet * 14))
-      const squash = 1 - c.nap * 0.32 + c.nap * 0.03 * Math.sin(time * 1.6 + c.first) // asleep: flatter, and breathing
+      const curled = c.nap > 0.001 ? CURLED[c.kind] : undefined
+      const curl = c.nap * c.nap * (3 - 2 * c.nap)
+      const squash = 1 - (curled ? 0 : c.nap * 0.32) + c.nap * 0.03 * Math.sin(time * 1.6 + c.first) // asleep: flatter (or curled up), and breathing
       _q.setFromEuler(_e.set(c.tilt + lean, c.yaw, waddle + c.roll))
       const head = c.neck && (nod || turned || cock) ? _n.fromArray(c.neck) : undefined
       if (head) _qh.multiplyQuaternions(_q, _h.setFromEuler(_e.set(nod, turned, cock)))
       c.parts.forEach((part, n) => {
         const heady = head && part[8]
+        const lie = curled?.[n]
         _p.set(part[0], part[1] + (part[7] ? flap : 0), part[2])
+        if (lie) _p.set(_p.x + (lie[0] - _p.x) * curl, _p.y + (lie[1] - _p.y) * curl, _p.z + (lie[2] - _p.z) * curl)
         if (heady) _p.sub(head).applyQuaternion(_h).add(head)
         _p.y *= (1 + stretch) * squash
         _p.multiplyScalar(k).applyQuaternion(_q)
         _p.set(_p.x + c.x + c.ox, _p.y + c.y + lift * k, _p.z + c.z + c.oz)
-        _s.set(part[3] * (1 - stretch * 0.4), part[4] * (1 + stretch) * squash, part[5] * (1 - stretch * 0.4)).multiplyScalar(k)
+        _s.set(part[3], part[4], part[5])
+        if (lie) _s.set(_s.x + (lie[3] - _s.x) * curl, _s.y + (lie[4] - _s.y) * curl, _s.z + (lie[5] - _s.z) * curl)
+        _s.set(_s.x * (1 - stretch * 0.4), _s.y * (1 + stretch) * squash, _s.z * (1 - stretch * 0.4)).multiplyScalar(k)
         this.mesh.setMatrixAt(c.first + n, _m.compose(_p, heady ? _qh : _q, _s))
       })
     }

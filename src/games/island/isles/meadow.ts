@@ -1,6 +1,6 @@
 import { note } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
-import { BARK, GROUND, NEAR, NEVER, STONE, WOOD, any, tx, tz, type Isle } from '../grid.ts'
+import { BARK, GROUND, NEAR, NEVER, STONE, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
 
 function wakeTortoise(w: Island, tile: number, tortoise: Critter) {
@@ -124,8 +124,12 @@ export const meadow: Isle = {
           for (let k = 0; k < 3; k++)
             w.after(0.3 + k * 0.6, () => {
               // Up out of the hole in one jump, and off.
+              // (Each onto open ground of its own beside the hole, the south side first: they used to come down three
+              // abreast on the front edge of the hole's own tile, touching, and in whoever stood on the next one.)
               const bunny = w.critters.spawn('bunny', x, top - 0.25, z, [0xffffff, 0xe9d3b4, 0xcbb7a6][k])
-              w.critters.go(bunny, x + (k - 1) * 0.3, top, z + 0.34, 0.4, 0.8, () => (bunny.next = w.hop))
+              const out = [[0, 1], [-1, 1], [1, 1], [-1, 0], [1, 0], [0, -1], [-1, -1], [1, -1]].map(([di, dj]) => step(tile, di, dj)).find((u) => u >= 0 && w.free(u) && Math.abs(w.h[u] - top) < 0.1)
+              if (out === undefined) w.critters.go(bunny, x + (k - 1) * 0.3, top, z + 0.34, 0.4, 0.8, () => (bunny.next = w.hop))
+              else w.critters.go(bunny, tx(out) + any() * 0.3, top, tz(out) + any() * 0.3, 0.5, 0.9, () => (bunny.next = w.hop))
               note(0.7 + k * 0.1, 0.06)
             })
         },
@@ -158,7 +162,7 @@ export const meadow: Isle = {
           chick.grow = 0.65
           chick.tip = 'A bluebird, just hatched. Already has places to be'
           chick.next = w.flit
-          hatched('A secret: the egg at the top of the bare trunk. A bluebird, and already in a hurry. One minute old and behind on everything. Welcome.')
+          hatched('Secret: the egg at the top of the bare trunk. A bluebird, and already in a hurry. One minute old and behind on everything. Welcome.')
         },
       })
       w.put(t, 0, 1, 0, 0.3, 2, 0.3, WOOD)
@@ -213,6 +217,7 @@ export const meadow: Isle = {
       // A windmill. Ivy has tied its sails down, and there is a whole season of seed heads waiting for a wind.
       const mill: number = w.thing(tile, { tip: 'A windmill. Ivy has its sails', play: () => w.things[t].play?.() })
       w.memo.mill = tile
+      for (const di of [-1, 1]) if (step(tile, di, 1) >= 0) w.roofed[step(tile, di, 1)] = 1 // the sails come round low there: nobody who hops goes under them
       w.put(mill, 0, 0.6, 0, 0.9, 1.2, 0.9, 0xf3ead8)
       w.put(mill, 0, 1.7, 0, 0.74, 1.0, 0.74, 0xfbf4e6)
       w.put(mill, 0, 2.3, 0, 0.92, 0.2, 0.92, 0xe9806f)
@@ -223,6 +228,8 @@ export const meadow: Isle = {
       sails.roll = 0.5
       sails.hidden = true
       w.sleepers[w.isle[tile]].push(sails)
+      // When the sails start to turn, whoever is near sits and watches one of them go round: head and all.
+      const watched = () => w.after(1.2, () => w.notice(() => (sails.hidden ? undefined : [sails.x + Math.cos(sails.roll) * 1.3, sails.y + Math.sin(sails.roll) * 1.3, sails.z]), 4.5, 4.5))
       let turning = 0 // how fast the sails go round
       let freed = Infinity
       let on = true // once it is free, a click stops it and the wind with it, and another sets both going again
@@ -233,6 +240,7 @@ export const meadow: Isle = {
         play: () => {
           on = !on
           w.memo.wind = on ? 1 : 0
+          if (on) watched()
           w.things[t].tip = w.things[mill].tip = on ? 'The windmill. A click stops it, and the wind with it' : 'The windmill, stopped. A click sets it going again, and the wind with it'
         },
         tip: 'Ivy, holding the sails of the windmill down. It means well',
@@ -241,6 +249,7 @@ export const meadow: Isle = {
           const [sx, sz] = w.middle('swamp')
           freed = w.time
           w.memo.wind = 1
+          watched()
           sails.thing = undefined
           sails.onPat = () => void w.strike(t) // a click on the sails is a click on the mill
           Object.assign(w.things[t], { tip: 'The windmill. A click stops it, and the wind with it', sound: 'creak' })

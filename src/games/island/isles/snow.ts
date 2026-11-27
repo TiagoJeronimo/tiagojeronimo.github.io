@@ -11,6 +11,8 @@ function slideDown(w: Island, penguin: Critter) {
   const tile = w.memo.slideTile
   const pond = step(tile, -1, 0)
   const z = tz(tile)
+  // (Not with the fox standing in the way of the hop up, or of the slide down: it paddles on, and slides another time.)
+  if (w.foxOnWay(penguin.x, penguin.z, tx(tile) + 0.3, z) || w.foxOnWay(tx(tile), z, tx(pond), z)) return w.paddle(penguin)
   w.critters.go(penguin, tx(tile) + 0.3, w.h[tile] + 0.95, z, 1.1, 0.7, () => {
     penguin.tilt = 1.35
     w.critters.go(penguin, tx(pond), w.h[pond] + 0.5, z, 0.7, 0, () => {
@@ -120,7 +122,7 @@ export const snow: Isle = {
         'THE SNOW. Mind the ice: it is only water that gave up on moving.',
         'It is quiet up here. The sign used to think that was peace. Now it suspects it is just the cold.',
         `If you can read this, you are ${w.touch ? 'a finger' : 'a cursor'}. No judgement. The penguin cannot read at all.`,
-      ])
+      ], [[tx(tile) + 0.2, top + 0.02, tz(tile) + 1]]) // whoever walks over goes by the slab of ice
     } else if (c === 'P') {
       // Frozen in up to the neck.
       const penguin = w.critters.spawn('penguin', x, top + 0.25, z)
@@ -151,13 +153,15 @@ export const snow: Isle = {
         if (!lit || !w.night) return
         // A ring round it, and a wider one for latecomers, wherever there is ground: whoever finds no room stays put.
         const near = w.around(x, z, 1.25, top)
-        const places = [...near, ...w.around(x, z, 2, top, 16)]
+        const apart = (place: number[]) => near.every((other) => Math.hypot(other[0] - place[0], other[2] - place[2]) > 0.6) // (no two places so close that two birds would sit in each other)
+        const places = [...near, ...w.around(x, z, 2, top, 16).filter(apart)]
         const guests = w.critters.list.filter((c) => !c.hidden && c.thing === undefined && c.next && (c.kind === 'bird' || (c.kind === 'penguin' && !w.memo.spring))).slice(0, places.length)
         guests.forEach((c, k) => {
           // Spread out, while the near ring has room for all of them.
           const [gx, gy, gz, a] = places[guests.length <= near.length ? Math.floor((k * near.length) / guests.length) : k]
           const far = Math.hypot(gx - c.x, gz - c.z)
           const flies = c.kind === 'bird'
+          if (!flies && w.foxOnWay(c.x, c.z, gx, gz)) return // the penguin walks there in a straight line: not through the fox
           w.critters.go(c, gx, gy, gz, flies ? 0.6 + far / 6 : 0.4 + far * 0.45, flies ? 0.5 + far * 0.1 : 0, () => (c.face = a + Math.PI))
         })
       }
@@ -242,7 +246,7 @@ export const snow: Isle = {
           slide.cubes.forEach((cube, k) => solid.show(cube, 0.5 + k * 0.1))
           slide.tip = 'A slide, for the penguin. Made of leftovers, like most joy'
           w.memo.slide = 1
-          built('A secret: a snowman. And while the snow was out, a slide for the penguin. You made a person out of weather. He seems all right about it.')
+          built('Secret: a snowman. And while the snow was out, a slide for the penguin. You made a person out of weather. He seems all right about it.')
         },
       })
       const heap = w.put(t, 0, 0.14, 0, 0.7, 0.28, 0.7, 0xffffff)
@@ -306,10 +310,12 @@ export const snow: Isle = {
       if (!night || !w.memo.spring) return
       const about = w.critters.list.filter((c) => !c.hidden && c.thing === undefined && c.next) // as round the fire: nobody is called away from something it is in the middle of
       const penguin = about.find((c) => c.kind === 'penguin')
-      if (penguin) w.critters.go(penguin, tx(pool[0]) + 0.1, w.h[pool[0]] + 0.18, tz(pool[0]), 0.6 + Math.hypot(tx(pool[0]) - penguin.x, tz(pool[0]) - penguin.z) * 0.4, 0.4)
+      const taken = w.critters.list.some((c) => c.kind === 'capybara' && !c.hidden && Math.hypot(c.x - tx(pool[0]), c.z - tz(pool[0])) < 0.8) // (the capybara got there first)
+      if (penguin && !taken && !w.foxOnWay(penguin.x, penguin.z, tx(pool[0]), tz(pool[0]))) w.critters.go(penguin, tx(pool[0]) + 0.1, w.h[pool[0]] + 0.18, tz(pool[0]), 0.6 + Math.hypot(tx(pool[0]) - penguin.x, tz(pool[0]) - penguin.z) * 0.4, 0.4)
       if (w.memo.fire) return
       // Along the bank: on the ground round the water, wherever there is some, and not in it.
-      const bank = [...w.around(px, pz, 1.5, w.h[pool[0]] + 0.6), ...w.around(px, pz, 2.2, w.h[pool[0]] + 0.6, 16)]
+      const inner = w.around(px, pz, 1.5, w.h[pool[0]] + 0.6)
+      const bank = [...inner, ...w.around(px, pz, 2.2, w.h[pool[0]] + 0.6, 16).filter((place) => inner.every((other) => Math.hypot(other[0] - place[0], other[2] - place[2]) > 0.6))]
       const birds = about.filter((c) => c.kind === 'bird').slice(0, bank.length)
       birds.forEach((bird, k) => {
         const [bx, by, bz, a] = bank[k]

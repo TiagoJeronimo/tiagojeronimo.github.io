@@ -17,7 +17,7 @@ const ISLES: Record<string, string> = { island: 'The island', meadow: 'The meado
 // Who is drawn how: the kind of animal and its colour.
 const FACES: Record<string, string> = {
   bird: 'bird/7cc4f5', bunny: 'bunny/ffffff', tortoise: 'tortoise/8fae6a', chick: 'chick/ffe07a', flock: 'bird/ffd45c', duck: 'duck/ffffff', beaver: 'beaver/b07a55', fish: 'fish/ff7a2f', penguin: 'penguin/ffffff',
-  frog: 'frog/7fca6c', ghost: 'ghost/f4f8ff', crab: 'crab/ff7a5c', dragon: 'dragon/7fd6a8', mole: 'mole/5d5560', marmot: 'marmot/c9a06b', goat: 'goat/f4efe6', eagle: 'bird/9a7b62', owl: 'owl/b9a58a',
+  frog: 'frog/7fca6c', ghost: 'ghost/f4f8ff', crab: 'crab/ff7a5c', dragon: 'dragon/7fd6a8', mole: 'mole/5d5560', marmot: 'marmot/c9a06b', goat: 'goat/f4efe6', eagle: 'bird/9a7b62', owl: 'owl/b9a58a', fox: 'fox/f08a4b',
 }
 const TABS = ['Map', 'Friends', 'Finds', 'Log']
 // Small pictures a character a pixel, for the journal's corners: on each tab, and in the log when it has little to say.
@@ -46,7 +46,7 @@ const HUES: Record<string, string> = {
   bees: 'ffc21f', bunny: 'f08fa8', duck: 'ffa23f', penguin: '4a6fa8', goat: 'c9a06b', ghost: '8fb0ea', windmill: 'e9806f', shell: 'f08fa8', 'old tree': '8a6d58', fire: 'ff8a3c', geyser: '5cb8ee', snowman: '7fb4e8',
   snowball: '7fb4e8', lantern: 'ffc21f', volcano: 'ff6a3c', cactus: '5fa85a', river: '4fa8e8', 'fairy ring': 'e0527f', bats: '7a5fa0', balloon: 'e9605a', bottle: '4fb894', 'falling star': 'ffc21f', snail: 'ff7a6b',
   capybara: 'b98a5e', axolotl: 'f58fb0',
-  secret: 'ffc21f', // "A secret: ..." has the word itself in gold
+  secret: 'ffc21f', // "Secret: ..." has the word itself in gold
   // Lines of these kinds are not about a thing with a name to pick out: only what a tip marks itself stands out in them.
   tip: '', combo: '', 'about you': '',
 }

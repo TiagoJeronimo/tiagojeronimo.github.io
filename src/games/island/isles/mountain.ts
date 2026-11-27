@@ -13,6 +13,14 @@ function ring(w: Island, tile: number, loud: boolean) {
   w.rumble(0.25)
   w.notice([tx(tile), w.h[tile] + 0.9, tz(tile)], 1.5)
   for (let k = 0; k < 18; k++) w.bits.spawn(tx(tile), w.h[tile] + 0.9, tz(tile), Math.cos(k * 0.35) * 7, 0, Math.sin(k * 0.35) * 7, 0.12, 0xffd86b, 0.8, NEVER, 0, 0, 2)
+  // The goat gives a hop on its ledge at the sound, and the marmots that are up look round at it.
+  const goat = w.critters.list.find((c) => c.kind === 'goat' && !c.hidden)
+  if (goat)
+    w.after(0.9, function hop(tries = 6) {
+      // (In the middle of a step just then, it hops as soon as it has both feet down.)
+      if (!w.critters.perform(goat, 'hop')) return void (typeof tries === 'number' && tries > 0 && w.after(0.35, () => hop(tries - 1)))
+      for (const c of w.critters.list) if (c.kind === 'marmot' && c.next && w.critters.lively(c) && Math.hypot(c.x - goat.x, c.z - goat.z) < 7) w.after(0.8, () => w.critters.look(c, goat, 2))
+    })
   if (!loud) return
   for (const hole of burrows.get(w) ?? []) w.things[hole].tip = 'A burrow in the rock. Empty. The bell saw to that'
   // Each marmot is called out once. (They used to be told again at every ring until they were up, and a bell rung fast
@@ -246,7 +254,7 @@ export const mountain: Isle = {
           until = Math.max(until, w.time + 12)
           if (woken) w.say('And off the bats go again. You woke them twice. They are not keeping count. You are.', 'bats')
           woken = true
-          crystals('A secret: a cave on the far side of the mountain, full of crystals. And of bats. The prettiest room in the world, and it is kept by things that hang up to sleep.')
+          crystals('Secret: a cave on the far side of the mountain, full of crystals. And of bats. The prettiest room in the world, and it is kept by things that hang up to sleep.')
           out()
         },
       })

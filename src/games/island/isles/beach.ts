@@ -1,6 +1,6 @@
-import { note, thump } from '../../../sound.ts'
+import { note, thump, thunder } from '../../../sound.ts'
 import type { Critter } from '../critters.ts'
-import { BARK, NEAR, NEVER, RING, STONE, W, WOOD, any, step, tx, tz, type Isle } from '../grid.ts'
+import { BARK, NEAR, NEVER, RING, STONE, W, WOOD, any, step, tileAt, tx, tz, type Isle } from '../grid.ts'
 import type { Island } from '../Island.ts'
 import { croak } from './swamp.ts'
 
@@ -26,7 +26,9 @@ function tides(w: Island, s: number, from: number, hole: number) {
   // The stones go west from the beach, one for every tile of sea between it and the islet.
   const stones = [1, 2, 3].map((k) => w.solid.add(tx(from) - k + (k % 2 ? 0.08 : -0.1), w.h[from] - 0.1, tz(from) + (k % 2 ? 0.14 : -0.12), 0.5, 0.2, 0.42, STONE[k % 3], -2 - from, false))
   let found = false
-  return (high: boolean) => {
+  // Whoever goes about on foot may cross by them, a stone at a hop, while they are there to stand on.
+  w.crossing(from, from - 4, [1, 2, 3].map((k) => [tx(from) - k + (k % 2 ? 0.08 : -0.1), w.h[from], tz(from) + (k % 2 ? 0.14 : -0.12)]), () => stones.every((cube) => w.solid.on(cube)))
+  return (high: boolean, plugged = false) => {
     w.memo.tide = high ? 1 : 0
     lagoon.forEach((u, k) =>
       w.after(k * 0.12, () => {
@@ -35,14 +37,27 @@ function tides(w: Island, s: number, from: number, hole: number) {
         else w.drain(u)
       }),
     )
-    ;[...left, ...stones].forEach((cube, k) => (high ? w.solid.hide(cube, k * 0.03) : w.solid.show(cube, 0.8 + k * 0.05)))
+    // The first time, the stones wait for the islet and come up as part of it (below), one after another out to it.
+    ;[...left, ...(found || high ? stones : [])].forEach((cube, k) => (high ? w.solid.hide(cube, k * 0.03) : w.solid.show(cube, 0.8 + k * 0.05)))
+    if (high && plugged) return w.say('The plug goes back in, and the sea, which had been waiting just outside, comes back over the starfish and the stones. The starfish had only just got used to it. They always have only just got used to it.', 'plug')
     if (high) return w.say('The shell calls, and the tide comes back in over the starfish and the stones. The plug hops back in by itself. The starfish had only just got used to it. They always have only just got used to it.', 'shell')
     // The first time the sea goes out, one line for all of it: the islet the stones lead to comes up two seconds on.
     w.say(found ? 'The plug comes out again, and the sea leaves. Starfish, shells, and a row of stones that goes somewhere. You pulled the plug on an ocean. It should be harder than that.' : 'The plug comes out, and the sea goes down the hole after it. Stones lead west, to a scrap of sand nobody has stood on in years. It has a lighthouse. For whom is not clear.', 'plug')
     if (found) return
     found = true
     w.after(2.2, () => {
-      w.raise('islet')
+      // The two are one movement: the stones come up one, two, three, each with a note and a few drops, and the sand
+      // grows outwards from where the third one lands.
+      const lead = w.raise('islet', tx(from) - 4, tz(from))
+      stones.forEach((cube, k) =>
+        w.after(lead + 0.1 + k * 0.3, () => {
+          // (Not into a tide that has come back in the meantime: the next low tide shows them, as it does from now on.)
+          if (w.memo.tide) return
+          w.solid.show(cube)
+          note(0.5 + k * 0.12, 0.08)
+          w.splash(tx(from) - k - 1, 0.1, tz(from), 3)
+        }),
+      )
       for (const u of w.tiles[w.index('islet')]) w.wakeAt[u] = w.time + 2 + Math.random() * 1.5
     })
   }
@@ -53,7 +68,15 @@ const SHAPE = [[0, 0.45, 0.3, 0.9], [-0.27, 0.5, 0.26, 0.12], [-0.34, 0.7, 0.14,
 /** What the shell's label says with the sea out, and with it in. */
 const SHELL = ['The shell that calls the tide. Blow it, and the sea comes back in. It does not ask why', 'The shell that calls the tide. The sea is in. To let it out again, there is a plug']
 /** And the plug's. */
-const PLUG = ['A plug, pulled, and a duck with nothing to float on. The shell calls the sea back', 'A plug, on a chain, and the duck that minds it. Knock, and out it comes']
+const PLUG = ['A plug, pulled, and a duck with nothing to float on. Knock, and it goes back in, and the sea with it', 'A plug, on a chain, and the duck that minds it. Knock, and out it comes']
+/**
+ * The lighthouse's storm cloud, in lumps: across, up and along from its middle, and size. And its colour. It is made as
+ * the frog's cloud is (`CLOUD` in `Island.ts`: one big lump, a smaller one to either side and a little lower, one on
+ * top towards the back, one in front), in a shape of its own and a little smaller: the two are one family. Where two
+ * lumps meet, no face of the one is within a tenth of a face of the other: two faces nearly in one plane flicker.
+ */
+const PUFFS = [[0, 0, 0, 1.3], [-0.9, -0.24, 0.3, 0.95], [0.85, -0.26, -0.32, 0.9], [-0.15, 0.5, -0.1, 0.75], [0.45, 0.08, 0.7, 0.7]]
+const GREY = 0xa9a6b8
 /** The duck, in boxes, from where it sits: across, up and along, its size, and its colour. Body, head, beak, tail. */
 const DUCK = [[0, 0.09, 0, 0.26, 0.18, 0.32, 0xffd45c], [0, 0.25, 0.1, 0.17, 0.16, 0.17, 0xffd45c], [0, 0.23, 0.22, 0.09, 0.05, 0.08, 0xf5a742], [0, 0.2, -0.18, 0.1, 0.09, 0.06, 0xffd45c]]
 
@@ -70,12 +93,12 @@ function plug(w: Island, s: number) {
   if (tile === undefined || !shell) return
   const [x, z, floor] = [tx(tile), tz(tile), w.h[tile]]
   const bank = w.h[step(tile, 0, 1)] - floor // how far the bank to the south stands above the floor of the lagoon
-  let turn: ((high: boolean) => void) | undefined
+  let turn: ((high: boolean, plugged?: boolean) => void) | undefined
   let told = false
-  const set = (high: boolean) => {
+  const set = (high: boolean, plugged = false) => {
     // The beach's west edge, level with the islet, is where the stones start.
     turn ??= tides(w, s, w.tiles[s].filter((u) => tz(u) === tz(beach.at[0] + (beach.at[1] + 3) * W)).sort((a, b) => tx(a) - tx(b))[0], tile)
-    turn(high)
+    turn(high, plugged)
     seated.forEach((cube, k) => (high ? w.solid.show(cube, 2.2 + k * 0.06) : w.solid.hide(cube)))
     pulled.forEach((cube, k) => (high ? w.solid.hide(cube) : w.solid.show(cube, 0.25 + k * 0.06)))
     w.things[t].tip = PLUG[+high]
@@ -89,11 +112,17 @@ function plug(w: Island, s: number) {
     auto: false,
     sound: 'squeak', // (that is the duck)
     tip: PLUG[1],
-    fuss: 'It is out. It cannot be more out. The duck has said so six times.',
+    fuss: 'In, out, in, out. The duck would like a word with whoever is in charge of the sea. That is you.',
     // It is not there to be seen until the first tide brings it up (the shell does that: `grow`).
     wake: () => [...seated, ...ashore, ...duck].forEach((cube, k) => w.solid.show(cube, k * 0.06)),
     tap: () => {
-      if (!w.memo.tide) return
+      // Pulled, a knock puts it back, and the sea comes back in as it does for the shell.
+      if (!w.memo.tide) {
+        if (!turn) return
+        thump()
+        w.word('plop', x, floor + 1.1, z)
+        return set(true, true)
+      }
       thump()
       w.word('pop', x, floor + 1.1, z)
       // The water turns once round the hole on its way down.
@@ -192,7 +221,11 @@ function hammock(w: Island, s: number) {
     for (const cube of cloth) w.solid.lean(cube, -dj * rock, di * rock, top + 0.86)
     const crab = lounger ?? w.critters.list.find((c) => c.kind === 'crab' && c.next === w.hop)
     if (!crab) return
-    if (on) {
+    if (on && crab.t < 1) {
+      // Called away (it has an oyster to see to): out of the hammock, and no longer held to it.
+      on = false
+      lounger = undefined
+    } else if (on) {
       Object.assign(crab, { x: mx + dj * rock * 0.18, y: top + 0.72, z: mz - di * rock * 0.18, face: Math.atan2(-dj, di) })
       if (time < until) return
       on = false
@@ -225,7 +258,7 @@ export const beach: Isle = {
     '.T..llll.x...',
     '....lll....B.',
     ' .c..ll...T. ',
-    '  ....l.S..  ',
+    '  ..P.l.S..  ',
     '    .....    ',
   ],
   high: ['   11        ', '   111       '],
@@ -241,7 +274,7 @@ export const beach: Isle = {
         '..llll.x.....',
         '..llll....B..',
         ' T.ll....cT. ',
-        '  .....S...  ',
+        '  .....S.P.  ',
         '    .....    ',
       ],
       high: ['         11  ', '        111  '],
@@ -255,13 +288,14 @@ export const beach: Isle = {
         '..c...lll....',
         '....B...lll..',
         ' ....ST.ll.T ',
-        '  .y....l..  ',
+        '  .y.P..l..  ',
         '    .....    ',
       ],
       high: ['', '', '', '', '', '  11         ', '  111        '],
     },
   ],
   beds: 'l',
+  lift: { P: 0.5 }, // a plinth of sand, half a step up: where the crab sets down its oyster (`wishes.ts`)
   loose: 'cxyTBS',
   finds: 'cxyS',
   look: {
@@ -403,7 +437,7 @@ export const beach: Isle = {
         'THE BEACH. No running, no diving, no working out how many grains there are.',
         'The sea comes and goes. The sign stays. Neither is sure who got the better deal.',
         `Swim at your own risk. You are ${w.touch ? 'one finger' : 'a mouse pointer'}. The risk is low.`,
-      ])
+      ], [[tx(tile), w.h[tile], tz(tile) - 0.78], [tx(tile) + 0.12, w.h[tile], tz(tile) - 1.3]]) // whoever walks over goes by the two stones
     } else if (c === 'S') {
       // A sandcastle somebody left behind. Three pats and it has its flag back.
       const flagged = w.extra('secret', { icon: 'castle', hint: 'Somebody left a castle on the beach without its flag. Three pats. Finish what a stranger started. It is how anything gets built.', at: () => w.above(tile, 1.1) })
@@ -417,7 +451,7 @@ export const beach: Isle = {
           if (++pats !== 3) return
           w.grow(t)
           w.things[t].tip = 'A sandcastle, flag and all. Finished, for now, like everything good'
-          flagged('A secret: the sandcastle has its flag back. The tide will have it by Thursday. You gave it a flag anyway. That is the whole trick.')
+          flagged('Secret: the sandcastle has its flag back. The tide will have it by Thursday. You gave it a flag anyway. That is the whole trick.')
         },
       })
       w.put(t, 0, 0.14, 0, 0.7, 0.28, 0.7, 0xf0dca0)
@@ -483,37 +517,118 @@ export const islet: Isle = {
 
   lay(w, tile, c) {
     if (c === 'L') {
-      // By day a striped tower. At night its lamp is lit and turns, and where it faces a pool of light goes round.
-      const t = w.thing(tile, {
+      // By day a striped tower. At night its lamp is lit and turns, and where it faces a pool of light goes round. A
+      // click at night puts the lamp out, and the next one lights it again: it is lit afresh every nightfall.
+      let out = false
+      const LIT = 'A lighthouse. It works nights'
+      const light = () => {
+        const lit = w.night && !out
+        w.critters.paint(lamp, [0], 0xfff3a8, lit ? 4.5 : 1)
+        w.critters.paint(lamp, [1], 0xffffff, lit ? 8 : 1)
+        w.things[t].tip = w.night && out ? 'A lighthouse, lamp out. Knock, and it is lit again' : LIT
+      }
+      const t: number = w.thing(tile, {
         auto: false,
         sound: 'clink',
         fuss: 'It is a lighthouse. It does one thing. You have now been told six times.',
-        tip: 'A lighthouse. It works nights',
+        tip: LIT,
         // A toy: it says its piece every time, and there is nothing in it to find, so it does not stir to be found.
         play: () => {
           lamp.pet = 1 // the lamp is not one of the tower's cubes: it gets its jolt by hand
-          w.say(w.night ? 'The lamp goes round and round. Somewhere a ship that is not there is grateful. The lighthouse does it for the one that might be.' : 'A lighthouse. It keeps office hours: nights only. By day it is a tall building with a secret.')
+          if (!w.night) return w.say('A lighthouse. It keeps office hours: nights only. By day it is a tall building with a secret.')
+          out = !out
+          light()
+          w.say(out ? 'The lamp goes out. The ship that is not there will have to manage. It has so far.' : 'The lamp goes round and round. Somewhere a ship that is not there is grateful. The lighthouse does it for the one that might be.')
         },
       })
-      ;[0xfffbf2, 0xe9806f, 0xfffbf2, 0xe9806f].forEach((color, k) => w.put(t, 0, 0.25 + k * 0.5, 0, 0.7 - k * 0.08, 0.5, 0.7 - k * 0.08, color))
-      w.put(t, 0, 0.2, 0.36, 0.2, 0.36, 0.03, 0x5b4636)
-      w.put(t, 0, 2.04, 0, 0.66, 0.08, 0.66, 0x4a4458)
-      const roof = w.put(t, 0, 2.49, 0, 0.5, 0.1, 0.5, 0xd96f60)
-      w.put(t, 0, 2.61, 0, 0.2, 0.14, 0.2, 0xd96f60)
+      // The tower: a stone foot, four bands that narrow as they go up (white, red, white, red), a door with a lintel
+      // and a step, two windows; a walk round the top with a railing; the lamp, which is the lamp room; and on
+      // it a roof in three steps with a spike.
+      const [WHITE, RED, DARK, STONEY] = [0xfffbf2, 0xe9806f, 0x4a4458, 0xcfc8d8]
+      w.put(t, 0, 0.07, 0, 0.9, 0.14, 0.9, STONEY)
+      ;[[0.44, 0.6, 0.72, WHITE], [0.99, 0.5, 0.64, RED], [1.49, 0.5, 0.56, WHITE], [1.89, 0.3, 0.5, RED]].forEach(([y, high, wide, color]) => w.put(t, 0, y, 0, wide, high, wide, color))
+      w.put(t, 0, 0.33, 0.37, 0.22, 0.38, 0.02, 0x5b4636)
+      w.put(t, 0, 0.55, 0.375, 0.3, 0.06, 0.03, STONEY)
+      w.put(t, 0, 0.03, 0.52, 0.3, 0.06, 0.14, STONEY)
+      w.put(t, 0, 1.5, 0.29, 0.14, 0.18, 0.02, 0x7fb6e0)
+      w.put(t, 0, 1.385, 0.295, 0.2, 0.05, 0.03, STONEY)
+      w.put(t, 0.33, 1.0, 0, 0.02, 0.16, 0.12, 0x7fb6e0)
+      w.put(t, 0, 2.08, 0, 0.8, 0.08, 0.8, DARK)
+      for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) w.put(t, dx * 0.375, 2.2, dz * 0.375, 0.05, 0.16, 0.05, DARK)
+      for (const [dx, dz] of NEAR) w.put(t, dx * 0.375, 2.26, dz * 0.375, dx ? 0.04 : 0.7, 0.04, dx ? 0.7 : 0.04, DARK)
+      // (The roof rests on the lamp itself, which is the lamp room: slim posts round it were more than it needed.)
+      const roof = w.put(t, 0, 2.52, 0, 0.58, 0.08, 0.58, 0xd96f60)
+      w.put(t, 0, 2.62, 0, 0.4, 0.12, 0.4, RED)
+      w.put(t, 0, 2.74, 0, 0.22, 0.12, 0.22, 0xd96f60)
+      w.put(t, 0, 2.87, 0, 0.06, 0.14, 0.06, DARK)
       // The lamp is the one part that turns, so it is not built of the tower's cubes: it is there when the roof over it is.
-      const lamp = w.critters.spawn('beam', tx(tile), w.h[tile] + 2.26, tz(tile), 0xfff3a8)
+      const lamp = w.critters.spawn('beam', tx(tile), w.h[tile] + 2.3, tz(tile), 0xfff3a8)
       Object.assign(lamp, { hidden: true, thing: t })
       const throwLight = w.beacon(tx(tile), w.h[tile] + 2.3, tz(tile))
-      w.onNight.push((night) => {
-        w.critters.paint(lamp, [0], 0xfff3a8, night ? 4.5 : 1)
-        w.critters.paint(lamp, [1], 0xffffff, night ? 8 : 1)
+      w.onNight.push(() => {
+        out = false
+        light()
       })
       w.ticks.push((dt) => {
         lamp.hidden = !w.solid.up(roof)
-        const lit = w.night && !lamp.hidden
+        const lit = w.night && !lamp.hidden && !out
         if (lit) lamp.yaw = lamp.face = lamp.yaw + dt * 0.8
-        else lamp.face = Math.round(lamp.yaw / (Math.PI / 2)) * (Math.PI / 2) // by day it stands square to the tower, wherever it had got to
+        else lamp.face = Math.round(lamp.yaw / (Math.PI / 2)) * (Math.PI / 2) // unlit it stands square to the tower, wherever it had got to
         throwLight(lit ? lamp.yaw : undefined)
+      })
+      // Over it, a storm cloud of its own that rains on it and on nothing else, all day. It is a thing of its own on
+      // the same tile, with a label of its own. By day a click makes it pour harder for three seconds, and then it
+      // rains as before: it never shrinks, pales or runs dry. At night a click is the lightning: a flicker inside it, a
+      // crack of light down to the roof, and thunder a moment later. It strikes by itself too, now and then, but only
+      // while it is in the picture: thunder from somewhere off screen is a noise with nothing to go with it. Only to
+      // look at: the rain wakes nothing, and nothing is waiting for it.
+      const [x, z, top] = [tx(tile), tz(tile), w.h[tile]]
+      let [shown, flash, next, downpour] = [false, 0, Infinity, 0]
+      const strike = () => {
+        next = w.time + 15 + Math.random() * 15
+        // Two quick flickers, the crack down to the roof with the first, and the thunder after: louder from close by.
+        for (const at of [0, 0.18])
+          w.after(at, () => {
+            flash = 0.09
+            puffs.forEach((cube) => w.solid.paint(cube, 0xfffbe8, 3))
+          })
+        for (let k = 0; k < 7; k++) w.bits.spawn(x + (k % 2 ? 0.1 : -0.06), top + 3.7 - k * 0.12, z, 0, 0, 0, 0.16, 0xfff6c0, 0.2, NEVER, 0, 0, 5)
+        lamp.pet = 1
+        w.after(0.7, () => thunder(0.7 + 0.3 * w.hears(x, z)))
+      }
+      const cloud: number = w.thing(tile, {
+        auto: false,
+        tip: 'A storm cloud. It rains on one roof, and it has chosen',
+        fuss: 'The cloud has been poked six times. It was already doing its worst. This is its worst.',
+        play: () => {
+          if (w.night) return strike()
+          downpour = w.time + 3
+          // And when that is over, whoever stood under it shakes dry.
+          w.after(3, () => w.time >= downpour && w.soak(x, z, 1.8))
+        },
+      })
+      const puffs = PUFFS.map(([, , , size]) => w.solid.add(x, -9, z, size, size * 0.7, size, GREY, cloud, false))
+      w.things[cloud].cubes.push(...puffs)
+      // No lightning until night has settled (the light takes four seconds to change), and the first a while after that.
+      w.onNight.push((night) => (next = night ? w.time + 8 + Math.random() * 4 : Infinity))
+      w.ticks.push((dt, time) => {
+        if (!w.solid.up(roof)) return
+        if (!shown) puffs.forEach((cube, k) => w.solid.show(cube, 0.4 + k * 0.08))
+        shown = true
+        // It floats as one heap: lumps that each bobbed in their own time slid through one another.
+        const bob = Math.sin(time * 0.8) * 0.04
+        puffs.forEach((cube, k) => w.solid.place(cube, x + PUFFS[k][0], top + 4.3 + PUFFS[k][1] + bob, z + PUFFS[k][2])) // (its underside a good way clear of the spike on the roof)
+        // The rain, from under the cloud and no wider: what falls on the tower lands on a step of its roof or on the
+        // walk round the lamp, the rest on the sand round it or in the sea.
+        for (let n = 0; n < (time < downpour ? 10 : 4); n++) if (Math.random() < dt * 35) {
+          const [dx, dz] = [any() * 2.6, any() * 1.5]
+          const r = Math.max(Math.abs(dx), Math.abs(dz))
+          const under = tileAt(x + dx, z + dz)
+          const floor = r < 0.11 ? top + 2.8 : r < 0.2 ? top + 2.68 : r < 0.29 ? top + 2.56 : r < 0.4 ? top + 2.12 : w.exists[under] ? w.h[under] + 0.04 : 0.05
+          w.bits.spawn(x + dx, top + 3.75, z + dz, 0, -6, 0, 0.07, 0x9fd6ff, 0.6, floor, 0)
+        }
+        if (flash > 0 && (flash -= dt) <= 0) puffs.forEach((cube) => w.solid.paint(cube, GREY))
+        if (w.night && time >= next && w.seen(x, top + 3, z)) strike()
       })
       return
     }
@@ -534,7 +649,7 @@ export const islet: Isle = {
         w.solid.poke(lid, 14)
         w.solid.show(gold)
         for (let k = 0; k < 6; k++) w.bits.spawn(tx(tile), w.h[tile] + 0.4, tz(tile), any() * 3, 4 + Math.random() * 2.5, 0.6 + Math.random() * 2, 0.11, 0xffd45c, 2.4, w.h[tile], 0.45, 22, 2.5)
-        dug('A secret: the islet that only low tide shows the way to. In the chest: a spyglass, and a map of this very world. Somebody drew all of this before you got here. Try not to dwell on it.')
+        dug('Secret: the islet that only low tide shows the way to. In the chest: a spyglass, and a map of this very world. Somebody drew all of this before you got here. Try not to dwell on it.')
       },
     })
     w.put(t, 0, 0.14, 0, 0.62, 0.28, 0.44, 0xa98463)
