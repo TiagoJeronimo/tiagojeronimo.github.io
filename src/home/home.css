@@ -582,8 +582,13 @@
   width: 34px;
 }
 
+/* While a card is open, the page behind it holds still: a scroll over the card moves only the card. */
+html:has(.sheet[open]) {
+  overflow: hidden;
+}
 /* One project, close up: a sheet in the middle of the window, over a veil. Never taller than the window. */
 .sheet {
+  overscroll-behavior: contain;
   width: min(42rem, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   padding: 0;

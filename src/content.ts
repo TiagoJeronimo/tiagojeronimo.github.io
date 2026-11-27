@@ -6,7 +6,7 @@ export const me = {
   name: 'Tiago Jerónimo Silva',
   role: 'Senior Full-Stack Engineer · Product Engineering · Zürich',
   line: 'I build products for the web.',
-  open: 'I’m open to senior and staff product engineering roles, and to founding engineer roles. Based in Zürich.',
+  open: 'I’m an engineer who cares about how things feel to the people using them. I like fast-moving teams and problems nobody has quite worked out yet. Open to senior and staff product engineering roles, based in Zürich.',
 }
 
 /** Where else to find me. One marked `casual` is for the front page, not for a CV. */
@@ -57,7 +57,7 @@ export const chapters: Chapter[] = [
     role: 'Senior Full-Stack Engineer · Zürich',
     body: [
       'Smallpdf is the most used online PDF software and one of the 200 most visited websites in the world. I started on the core product, then moved to Sign.com, its e-signature product.',
-      'I delivered the full signing experience, team collaboration and account management, shipped growth and monetisation experiments (often several in parallel), built and maintained payments and plans, took technical ownership of core frontend areas and mentored other engineers.',
+      'I delivered the full signing experience, team collaboration and account management, shipped growth and monetisation experiments (often several in parallel), and took technical ownership of core frontend areas.',
     ],
     quote: {
       text: '… a champion of AI in both how he builds and what he builds.',
@@ -70,7 +70,6 @@ export const chapters: Chapter[] = [
       { label: 'smallpdf.com', href: 'https://smallpdf.com' },
       { label: 'sign.com', href: 'https://sign.com' },
     ],
-    aside: 'I have signed more test documents than anybody should. None of them count.',
     logos: ['/logos/smallpdf.png', '/logos/sign.png'],
     shot: '/thumbs/sign-com.jpg',
   },
