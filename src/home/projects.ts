@@ -108,7 +108,7 @@ const made: Project[] = [
     title: 'Castle',
     kind: 'games',
     when: '2021–2025',
-    blurb: 'Keep both sides of a tiny war supplied. Nobody’s winning, but business is good.',
+    blurb: 'Unfinished game where you keep both sides of a tiny war supplied. Nobody’s winning, but business is good.',
     body: [
       'Nobody knows yet what this unfinished game is about, me included. You supply both sides of a tiny war. Everyone appreciates your help. Neither side considers stopping. It is probably a metaphor for something, but I do not know what.',
       'It started in 2021: bored, during Covid, I wanted an excuse to try three.js, and got about as far as a castle on a hill with some little people running around. It stayed that way for years. Recently, AI helped me get it to something you can play. Maybe one day I will finish it.',

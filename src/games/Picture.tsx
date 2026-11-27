@@ -18,6 +18,7 @@ import { Canvas, useFrame, useThree, type CanvasProps } from '@react-three/fiber
 import { Bloom, EffectComposer, N8AO, TiltShift, ToneMapping } from '@react-three/postprocessing'
 import { BlendFunction, KernelSize, ToneMappingMode, type TiltShiftEffect } from 'postprocessing'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { PCFShadowMap } from 'three'
 import { LIGHTEST } from './basics.ts'
 import { viewing } from './View.ts'
 
@@ -31,6 +32,13 @@ let reached = 0 // the step this page has come to: a new picture on it (a new ga
 function Finish({ tier, onTier, near }: { tier: number; onTier: (tier: number) => void; near?: () => number }) {
   const gl = useThree((state) => state.gl)
   const advance = useThree((state) => state.advance)
+  // The soft shading draws the scene twice more for its own use, and three redraws the shadows for every one of those:
+  // three times a frame. Drawn once a frame instead, by the first draw after this, the picture is the same to the pixel
+  // (measured on all three games) and a frame is about a millisecond cheaper.
+  // (`autoUpdate` is switched off on the `Canvas`.)
+  useFrame((state) => {
+    state.gl.shadowMap.needsUpdate = true
+  })
   const [soft, setSoft] = useState(false) // close enough for the top and bottom of the picture to go soft
   const tilt = useRef<TiltShiftEffect>(null)
   const composer = useRef<unknown>(null)
@@ -158,7 +166,7 @@ export function Picture({ children, near, ...canvas }: Omit<CanvasProps, 'childr
   }, [tier])
   return (
     // (`frameloop="never"`: the pump draws the frames. Left to itself the canvas would draw them as well.)
-    <Canvas shadows="percentage" frameloop="never" dpr={tier < 2 ? [1, 1.5] : tier < LIGHTEST ? 1 : 0.75} gl={{ antialias: false, powerPreference: 'high-performance' }} camera={{ fov: 30, near: 1, far: 400 }} {...canvas}>
+    <Canvas shadows={{ type: PCFShadowMap, autoUpdate: false }} frameloop="never" dpr={tier < 2 ? [1, 1.5] : tier < LIGHTEST ? 1 : 0.75} gl={{ antialias: false, powerPreference: 'high-performance' }} camera={{ fov: 30, near: 1, far: 400 }} {...canvas}>
       {children(tier)}
       <Finish tier={tier} onTier={setTier} near={near} />
     </Canvas>

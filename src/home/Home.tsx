@@ -647,9 +647,7 @@ export default function Home() {
               </span>
             ))}
           </span>
-          {found.length === 0 ? 'Three snails are hiding on this page.' : found.length < 3 ? `${found.length} of 3 snails found.` : 'All three snails found. There is no prize. There is this sentence.'}
         </p>
-        {seen.length > 0 && <p aria-live="polite">{seen.length < cards.length ? `${seen.length} of ${cards.length} cards opened.` : `All ${cards.length} cards opened. You have now read more of this page than I have.`}</p>}
       </footer>
     </main>
   )
