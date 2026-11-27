@@ -89,8 +89,7 @@ const made: Project[] = [
     when: '2026',
     blurb: 'Point at what’s wrong on the page you’re building, type a line, and Claude gets the picture.',
     body: [
-      'A pin for pages in development. Click the thing that is wrong, say what is wrong with it, and Claude Code gets a picture of the page with a ring round the spot, your words, and where in the code it lives.',
-      'Plain JavaScript, a Vite plugin, a small Node server and a Claude Code plugin. The page draws its own picture, so it needs no extension and no permissions.',
+      'Point at what’s wrong, type a line, and Claude gets the picture. It is mostly a way of complaining more precisely.',
       'To set it up, paste this into Claude Code:',
     ],
     prompt:
