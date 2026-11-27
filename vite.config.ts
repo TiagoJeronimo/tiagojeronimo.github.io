@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
-// The ✎ button on every page of the dev server: click a spot, type a note, and it lands in `.notes/` for Claude.
+// The pin button on every page of the dev server: click a spot, type a note, and it lands in `.notes/` for Claude.
 // Development only (the plugin applies to `vite serve`), so nothing of it reaches the published site.
 import debugPins from 'ai-debug-pins'
 
