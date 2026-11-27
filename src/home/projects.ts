@@ -89,7 +89,7 @@ const made: Project[] = [
     when: '2026',
     blurb: 'Point at what’s wrong on the page you’re building, type a line, and Claude gets the picture.',
     body: [
-      'Point at what’s wrong, type a line, and Claude gets the picture. It is mostly a way of complaining more precisely.',
+      'Point at what’s wrong, type a line, and Claude gets the picture. It is mostly a way of complaining more precisely. I made it because I needed it, and shared it in case I am not the only one.',
       'To set it up, paste this into Claude Code:',
     ],
     prompt:
